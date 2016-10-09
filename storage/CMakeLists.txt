@@ -1,14 +1,17 @@
-add_library(obamadb_storage_loader
+add_library(obamadb_storage_Loader
         Loader.cpp
         Loader.h)
-add_library(obamadb_storage_datablock
+add_library(obamadb_storage_Datablock
         DataBlock.cpp
         DataBlock.h)
+add_library(obamadb_storage_tests_StorageTestHelpers
+        ../empty_src.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.h")
 
-add_dependencies(obamadb_storage_loader
+add_dependencies(obamadb_storage_Loader
         glog
-        obamadb_storage_datablock)
-add_dependencies(obamadb_storage_datablock
+        obamadb_storage_Datablock)
+add_dependencies(obamadb_storage_Datablock
         glog)
 
 
@@ -17,14 +20,17 @@ add_executable(DataBlock_unittest
 target_link_libraries(DataBlock_unittest
         gtest
         gtest_main
-        obamadb_storage_datablock
+        obamadb_storage_Datablock
+        obamadb_storage_Loader
+        obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
 add_executable(Loader_unittest
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/Loader_unittest.cpp")
 target_link_libraries(Loader_unittest
         gtest
         gtest_main
-        obamadb_storage_loader
+        obamadb_storage_Loader
+        obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
 
 configure_file(tests/iris.dat iris.dat COPYONLY)

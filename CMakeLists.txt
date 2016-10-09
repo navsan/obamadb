@@ -37,6 +37,3 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party)
 add_subdirectory(storage)
 
 add_executable(obamadb_main main.cpp)
-target_link_libraries(obamadb_main
-        glog
-        obamadb_storage_loader)

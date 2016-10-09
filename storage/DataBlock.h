@@ -34,6 +34,18 @@ namespace obamadb {
       return elements_;
     }
 
+    /**
+     *
+     * @param start_index inclusive
+     * @param end_index exclusive
+     * @return
+     */
+    DataBlock* slice(std::int32_t start_index, std::int32_t end_index) const;
+
+    double get(unsigned row, unsigned col) const {
+      return store_[(row * width_) + col];
+    }
+
     double* getStore() const {
       return store_;
     }
@@ -41,7 +53,11 @@ namespace obamadb {
     void setWidth(std::uint32_t width) {
       width_ = width;
     }
-    
+
+    std::uint32_t getWidth() const {
+      return width_;
+    }
+
 
   private:
 

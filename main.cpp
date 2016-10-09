@@ -1,11 +1,7 @@
-#include "storage/Loader.h"
-
 #include <iostream>
 #include <string>
 
-#include "gflags/gflags.h"
-#include "glog/logging.h"
-
 int main() {
+  std::cout << "There is no main" << std::endl;
   return 0;
 }
