@@ -2,12 +2,11 @@
 #define OBAMADB_DATABLOCK_H_
 
 #include "storage/StorageConstants.h"
-#include "gflags/gflags.h"
-
-// #include <third_party/glog/>
 
 #include <cstdint>
 #include <cstdlib>
+
+#include <glog/logging.h>
 
 namespace obamadb {
 
@@ -27,6 +26,7 @@ namespace obamadb {
     }
 
     void append(double *element) {
+      DCHECK_GT(max_elements_, elements_);
       store_[elements_++] = *element;
     }
 
@@ -38,7 +38,7 @@ namespace obamadb {
      *
      * @param start_index inclusive
      * @param end_index exclusive
-     * @return
+     * @return A new datablock containing the specified columns and all of the rows.
      */
     DataBlock* slice(std::int32_t start_index, std::int32_t end_index) const;
 

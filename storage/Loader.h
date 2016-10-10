@@ -2,6 +2,7 @@
 #define OBAMADB_STORAGE_LOADER_H_
 
 #include "storage/DataBlock.h"
+
 #include <cctype>
 #include <fstream>
 #include <istream>

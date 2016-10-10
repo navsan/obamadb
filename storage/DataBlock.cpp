@@ -1,9 +1,6 @@
-//
-// Created by marc on 10/8/16.
-//
+#include "DataBlock.h"
 
 #include <cstring>
-#include "DataBlock.h"
 
 namespace obamadb {
   DataBlock* DataBlock::slice(std::int32_t start_index, std::int32_t end_index) const {

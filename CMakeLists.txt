@@ -27,13 +27,15 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags/include")
 
 # Add Glog logging framework.
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/glog" "${CMAKE_CURRENT_BINARY_DIR}/third_party/glog")
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/glog)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/glog)
+include_directories(${THIRD_PARTY_SOURCE_DIR}/glog/src)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party)
-
 
 # Include libraries
 #
 add_subdirectory(storage)
 
 add_executable(obamadb_main main.cpp)
+target_link_libraries(obamadb_main
+        glog)
