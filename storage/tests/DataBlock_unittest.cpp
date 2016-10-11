@@ -12,6 +12,7 @@ namespace obamadb {
       throw std::runtime_error("Could not open file: iris.dat. Are you running this in the test directory?");
     }
     data->setWidth(5);
+    CHECK_EQ(750, data->getSize());
     return data;
   }
 
@@ -40,5 +41,43 @@ namespace obamadb {
     }
   }
 
+  TEST(DataBlockTest, TestMatchRows) {
+    std::unique_ptr<DataBlock> iris_datablock(getIrisData());
+    std::vector<double> check_for_values = {0.0, 1.0, 2.0};
+    for(auto double_itr : check_for_values) {
+      std::vector<unsigned> row_matches;
+      std::function<bool(double)> filter_fn = [double_itr] (double input) {
+        return input == double_itr;
+      };
+      iris_datablock->matchRows(filter_fn, 0, row_matches);
+      EXPECT_EQ(50, row_matches.size());
+      for(unsigned row = 0; row < (sizeof(iris_data)/sizeof(double))/5; row++) {
+        bool row_present = std::find(row_matches.begin(), row_matches.end(), row) != row_matches.end();
+        bool should_be_present = iris_data[row * 5] == double_itr;
+        EXPECT_EQ(should_be_present, row_present);
+      }
+    }
+  }
+
+  TEST(DataBlockTest, TestSliceRows) {
+    std::unique_ptr<DataBlock> iris_datablock(getIrisData());\
+    std::vector<unsigned> row_matches;
+    std::function<bool(double)> filter_fn = [] (double input) {
+      return input == 0.0;
+    };
+    iris_datablock->matchRows(filter_fn, 0, row_matches);
+    ASSERT_EQ(50, row_matches.size());
+    std::unique_ptr<DataBlock> iris_slice(iris_datablock->sliceRows(row_matches));
+    EXPECT_EQ(50, iris_slice->getNumRows());
+    unsigned dst_row = 0;
+    for(unsigned src_row = 0; src_row < iris_datablock->getNumRows(); src_row++) {
+      if (iris_datablock->get(src_row, 0) == 0.0) {
+        for (unsigned attr = 1; attr < 5; ++attr) {
+          EXPECT_EQ(iris_datablock->get(src_row, attr), iris_slice->get(dst_row, attr));
+        }
+        dst_row++;
+      }
+    }
+  }
 
 }

@@ -5,7 +5,9 @@ Machine learning and memory access pattern experiments.
 
 To test:
 ```
-mkdir build
+git submodule init
+git submodule update
+
 cd build
 cmake ..
 make
