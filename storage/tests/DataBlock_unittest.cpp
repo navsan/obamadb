@@ -7,7 +7,7 @@
 namespace obamadb {
 
   DataBlock* getIrisData() {
-    DataBlock *data = Loader::load("iris.dat");
+    DataBlock *data = *Loader::load("iris.dat").begin();
     if (nullptr == data) {
       throw std::runtime_error("Could not open file: iris.dat. Are you running this in the test directory?");
     }

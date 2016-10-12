@@ -14,16 +14,27 @@ namespace obamadb {
   class Loader {
   public:
     /**
-     * Loads a CSV file into a DataSet.
+     * Loads a CSV file into an array of datablocks.
+     *
      * @param file_name
      * @return nullptr if datafile did not exist or was corrupt.
      */
-    static DataBlock* load(const std::string& file_name);
+    static std::vector<DataBlock*> load(const std::string& file_name);
 
   private:
 
-    static DataBlock* loadFileToDataSet(const std::string& file_name);
+    static void loadFileToDataBlocks(
+      const std::string &file_name,
+      std::vector<DataBlock*>& blocks);
 
+    /**
+     * Scans a single line of input and appends it to the given datablock.
+     *
+     * @param line
+     * @param block
+     * @return Number of elements which were scanned from the line.
+     */
+    static int scanLine(const std::string &line, DataBlock *block);
   };
 
 }

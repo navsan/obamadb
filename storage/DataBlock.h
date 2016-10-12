@@ -36,6 +36,10 @@ namespace obamadb {
       return elements_;
     }
 
+    std::uint32_t getRemainingElements() const {
+      return max_elements_ - elements_;
+    }
+
     /**
      * Make a vertical slice of the data given the column indices to select.
      *
@@ -60,6 +64,9 @@ namespace obamadb {
     DataBlock* sliceRows(const std::vector<unsigned>& rows) const;
 
     double get(unsigned row, unsigned col) const {
+      unsigned idx = (row * width_) + col;
+      CHECK_GT(elements_, idx) << "Index out of range.";
+
       return store_[(row * width_) + col];
     }
 
@@ -68,6 +75,8 @@ namespace obamadb {
     }
 
     void setWidth(std::uint32_t width) {
+      LOG_IF(WARNING, (0 != elements_ % width)) << "Incompatible width.";
+
       width_ = width;
     }
 
@@ -90,6 +99,7 @@ namespace obamadb {
     double *store_;
 
     friend std::ostream& operator<<(std::ostream& os, const DataBlock& block);
+    friend class Loader;
   };
 
   std::ostream& operator<<(std::ostream& os, const DataBlock& block);

@@ -1,23 +1,30 @@
-
 #include "storage/Loader.h"
 #include "storage/DataBlock.h"
 
 #include <iostream>
+#include <cmath>
 
 #include "glog/logging.h"
 
 
 namespace obamadb {
 
-  inline unsigned scanForDigits(const char *str, unsigned *cursor, double *value) {
-    unsigned count = 0;
+  inline unsigned scanForInt(const char *str, unsigned int *cursor, double *value) {
     while (isdigit(str[*cursor])) {
       *value = *value * 10;
       *value = *value + static_cast<double>(str[*cursor] - 48);
       *cursor = *cursor + 1;
-      count++;
     }
-    return count;
+  }
+
+  inline void scanForDouble(const char *str, unsigned *cursor, double *value) {
+    scanForInt(str, cursor, value);
+    if (str[*cursor] == '.') {
+      double decimal = 0;
+      unsigned count = scanForInt(str, cursor, &decimal);
+      *value = *value + (decimal / pow(10, count));
+      *cursor = *cursor + 1;
+    }
   }
 
   inline void scanThroughWhitespace(const char *str, unsigned *cursor) {
@@ -31,46 +38,69 @@ namespace obamadb {
     return f.good();
   }
 
-  DataBlock* Loader::loadFileToDataSet(const std::string& file_name) {
+  void Loader::loadFileToDataBlocks(const std::string &file_name, std::vector<DataBlock*>& blocks) {
     DCHECK(checkFileExists(file_name));
 
     std::ifstream infile;
     std::string line;
     infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
-    unsigned elements_per_line = 0;
+
     unsigned line_number = 0;
-    DataBlock *block = new DataBlock();
+    DataBlock *current_block = new DataBlock();
+    bool new_block = true;
+
     while (std::getline(infile, line)) {
-      const char *cstr = line.c_str();
-      unsigned elements_this_line = 0;
-      unsigned i = 0;
-      while (cstr[i] != '\0') {
-        scanThroughWhitespace(cstr, &i);
-        if (cstr[i] == '\0')
-          break;
-        double value = 0;
-        scanForDigits(cstr, &i, &value);
-        block->append(&value);
-        elements_this_line++;
-      }
-      if (0 == elements_per_line) {
-        elements_per_line = elements_this_line;
-      } else if (elements_per_line != elements_this_line) {
-        LOG(WARNING) << std::to_string(line_number) << "scanned line element count not consistent with previous lines";
+      int elements_this_line = scanLine(line, current_block);
+
+      if (-1 == elements_this_line) {
+        blocks.push_back(current_block);
+        current_block = new DataBlock();
+        new_block = true;
+      } else if (new_block) {
+        current_block->setWidth(elements_this_line);
+        new_block = false;
+      } else if (current_block->getWidth() != elements_this_line) {
+        LOG(WARNING) << std::to_string(line_number)
+                     << "scanned line element count not consistent with previous lines.";
       }
       line_number++;
     }
+    blocks.push_back(current_block);
+
     infile.close();
-    block->setWidth(elements_per_line);
-    return block;
   }
 
-  DataBlock* Loader::load(const std::string& file_name) {
-    if (!checkFileExists(file_name)) {
-      return nullptr;
+  int Loader::scanLine(const std::string &line, DataBlock *block) {
+    const char *cstr = line.c_str();
+    int elements_this_line = 0;
+    unsigned i = 0;
+    while (cstr[i] != '\0' && block->getRemainingElements() > 0) {
+      scanThroughWhitespace(cstr, &i);
+      if (cstr[i] == '\0')
+        break;
+      double value = 0;
+      scanForDouble(cstr, &i, &value);
+      block->append(&value);
+      elements_this_line++;
     }
 
-    return Loader::loadFileToDataSet(file_name);
+    if (cstr[i] != '\0') {
+      block->elements_ = block->elements_ - elements_this_line;
+      return -1;
+    }
+
+    return elements_this_line;
+  }
+
+  std::vector<DataBlock*> Loader::load(const std::string& file_name) {
+    std::vector<DataBlock*> blocks;
+
+    if (!checkFileExists(file_name)) {
+      return blocks;
+    }
+
+    Loader::loadFileToDataBlocks(file_name, blocks);
+    return blocks;
   }
 
 }

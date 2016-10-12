@@ -97,7 +97,9 @@ namespace obamadb {
 
 
   int main() {
-    std::unique_ptr<DataBlock> iris_data(Loader::load("storage/iris.dat"));
+    auto blocks = Loader::load("storage/iris.dat");
+    CHECK_LT(0, blocks.size());
+    std::unique_ptr<DataBlock> iris_data(blocks[0]);
 
     // Get data with either a 1 or 0 value.
     std::function<bool(double)> select_fn = [] (double input) {
