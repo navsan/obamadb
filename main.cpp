@@ -27,13 +27,21 @@ namespace obamadb {
           a_theta += theta[j] * *a_cursor;
           a_cursor += 1;
         }
+        // Round
+        if (a_theta < 0) {
+          a_theta = 0.0;
+        } else {
+          a_theta = 1.0;
+        }
         long double r = *y_cursor - a_theta;
         e_sum += r*r;
+        y_cursor++;
       }
       return e_sum / N;
     }
 
   }
+
 
   int main() {
     std::unique_ptr<DataBlock> iris_data(Loader::load("storage/iris.dat"));
