@@ -9,11 +9,11 @@
 namespace obamadb {
 
   namespace {
-    static const double alpha = 0.001;
+    static const double alpha = 0.00001;
 
-    double error(const DataBlock * const A,
-                 const DataBlock * const y,
-                 const double * const theta) {
+    double error(DataBlock * const A,
+                 DataBlock * const y,
+                 double const * theta) {
       DCHECK_EQ(A->getNumRows(), y->getNumRows());
 
       const unsigned N = y->getNumRows();
@@ -34,10 +34,63 @@ namespace obamadb {
           a_theta = 1.0;
         }
         long double r = *y_cursor - a_theta;
-        e_sum += r*r;
+        e_sum += r * r;
         y_cursor++;
       }
       return e_sum / N;
+    }
+
+    double rowDot(
+      double const * row_a,
+      double const * row_b,
+      unsigned row_dimension){
+
+      double sum = 0.0;
+      for (unsigned col = 0; col < row_dimension; ++col) {
+        sum += row_a[col] * row_b[col];
+      }
+      return sum;
+    }
+
+    /**
+     * Applies the gradient function of one training example on theta.
+     *
+     * @param training_example
+     * @param y
+     * @param theta
+     * @param width
+     * @param num_training_examples
+     * @param delta
+     */
+    void rowGradient(
+      double const * training_example,
+      double y,
+      double * theta,
+      unsigned width,
+      double num_training_examples) {
+
+      double residual = y - rowDot(training_example, theta, width);
+      double train_factor = (alpha * 2.0) / num_training_examples;
+      for (unsigned col = 0; col < width; ++col) {
+        theta[col] += train_factor * residual * training_example[col];
+      }
+    }
+
+    /**
+     * Runs gradient descent over the entire dataset for one iteration.
+     * @param A
+     * @param y
+     * @param theta
+     * @return
+     */
+    double* gradientItr(
+                      DataBlock const * A,
+                      DataBlock const * y,
+                      double * theta) {
+      for (unsigned row = 0; row < A->getNumRows(); ++row) {
+        rowGradient(A->getRow(row), y->get(row, 0), theta, A->getWidth(), A->getNumRows());
+      }
+      return theta;
     }
 
   }
@@ -69,11 +122,26 @@ namespace obamadb {
 
     // Initialize theta
     double *theta = new double[A_vals->getWidth()];
-    for (unsigned i = 0; i < A_vals->getWidth(); i++){
-      theta[i] = 0.2;
-    }
+    theta[0] = 0.01;
+    theta[1] = -0.01;
+    theta[2] = 0.2;
+//    for (unsigned i = 0; i < A_vals->getWidth(); i++) {
+//      theta[i] = 0.2;
+//    }
 
     std::cout << "E: " << error(A_vals.get(), y_vals.get(), theta) << std::endl;
+
+    for (unsigned i = 0; i < 10000; ++i) {
+      gradientItr(A_vals.get(),y_vals.get(),theta);
+      double er = error(A_vals.get(), y_vals.get(), theta);
+      std::cout << "E: " << er << std::endl;
+      if (er == 0)
+        break;
+    }
+
+    for (unsigned i = 0; i < A_vals->getWidth(); i++) {
+      std::cout << std::to_string(theta[i]) << std::endl;
+    }
 
     delete theta;
     return 0;

@@ -85,4 +85,9 @@ namespace obamadb {
     }
     return os;
   }
+
+  double *DataBlock::getRow(unsigned row) const {
+    DCHECK_LT(row, getNumRows());
+    return &store_[row * width_];
+  }
 }
