@@ -1,6 +1,9 @@
 add_library(obamadb_storage_Loader
         Loader.cpp
         Loader.h)
+add_library(obamadb_storage_LinearMath
+        LinearMath.cpp
+        LinearMath.h)
 add_library(obamadb_storage_Datablock
         DataBlock.cpp
         DataBlock.h)
@@ -10,6 +13,9 @@ add_library(obamadb_storage_tests_StorageTestHelpers
 
 target_link_libraries(obamadb_storage_Datablock
         glog)
+target_link_libraries(obamadb_storage_LinearMath
+        glog
+        obamadb_storage_Datablock)
 target_link_libraries(obamadb_storage_Loader
         glog)
 
@@ -22,6 +28,7 @@ target_link_libraries(DataBlock_unittest
         gtest
         gtest_main
         obamadb_storage_Datablock
+        obamadb_storage_LinearMath
         obamadb_storage_Loader
         obamadb_storage_tests_StorageTestHelpers
         ${LIBS})

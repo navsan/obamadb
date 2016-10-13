@@ -1,16 +1,46 @@
 #include "gtest/gtest.h"
 #include "storage/DataBlock.h"
+#include "storage/LinearMath.h"
 #include "storage/Loader.h"
 
 #include "storage/tests/StorageTestHelpers.h"
 
 namespace obamadb {
 
-  DataBlock* getIrisData() {
-    DataBlock *data = *Loader::load("iris.dat").begin();
-    if (nullptr == data) {
-      throw std::runtime_error("Could not open file: iris.dat. Are you running this in the test directory?");
+  class SyntheticDataSet {
+  public:
+    SyntheticDataSet(
+      unsigned dimension,
+      unsigned training_examples,
+      double *p1,
+      double *p2,
+      double r1,
+      double r2)
+      : dimension_(dimension),
+        training_examples_(training_examples),
+        p1_(p1),
+        p2_(p2),
+        r1_(r1),
+        r2_(r2),
+        d_(distance(p1, p2, dimension)) {
+
     }
+
+    unsigned dimension_;
+    unsigned training_examples_;
+    double *p1_;
+    double *p2_;
+    const double r1_;
+    const double r2_;
+    const double d_;
+
+    std::vector<DataBlock*> blocks_;
+  };
+
+  DataBlock* getIrisData() {
+    auto blocks = Loader::load("iris.dat");
+    LOG_IF(FATAL, 0 == blocks.size()) << "Could not open file: iris.dat. Are you running this in the test directory?";
+    DataBlock *data = *blocks.begin();
     data->setWidth(5);
     CHECK_EQ(750, data->getSize());
     return data;
@@ -78,6 +108,10 @@ namespace obamadb {
         dst_row++;
       }
     }
+  }
+
+  TEST(DataBlockTest, TestSyntheticDataSet) {
+    ASSERT_EQ(1, 10);
   }
 
 }
