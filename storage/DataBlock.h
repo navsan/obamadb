@@ -14,14 +14,17 @@ namespace obamadb {
 
   class DataBlock {
   public:
-    DataBlock() :
-      width_(0),
+
+    DataBlock(unsigned width) :
+      width_(width),
       height_(0),
       elements_(0),
       max_elements_(kStorageBlockSize/sizeof(double)),
       store_(nullptr) {
       store_ = (double*) new char[kStorageBlockSize];
     }
+
+    DataBlock() : DataBlock(0) { }
 
     ~DataBlock() {
       delete store_;
@@ -34,6 +37,11 @@ namespace obamadb {
 
     std::uint32_t getSize() const {
       return elements_;
+    }
+
+    void setSize(uint32_t new_size) {
+      CHECK_GT(max_elements_, new_size);
+      elements_ = new_size;
     }
 
     std::uint32_t getRemainingElements() const {
@@ -88,7 +96,7 @@ namespace obamadb {
       return elements_/width_;
     }
 
-    double *getRow(unsigned int i) const;
+    double *getRow(unsigned row) const;
 
   private:
 

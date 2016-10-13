@@ -23,7 +23,7 @@ namespace obamadb {
     unsigned row_dimension);
 
   /**
-   * Uses Pythagorean theorem to compute the distance between two vectors of equal length.
+   * Euclidean distance between two vectors of equal length.
    *
    * @param p1 Vector 1
    * @param p2 Vector 2
@@ -70,6 +70,20 @@ namespace obamadb {
     DataBlock const *A,
     DataBlock const *y,
     double *theta);
+
+  struct DoubleVector {
+    DoubleVector(unsigned dimension)
+      : dimension_(dimension) {
+      values_ = new double[dimension_];
+    }
+
+    ~DoubleVector() {
+      delete values_;
+    }
+
+    unsigned dimension_;
+    double *values_;
+  };
 
 }
 #endif //OBAMADB_LINEARMATH_H_

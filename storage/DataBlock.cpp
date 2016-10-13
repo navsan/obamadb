@@ -87,7 +87,9 @@ namespace obamadb {
   }
 
   double *DataBlock::getRow(unsigned row) const {
-    DCHECK_LT(row, getNumRows());
+    // TODO: make a DataBlock builder class which takes control of all unsafe editting of this class.
+    // DCHECK_LT(row, getNumRows());
+
     return &store_[row * width_];
   }
 }

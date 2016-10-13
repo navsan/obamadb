@@ -61,6 +61,10 @@ namespace obamadb {
   }
 
   double distance(double const *p1, double const *p2, unsigned dimension) {
-    return std::sqrt(rowDot(p1, p1, dimension) + rowDot(p2, p2, dimension));
+    double sq_diff_sum = 0;
+    for (unsigned i = 0; i < dimension; ++i) {
+      sq_diff_sum += std::pow(p1[i] - p2[i], 2);
+    }
+    return std::sqrt(sq_diff_sum);
   }
 }
