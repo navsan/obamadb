@@ -2,6 +2,7 @@
 #define OBAMADB_LINEARMATH_H_
 
 #include <cmath>
+#include "glog/logging.h"
 
 namespace obamadb {
 
@@ -79,6 +80,12 @@ namespace obamadb {
 
     ~DoubleVector() {
       delete values_;
+    }
+
+    double& operator[](int idx) const {
+      DCHECK_GT(dimension_, idx);
+
+      return values_[idx];
     }
 
     unsigned dimension_;
