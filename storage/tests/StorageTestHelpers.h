@@ -1,5 +1,8 @@
 #ifndef OBAMADB_STORAGETESTHELPERS_H_
 #define OBAMADB_STORAGETESTHELPERS_H_
+
+#include "storage/LinearMath.h"
+
 namespace obamadb {
   static const std::string test_file = "iris.dat";
   static const double iris_data[] =
@@ -53,6 +56,57 @@ namespace obamadb {
      0.0, 3.0, 14.0, 35.0, 51.0, 2.0, 14.0, 47.0, 29.0, 61.0, 1.0, 19.0, 53.0, 27.0, 64.0,
      0.0, 2.0, 16.0, 34.0, 48.0, 1.0, 20.0, 50.0, 25.0, 57.0, 2.0, 13.0, 40.0, 23.0, 55.0,
      0.0, 2.0, 17.0, 34.0, 54.0, 1.0, 24.0, 51.0, 28.0, 58.0, 0.0, 2.0, 15.0, 37.0, 53.0};
+
+  /**
+   * Creates 2 linearly seperable clusters of points.
+   */
+  class SyntheticDataSet {
+  public:
+    SyntheticDataSet(
+      unsigned dimension,
+      unsigned training_examples,
+      double *p1,
+      double *p2,
+      double r1,
+      double r2)
+      : dim_(dimension),
+        training_examples_(training_examples),
+        pt_1_(p1),
+        pt_2_(p2),
+        rad_1_(r1),
+        rad_2_(r2) {
+      initialize_data();
+    }
+
+    ~SyntheticDataSet();
+
+    std::vector<DataBlock *> getDataSet() {
+      return blocks_;
+    }
+
+  private:
+
+    /**
+     * Generates a random point in dst within a radius of src.
+     */
+    void generatePoint(double const *src, double *dst, unsigned radius);
+
+    /**
+     * Creates data blocks with data. Data consists of points in dimension 'dim_' where roughtly equals parts of the
+     * generated points are clustered around pt_1_ and pt_2_. Points are within the specified radius of the centerpoints.
+     */
+    void initialize_data();
+
+    unsigned dim_;
+    unsigned training_examples_;
+    double *pt_1_;
+    double *pt_2_;
+    const double rad_1_;
+    const double rad_2_;
+
+    std::vector<DataBlock *> blocks_;
+  };
+
 }
 
 #endif //OBAMADB_STORAGETESTHELPERS_H_

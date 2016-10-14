@@ -1,33 +1,42 @@
+add_library(obamadb_storage_DataBlock
+        DataBlock.cpp
+        DataBlock.h)
 add_library(obamadb_storage_Loader
         Loader.cpp
         Loader.h)
 add_library(obamadb_storage_LinearMath
         LinearMath.cpp
         LinearMath.h)
-add_library(obamadb_storage_Datablock
-        DataBlock.cpp
-        DataBlock.h)
+add_library(obamadb_storage_ThreadPool
+        ThreadPool.cpp
+        ThreadPool.h)
 add_library(obamadb_storage_tests_StorageTestHelpers
-        ../empty_src.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.h")
 
-target_link_libraries(obamadb_storage_Datablock
+target_link_libraries(obamadb_storage_DataBlock
         glog)
 target_link_libraries(obamadb_storage_LinearMath
         glog
-        obamadb_storage_Datablock)
+        obamadb_storage_DataBlock)
 target_link_libraries(obamadb_storage_Loader
+        glog
+        obamadb_storage_DataBlock)
+target_link_libraries(obamadb_storage_ThreadPool
         glog)
+target_link_libraries(obamadb_storage_tests_StorageTestHelpers
+        glog
+        obamadb_storage_DataBlock)
 
 add_dependencies(obamadb_storage_Loader
-        obamadb_storage_Datablock)
+        obamadb_storage_DataBlock)
 
 add_executable(DataBlock_unittest
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/DataBlock_unittest.cpp")
 target_link_libraries(DataBlock_unittest
         gtest
         gtest_main
-        obamadb_storage_Datablock
+        obamadb_storage_DataBlock
         obamadb_storage_LinearMath
         obamadb_storage_Loader
         obamadb_storage_tests_StorageTestHelpers

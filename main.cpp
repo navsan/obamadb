@@ -1,6 +1,9 @@
 #include "storage/DataBlock.h"
 #include "storage/LinearMath.h"
 #include "storage/Loader.h"
+#include "storage/ThreadPool.h"
+
+#include "storage/tests/StorageTestHelpers.h"
 
 #include <iostream>
 #include <string>
@@ -11,55 +14,69 @@
 namespace obamadb {
 
   int main() {
-    auto blocks = Loader::load("storage/iris.dat");
-    CHECK_LT(0, blocks.size());
-    std::unique_ptr<DataBlock> iris_data(blocks[0]);
+    const unsigned learning_itrs = 1000;
 
-    // Get data with either a 1 or 0 value.
-    std::function<bool(double)> select_fn = [] (double input) {
-      return input == 0.0 || input == 1.0;
-    };
-    std::unique_ptr<DataBlock> two_flower_data(iris_data->filter(select_fn, 0));
-    std::unique_ptr<DataBlock> y_vals(two_flower_data->slice(0, 1));
-
-    // Pad A values with 1s.
-    std::unique_ptr<DataBlock> A_vals(two_flower_data->slice(0, two_flower_data->getWidth()));
-    double* pad_ptr = A_vals->getStore();
-    for (unsigned i = 0; i < A_vals->getNumRows(); ++i) {
-      *pad_ptr = 1;
-      pad_ptr += A_vals->getWidth();
+    const unsigned dimension = 10;
+    const unsigned num_examples = 1000000;
+    const double elipson = 0.001; // accounts for rounding errors in some checks
+    const double radius = 15;
+    DoubleVector center_pt1_(dimension);
+    DoubleVector center_pt2_(dimension);
+    for(unsigned i = 0; i < dimension; ++i) {
+      center_pt1_[i] = 5;
+      center_pt2_[i] = -5;
     }
 
-    std::cout << "y vals:" << std::endl;
-    std::cout << *y_vals << std::endl;
+    SyntheticDataSet dataset(dimension, num_examples,center_pt1_.values_,center_pt2_.values_, radius, radius);
+    std::vector<DataBlock*> data_blocks = dataset.getDataSet();
 
-    std::cout << "A vals:" << std::endl;
-    std::cout << *A_vals << std::endl;
+    DoubleVector shared_theta(dimension);
+    for(unsigned i = 0; i < dimension; ++i) {
+      shared_theta[i] = -5;
+    }
+    unsigned itrs_used = 0;
 
-    // Initialize theta
-    double *theta = new double[A_vals->getWidth()];
-    theta[0] = 0.01;
-    theta[1] = -0.01;
-    theta[2] = 0.2;
-//    for (unsigned i = 0; i < A_vals->getWidth(); i++) {
-//      theta[i] = 0.2;
-//    }
+    // Create ThreadPool + Workers.
+    {
+      ThreadPool threadpool(4);
 
-    std::cout << "E: " << error(A_vals.get(), y_vals.get(), theta) << std::endl;
-
-    for (unsigned i = 0; i < 10000; ++i) {
-      gradientItr(A_vals.get(), y_vals.get(), theta);
-      double er = error(A_vals.get(), y_vals.get(), theta);
-      std::cout << "E: " << er << std::endl;
-      if (er == 0)
-        break;
+      for (; itrs_used < learning_itrs; ++itrs_used) {
+        for (unsigned block_i = 0; block_i < dimension; ++block_i) {
+          DataBlock *block = data_blocks[block_i];
+          threadpool.enqueue(
+            [&shared_theta, block] {
+              std::unique_ptr<DataBlock> a_vals(block->slice(0, block->getWidth() - 1));
+              std::unique_ptr<DataBlock> y_vals(block->slice(block->getWidth() - 1, block->getWidth()));
+              for (unsigned row = 0; row < block->getNumRows(); ++row) {
+                gradientItr(a_vals.get(), y_vals.get(), shared_theta.values_);
+              }
+            });
+        }
+        DataBlock *block = data_blocks[rand() % data_blocks.size()];
+        std::future<double> recent_error =
+          threadpool.enqueue(
+            [&shared_theta, block] {
+              std::unique_ptr<DataBlock> a_vals(block->slice(0, block->getWidth() - 1));
+              std::unique_ptr<DataBlock> y_vals(block->slice(block->getWidth() - 1, block->getWidth()));
+              return error(a_vals.get(), y_vals.get(), shared_theta.values_);
+            });
+        recent_error.wait();
+        if (recent_error.get() < 0.05) {
+          break;
+        }
+      }
     }
 
-    for (unsigned i = 0; i < A_vals->getWidth(); i++) {
-      std::cout << std::to_string(theta[i]) << std::endl;
+    for (unsigned i = 0; i < dimension; i++) {
+      std::cout << shared_theta[i] << ",";
     }
+    std::cout << std::endl;
 
-    delete theta;
+    DataBlock *block = data_blocks[rand() % data_blocks.size()];
+    std::unique_ptr<DataBlock> a_vals(block->slice(0, block->getWidth() - 1));
+    std::unique_ptr<DataBlock> y_vals(block->slice(block->getWidth() - 1, block->getWidth()));
+    std::cout << error(a_vals.get(), y_vals.get(), shared_theta.values_);
+
     return 0;
   }
 } // namespace obamadb

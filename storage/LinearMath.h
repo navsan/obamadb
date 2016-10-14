@@ -90,6 +90,8 @@ namespace obamadb {
 
     unsigned dimension_;
     double *values_;
+
+    DoubleVector(const DoubleVector& other) = delete;
   };
 
 }
