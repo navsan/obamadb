@@ -3,6 +3,8 @@
 #include "storage/DataBlock.h"
 
 #include "glog/logging.h"
+#include "LinearMath.h"
+#include "Task.h"
 
 namespace obamadb {
 
@@ -21,7 +23,7 @@ namespace obamadb {
         a_cursor += 1;
       }
       // Round
-      if (a_theta < 0) {
+      if (a_theta < 0.0) {
         a_theta = 0.0;
       } else {
         a_theta = 1.0;

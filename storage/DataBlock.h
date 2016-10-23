@@ -98,6 +98,7 @@ namespace obamadb {
 
     double *getRow(unsigned row) const;
 
+
   private:
 
     std::uint32_t width_;   // attributes in row

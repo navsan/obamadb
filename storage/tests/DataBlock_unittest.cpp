@@ -97,7 +97,7 @@ namespace obamadb {
       v2.values_[i] = -25;
     }
 
-    SyntheticDataSet data_set(dimension, num_examples, v1.values_, v2.values_, radius, radius);
+    SynthData data_set(dimension, num_examples, v1, v2, radius, radius);
     std::vector<DataBlock *> blocks = data_set.getDataSet();
     ASSERT_LT(0, blocks.size());
     unsigned num_positive_examples = 0;
@@ -138,7 +138,7 @@ namespace obamadb {
       v2.values_[i] = -25;
     }
 
-    SyntheticDataSet data_set(dimension, num_examples, v1.values_, v2.values_, radius, radius);
+    SynthData data_set(dimension, num_examples, v1, v2, radius, radius);
     std::vector<DataBlock *> blocks = data_set.getDataSet();
 
     // Initialize theta

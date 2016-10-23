@@ -17,9 +17,19 @@ namespace obamadb {
      * Loads a CSV file into an array of datablocks.
      *
      * @param file_name
+     * @param sparse If this is true, we assume the dataset is in the same format as HogWild! authors
+     *  give their RCV1 data.
      * @return nullptr if datafile did not exist or was corrupt.
      */
-    static std::vector<DataBlock*> load(const std::string& file_name);
+    static std::vector<DataBlock*> load(const std::string& file_name, bool sparse);
+
+    /**
+     * Saves a datablock to the specified filename.
+     *
+     * @param file_name
+     * @param datablock
+     */
+    static void save(const std::string& file_name, const DataBlock& datablock);
 
   private:
 

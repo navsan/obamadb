@@ -4,17 +4,17 @@
 
 namespace obamadb {
 
-  void SyntheticDataSet::initialize_data() {
+  void SynthData::initialize_data() {
     DataBlock *current_block = new DataBlock(dim_ + 1);
 
     for (unsigned itr = 0; itr < training_examples_; itr++) {
       double *current_row = current_block->getRow(current_block->getNumRows());
       if (rand() % 2) {
-        generatePoint(pt_1_, current_row, rad_1_);
+        generatePoint(p1_.values_, current_row, rad1_);
         current_row[dim_] = 1; // y value.
       } else {
-        generatePoint(pt_2_, current_row, rad_2_);
-        current_row[dim_] = 0; // y value.
+        generatePoint(p2_.values_, current_row, rad2_);
+        current_row[dim_] = -1; // y value.
       }
       current_block->setSize(current_block->getSize() + current_block->getWidth());
       if (dim_ + 1 > current_block->getRemainingElements()) {
@@ -29,18 +29,18 @@ namespace obamadb {
   }
 
 
-  void SyntheticDataSet::generatePoint(double const *src, double *dst, unsigned radius) {
+  void SynthData::generatePoint(double const *src, double *dst, unsigned radius) {
     // Create a random vector with a magnitude less than radius.
+    //
+    // src is the vector for which we will write a new vector in dst
+    // whose location is somewhere in radius distance from src
     double sq_sum = 0;
     const unsigned MAX_RAND = 100;
     for (unsigned i = 0; i < dim_; ++i) {
-      dst[i] = (rand() % MAX_RAND) - (MAX_RAND / 2);
+      dst[i] = rand() % MAX_RAND;
       sq_sum += (dst[i] * dst[i]);
     }
-    double new_magn = std::rand() % radius;
-    if (0 == new_magn) {
-      new_magn = 1;
-    }
+    double new_magn = fmod((double)std::rand() / 1000, radius);
     double magn_factor = new_magn / std::sqrt(sq_sum);
     for (unsigned i = 0; i < dim_; ++i) {
       dst[i] *= magn_factor;
@@ -48,9 +48,19 @@ namespace obamadb {
     }
   }
 
-  SyntheticDataSet::~SyntheticDataSet() {
-    for (auto block_itr : blocks_) {
-      delete block_itr;
+  SynthData::~SynthData() {
+    for ( int i = 0 ; i < blocks_.size(); i ++) {
+      delete blocks_[i];
     }
+  }
+
+  SynthDataParams DefaultSynthDataParams() {
+    int const dims = 10;
+    SynthDataParams params(dims, 100000, 10, 10);
+    for(int i = 0; i < dims; i++) {
+      params.p1[i] = i % 2 == 0 ? -5 : 5;
+      params.p2[i] = i % 2 == 0 ? 5 : -5;
+    }
+    return params;
   }
 } // namespace obamadb

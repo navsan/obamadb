@@ -57,28 +57,52 @@ namespace obamadb {
      0.0, 2.0, 16.0, 34.0, 48.0, 1.0, 20.0, 50.0, 25.0, 57.0, 2.0, 13.0, 40.0, 23.0, 55.0,
      0.0, 2.0, 17.0, 34.0, 54.0, 1.0, 24.0, 51.0, 28.0, 58.0, 0.0, 2.0, 15.0, 37.0, 53.0};
 
+  struct SynthDataParams {
+
+    SynthDataParams(int dim, int num_examples, double r1, double r2, const DoubleVector& p1, const DoubleVector& p2) :
+      dim(dim), num_examples(num_examples), r1(r1), r2(r2), p1(p1), p2(p2) {}
+
+    SynthDataParams(int dim, int num_examples, double r1, double r2) :
+      dim(dim), num_examples(num_examples), r1(r1), r2(r2), p1(dim), p2(dim) {}
+
+    int dim;
+    int num_examples;
+    double r1, r2;
+    DoubleVector p1;
+    DoubleVector p2;
+
+  };
+
   /**
    * Creates 2 linearly seperable clusters of points.
    */
-  class SyntheticDataSet {
+  SynthDataParams DefaultSynthDataParams();
+
+  /**
+   * Creates clusters of points at the given center points within the given radii.
+   */
+  class SynthData {
   public:
-    SyntheticDataSet(
+    SynthData(
       unsigned dimension,
       unsigned training_examples,
-      double *p1,
-      double *p2,
+      DoubleVector p1,
+      DoubleVector p2,
       double r1,
       double r2)
       : dim_(dimension),
         training_examples_(training_examples),
-        pt_1_(p1),
-        pt_2_(p2),
-        rad_1_(r1),
-        rad_2_(r2) {
+        p1_(p1),
+        p2_(p2),
+        rad1_(r1),
+        rad2_(r2) {
       initialize_data();
     }
 
-    ~SyntheticDataSet();
+    SynthData(SynthDataParams& params)
+      : SynthData(params.dim, params.num_examples, params.p1, params.p2, params.r1, params.r2) { }
+
+    ~SynthData();
 
     std::vector<DataBlock *> getDataSet() {
       return blocks_;
@@ -99,10 +123,8 @@ namespace obamadb {
 
     unsigned dim_;
     unsigned training_examples_;
-    double *pt_1_;
-    double *pt_2_;
-    const double rad_1_;
-    const double rad_2_;
+    DoubleVector p1_, p2_;
+    const double rad1_, rad2_;
 
     std::vector<DataBlock *> blocks_;
   };

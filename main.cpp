@@ -1,6 +1,8 @@
 #include "storage/DataBlock.h"
+#include "storage/DataView.h"
 #include "storage/LinearMath.h"
 #include "storage/Loader.h"
+#include "storage/Task.h"
 #include "storage/ThreadPool.h"
 
 #include "storage/tests/StorageTestHelpers.h"
@@ -13,72 +15,84 @@
 
 namespace obamadb {
 
-  int main() {
-    const unsigned learning_itrs = 1000;
 
-    const unsigned dimension = 10;
-    const unsigned num_examples = 1000000;
-    const double elipson = 0.001; // accounts for rounding errors in some checks
-    const double radius = 15;
-    DoubleVector center_pt1_(dimension);
-    DoubleVector center_pt2_(dimension);
-    for(unsigned i = 0; i < dimension; ++i) {
-      center_pt1_[i] = 5;
-      center_pt2_[i] = -5;
+  DoubleVector makeTheta(int dim) {
+    DoubleVector shared_theta(dim);
+    // initialize to values [-1,1]
+    for (unsigned i = 0; i < dim; ++i) {
+        shared_theta[i] = (1.0 - fmod((double)rand()/100.0, 2)) / 10.0;
     }
+    return shared_theta;
+  }
 
-    SyntheticDataSet dataset(dimension, num_examples,center_pt1_.values_,center_pt2_.values_, radius, radius);
-    std::vector<DataBlock*> data_blocks = dataset.getDataSet();
+  /**
+   * Allocates Datablocks to DataViews. Dataviews will then be given to threads in the form of tasks.
+   * @param num_threads
+   * @param data_blocks
+   * @return Vector of Dataviews.
+   */
+  void allocateBlocks(
+    const int num_threads,
+    const std::vector<DataBlock *> &data_blocks,
+    std::vector<std::unique_ptr<DataView>>& views) {
+    CHECK(views.size() == 0) << "Only accepts empty view vectors";
 
-    DoubleVector shared_theta(dimension);
-    for(unsigned i = 0; i < dimension; ++i) {
-      shared_theta[i] = -5;
-    }
-    unsigned itrs_used = 0;
-
-    // Create ThreadPool + Workers.
-    {
-      ThreadPool threadpool(4);
-
-      for (; itrs_used < learning_itrs; ++itrs_used) {
-        for (unsigned block_i = 0; block_i < dimension; ++block_i) {
-          DataBlock *block = data_blocks[block_i];
-          threadpool.enqueue(
-            [&shared_theta, block] {
-              std::unique_ptr<DataBlock> a_vals(block->slice(0, block->getWidth() - 1));
-              std::unique_ptr<DataBlock> y_vals(block->slice(block->getWidth() - 1, block->getWidth()));
-              for (unsigned row = 0; row < block->getNumRows(); ++row) {
-                gradientItr(a_vals.get(), y_vals.get(), shared_theta.values_);
-              }
-            });
-        }
-        DataBlock *block = data_blocks[rand() % data_blocks.size()];
-        std::future<double> recent_error =
-          threadpool.enqueue(
-            [&shared_theta, block] {
-              std::unique_ptr<DataBlock> a_vals(block->slice(0, block->getWidth() - 1));
-              std::unique_ptr<DataBlock> y_vals(block->slice(block->getWidth() - 1, block->getWidth()));
-              return error(a_vals.get(), y_vals.get(), shared_theta.values_);
-            });
-        recent_error.wait();
-        if (recent_error.get() < 0.05) {
-          break;
-        }
+    for (int i = 0; i < data_blocks.size(); i ++) {
+      if (i < num_threads) {
+        views.push_back(std::unique_ptr<DataView>(new DataView()));
       }
+      DataBlock const *dbptr = data_blocks[i];
+      views[i % num_threads]->appendBlock(dbptr);
+    }
+  }
+
+  int main() {
+    const int num_threads = 4;
+    const double error_bound = 0.08; // stop when error falls below.
+
+    SynthDataParams dataset_params = DefaultSynthDataParams();
+    SynthData dataset(dataset_params);
+    std::vector<DataBlock *> data_blocks = dataset.getDataSet();
+    printf("Dataset size: %ldmb\n",((data_blocks.size() * kStorageBlockSize) / 1000000));
+
+    SVMParams svm_params = DefaultSVMParams(data_blocks);
+    DoubleVector shared_theta = makeTheta(dataset_params.dim);
+
+    // Create the tasks for the Threadpool.
+    // Roughly allocates work.
+    std::vector<std::unique_ptr<DataView>> data_views;
+    allocateBlocks(num_threads, data_blocks, data_views);
+
+    // Create tasks
+    std::vector<Task*> tasks;
+    for (int i = 0; i < num_threads; i++) {
+      tasks.push_back(new LinearRegressionTask(data_views[i].get(), &shared_theta, dataset_params.dim));
+      //tasks.push_back(new SVMTask(data_views[i].get(), &shared_theta, svm_params));
     }
 
-    for (unsigned i = 0; i < dimension; i++) {
-      std::cout << shared_theta[i] << ",";
+    // Create ThreadPool + Workers
+    const int tcycles = 20;
+    double last_error = error_bound + 1;
+    ThreadPool tp(tasks);
+    tp.begin();
+    for (int cycle = 0; cycle < tcycles && last_error > error_bound; cycle++) {
+      tp.cycle();
+      last_error = Task::error(shared_theta, *data_blocks[rand() % data_blocks.size()]);
+      printf("%-3d: %f\n", cycle, last_error);
     }
-    std::cout << std::endl;
+    tp.stop();
 
-    DataBlock *block = data_blocks[rand() % data_blocks.size()];
-    std::unique_ptr<DataBlock> a_vals(block->slice(0, block->getWidth() - 1));
-    std::unique_ptr<DataBlock> y_vals(block->slice(block->getWidth() - 1, block->getWidth()));
-    std::cout << error(a_vals.get(), y_vals.get(), shared_theta.values_);
-
+    const DataBlock& block = *data_blocks[rand() % data_blocks.size()];
+    Loader::save("/tmp/obamadb.out", block);
+    printf("Theta:\n[");
+    for(int i = 0; i < shared_theta.dimension_; i++) {
+      printf("%f ", shared_theta[i]);
+    }
+    printf("]\n");
+    printf("Final error: %f\n", Task::error(shared_theta, block));
     return 0;
   }
+
 } // namespace obamadb
 
 int main() {

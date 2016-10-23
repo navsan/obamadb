@@ -1,12 +1,18 @@
 add_library(obamadb_storage_DataBlock
         DataBlock.cpp
         DataBlock.h)
+add_library(obamadb_storage_DataView
+        DataView.cpp
+        DataView.h)
 add_library(obamadb_storage_Loader
         Loader.cpp
         Loader.h)
 add_library(obamadb_storage_LinearMath
         LinearMath.cpp
         LinearMath.h)
+add_library(obamadb_storage_Task
+        Task.cpp
+        Task.h)
 add_library(obamadb_storage_ThreadPool
         ThreadPool.cpp
         ThreadPool.h)
@@ -16,14 +22,22 @@ add_library(obamadb_storage_tests_StorageTestHelpers
 
 target_link_libraries(obamadb_storage_DataBlock
         glog)
+target_link_libraries(obamadb_storage_DataView
+        glog
+        obamadb_storage_DataBlock)
 target_link_libraries(obamadb_storage_LinearMath
         glog
         obamadb_storage_DataBlock)
 target_link_libraries(obamadb_storage_Loader
         glog
         obamadb_storage_DataBlock)
+target_link_libraries(obamadb_storage_Task
+        glog
+        obamadb_storage_DataBlock
+        obamadb_storage_LinearMath)
 target_link_libraries(obamadb_storage_ThreadPool
-        glog)
+        glog
+        obamadb_storage_Task)
 target_link_libraries(obamadb_storage_tests_StorageTestHelpers
         glog
         obamadb_storage_DataBlock)

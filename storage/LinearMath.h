@@ -8,7 +8,7 @@ namespace obamadb {
 
   class DataBlock;
 
-  static const double alpha = 0.00001;
+  static double alpha = 0.001;
 
   /**
    * The dot product between 2 row vectors.
@@ -78,6 +78,12 @@ namespace obamadb {
       values_ = new double[dimension_];
     }
 
+    DoubleVector(const DoubleVector& other) {
+      dimension_ = other.dimension_;
+      values_ = new double[dimension_];
+      memcpy(values_, other.values_, sizeof(double) * dimension_);
+    }
+
     ~DoubleVector() {
       delete values_;
     }
@@ -91,7 +97,6 @@ namespace obamadb {
     unsigned dimension_;
     double *values_;
 
-    DoubleVector(const DoubleVector& other) = delete;
   };
 
 }

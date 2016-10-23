@@ -43,4 +43,5 @@ target_link_libraries(obamadb_main
         obamadb_storage_LinearMath
         obamadb_storage_Loader
         obamadb_storage_ThreadPool
+        obamadb_storage_Task
         obamadb_storage_tests_StorageTestHelpers)

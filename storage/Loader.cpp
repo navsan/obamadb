@@ -92,15 +92,35 @@ namespace obamadb {
     return elements_this_line;
   }
 
-  std::vector<DataBlock*> Loader::load(const std::string& file_name) {
+  std::vector<DataBlock*> Loader::load(const std::string& file_name, bool sparse) {
     std::vector<DataBlock*> blocks;
 
     if (!checkFileExists(file_name)) {
       return blocks;
     }
 
+    if (sparse) {
+      CHECK(false) << "Haven't implemented this yet" << std::endl;
+    }
+
     Loader::loadFileToDataBlocks(file_name, blocks);
     return blocks;
+  }
+
+  void Loader::save(const std::string &file_name, const DataBlock &datablock) {
+    std::ofstream file;
+    file.open(file_name, std::ios::out | std::ios::binary);
+
+    CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
+
+    for(int i = 0; i < datablock.getNumRows(); i++) {
+      double *row = datablock.getRow(i);
+      for(int j = 0; j < datablock.getWidth(); j++) {
+       file << row[j] << ", ";
+      }
+      file << "\n";
+    }
+    file.close();
   }
 
 }
