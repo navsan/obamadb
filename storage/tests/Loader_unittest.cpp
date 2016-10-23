@@ -11,7 +11,7 @@ namespace obamadb {
     ASSERT_EQ(150 * 5, size_dataset);
 
     Loader loader;
-    std::unique_ptr<DataBlock> block(*loader.load(test_file, false).begin());
+    std::unique_ptr<DenseDataBlock> block(*loader.load(test_file, false).begin());
 
     EXPECT_EQ(size_dataset, block->getSize());
     double *store = block->getStore();

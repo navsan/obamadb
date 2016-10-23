@@ -2,7 +2,7 @@
 
 namespace obamadb {
 
-  double Task::error(const DoubleVector &theta, const DataBlock &block) {
+  double Task::error(const DoubleVector &theta, const DenseDataBlock &block) {
     // Percent of misclassified training examples.
     const unsigned N = block.getNumRows();
     const unsigned n_theta = theta.dimension_;
@@ -26,13 +26,17 @@ namespace obamadb {
     return misclassed / N;
   }
 
-  SVMParams DefaultSVMParams(const std::vector<DataBlock *>& all_blocks) {
-    int const dim = all_blocks[0]->getWidth() - 1;  // the assumption here is that the last element is that classification
+  SVMParams DefaultSVMParams(std::vector<DenseDataBlock *> &all_blocks) {
+    int const dim = all_blocks[0]->getNumColumns() - 1;  // the assumption here is that the last element is that classification
+
     std::vector<int> degrees(dim);
-    for(auto block : all_blocks) {
-      for (int i = 0; i < block->getNumRows(); i++) {
+    for (int k = 0; k < all_blocks.size(); ++k) {
+      const DataBlock& block = *all_blocks[k];
+      DCHECK_EQ(dim, block.getNumColumns() - 1);
+
+      for (int i = 0; i < block.getNumRows(); i++) {
         for (int j = 0; j < dim; j++) {
-          degrees[j] += (block->get(i,j) == 0) ? 0 : 1;
+          degrees[j] += block.get(i, j) != 0;
         }
       }
     }

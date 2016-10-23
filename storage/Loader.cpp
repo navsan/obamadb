@@ -38,7 +38,7 @@ namespace obamadb {
     return f.good();
   }
 
-  void Loader::loadFileToDataBlocks(const std::string &file_name, std::vector<DataBlock*>& blocks) {
+  void Loader::loadFileToDataBlocks(const std::string &file_name, std::vector<DenseDataBlock*>& blocks) {
     DCHECK(checkFileExists(file_name));
 
     std::ifstream infile;
@@ -46,7 +46,7 @@ namespace obamadb {
     infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
 
     unsigned line_number = 0;
-    DataBlock *current_block = new DataBlock();
+    DenseDataBlock *current_block = new DenseDataBlock();
     bool new_block = true;
 
     while (std::getline(infile, line)) {
@@ -54,12 +54,12 @@ namespace obamadb {
 
       if (-1 == elements_this_line) {
         blocks.push_back(current_block);
-        current_block = new DataBlock();
+        current_block = new DenseDataBlock();
         new_block = true;
       } else if (new_block) {
         current_block->setWidth(elements_this_line);
         new_block = false;
-      } else if (current_block->getWidth() != elements_this_line) {
+      } else if (current_block->getNumColumns() != elements_this_line) {
         LOG(WARNING) << std::to_string(line_number)
                      << "scanned line element count not consistent with previous lines.";
       }
@@ -70,7 +70,7 @@ namespace obamadb {
     infile.close();
   }
 
-  int Loader::scanLine(const std::string &line, DataBlock *block) {
+  int Loader::scanLine(const std::string &line, DenseDataBlock *block) {
     const char *cstr = line.c_str();
     int elements_this_line = 0;
     unsigned i = 0;
@@ -92,8 +92,8 @@ namespace obamadb {
     return elements_this_line;
   }
 
-  std::vector<DataBlock*> Loader::load(const std::string& file_name, bool sparse) {
-    std::vector<DataBlock*> blocks;
+  std::vector<DenseDataBlock*> Loader::load(const std::string& file_name, bool sparse) {
+    std::vector<DenseDataBlock*> blocks;
 
     if (!checkFileExists(file_name)) {
       return blocks;
@@ -107,7 +107,7 @@ namespace obamadb {
     return blocks;
   }
 
-  void Loader::save(const std::string &file_name, const DataBlock &datablock) {
+  void Loader::save(const std::string &file_name, const DenseDataBlock &datablock) {
     std::ofstream file;
     file.open(file_name, std::ios::out | std::ios::binary);
 
@@ -115,7 +115,7 @@ namespace obamadb {
 
     for(int i = 0; i < datablock.getNumRows(); i++) {
       double *row = datablock.getRow(i);
-      for(int j = 0; j < datablock.getWidth(); j++) {
+      for(int j = 0; j < datablock.getNumColumns(); j++) {
        file << row[j] << ", ";
       }
       file << "\n";

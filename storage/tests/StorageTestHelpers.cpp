@@ -5,7 +5,7 @@
 namespace obamadb {
 
   void SynthData::initialize_data() {
-    DataBlock *current_block = new DataBlock(dim_ + 1);
+    DenseDataBlock *current_block = new DenseDataBlock(dim_ + 1);
 
     for (unsigned itr = 0; itr < training_examples_; itr++) {
       double *current_row = current_block->getRow(current_block->getNumRows());
@@ -16,10 +16,10 @@ namespace obamadb {
         generatePoint(p2_.values_, current_row, rad2_);
         current_row[dim_] = -1; // y value.
       }
-      current_block->setSize(current_block->getSize() + current_block->getWidth());
+      current_block->setSize(current_block->getSize() + current_block->getNumColumns());
       if (dim_ + 1 > current_block->getRemainingElements()) {
         blocks_.push_back(current_block);
-        current_block = new DataBlock(dim_ + 1);
+        current_block = new DenseDataBlock(dim_ + 1);
       }
     }
 

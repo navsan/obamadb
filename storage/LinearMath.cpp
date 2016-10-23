@@ -8,11 +8,11 @@
 
 namespace obamadb {
 
-  double error(DataBlock *const A, DataBlock *const y, double const *theta) {
+  double error(DenseDataBlock *const A, DenseDataBlock *const y, double const *theta) {
     DCHECK_EQ(A->getNumRows(), y->getNumRows());
 
     const unsigned N = y->getNumRows();
-    const unsigned n_theta = A->getWidth();
+    const unsigned n_theta = A->getNumColumns();
     double *a_cursor = A->getStore();
     double *y_cursor = y->getStore();
     long double e_sum = 0;
@@ -24,7 +24,7 @@ namespace obamadb {
       }
       // Round
       if (a_theta < 0.0) {
-        a_theta = 0.0;
+        a_theta = -1.0;
       } else {
         a_theta = 1.0;
       }
@@ -54,11 +54,11 @@ namespace obamadb {
   }
 
   void gradientItr(
-    DataBlock const *A,
-    DataBlock const *y,
+    DenseDataBlock const *A,
+    DenseDataBlock const *y,
     double *theta) {
     for (unsigned row = 0; row < A->getNumRows(); ++row) {
-      rowGradient(A->getRow(row), y->get(row, 0), theta, A->getWidth(), A->getNumRows());
+      rowGradient(A->getRow(row), y->get(row, 0), theta, A->getNumColumns(), A->getNumRows());
     }
   }
 

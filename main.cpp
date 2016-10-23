@@ -33,7 +33,7 @@ namespace obamadb {
    */
   void allocateBlocks(
     const int num_threads,
-    const std::vector<DataBlock *> &data_blocks,
+    const std::vector<DenseDataBlock *> &data_blocks,
     std::vector<std::unique_ptr<DataView>>& views) {
     CHECK(views.size() == 0) << "Only accepts empty view vectors";
 
@@ -41,7 +41,7 @@ namespace obamadb {
       if (i < num_threads) {
         views.push_back(std::unique_ptr<DataView>(new DataView()));
       }
-      DataBlock const *dbptr = data_blocks[i];
+      DenseDataBlock const *dbptr = data_blocks[i];
       views[i % num_threads]->appendBlock(dbptr);
     }
   }
@@ -52,7 +52,7 @@ namespace obamadb {
 
     SynthDataParams dataset_params = DefaultSynthDataParams();
     SynthData dataset(dataset_params);
-    std::vector<DataBlock *> data_blocks = dataset.getDataSet();
+    std::vector<DenseDataBlock *> data_blocks = dataset.getDataSet();
     printf("Dataset size: %ldmb\n",((data_blocks.size() * kStorageBlockSize) / 1000000));
 
     SVMParams svm_params = DefaultSVMParams(data_blocks);
@@ -82,7 +82,7 @@ namespace obamadb {
     }
     tp.stop();
 
-    const DataBlock& block = *data_blocks[rand() % data_blocks.size()];
+    const DenseDataBlock& block = *data_blocks[rand() % data_blocks.size()];
     Loader::save("/tmp/obamadb.out", block);
     printf("Theta:\n[");
     for(int i = 0; i < shared_theta.dimension_; i++) {

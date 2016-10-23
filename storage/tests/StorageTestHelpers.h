@@ -104,7 +104,7 @@ namespace obamadb {
 
     ~SynthData();
 
-    std::vector<DataBlock *> getDataSet() {
+    std::vector<DenseDataBlock *> getDataSet() {
       return blocks_;
     }
 
@@ -126,7 +126,7 @@ namespace obamadb {
     DoubleVector p1_, p2_;
     const double rad1_, rad2_;
 
-    std::vector<DataBlock *> blocks_;
+    std::vector<DenseDataBlock *> blocks_;
   };
 
 }

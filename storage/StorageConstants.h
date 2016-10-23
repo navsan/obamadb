@@ -7,6 +7,13 @@
 
 #include <cinttypes>
 
-const std::uint64_t kStorageBlockSize = 0x10000;  // bytes.
+namespace obamadb {
+
+  typedef double float_t;
+
+  const std::uint64_t kStorageBlockSize = 0x10000;  // bytes.
+
+
+}  // namespace obamadb
 
 #endif //OBAMADB_STORAGECONSTANTS_H_

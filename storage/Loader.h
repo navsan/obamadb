@@ -21,7 +21,7 @@ namespace obamadb {
      *  give their RCV1 data.
      * @return nullptr if datafile did not exist or was corrupt.
      */
-    static std::vector<DataBlock*> load(const std::string& file_name, bool sparse);
+    static std::vector<DenseDataBlock*> load(const std::string& file_name, bool sparse);
 
     /**
      * Saves a datablock to the specified filename.
@@ -29,13 +29,13 @@ namespace obamadb {
      * @param file_name
      * @param datablock
      */
-    static void save(const std::string& file_name, const DataBlock& datablock);
+    static void save(const std::string& file_name, const DenseDataBlock& datablock);
 
   private:
 
     static void loadFileToDataBlocks(
       const std::string &file_name,
-      std::vector<DataBlock*>& blocks);
+      std::vector<DenseDataBlock*>& blocks);
 
     /**
      * Scans a single line of input and appends it to the given datablock.
@@ -44,7 +44,7 @@ namespace obamadb {
      * @param block
      * @return Number of elements which were scanned from the line.
      */
-    static int scanLine(const std::string &line, DataBlock *block);
+    static int scanLine(const std::string &line, DenseDataBlock *block);
   };
 
 }

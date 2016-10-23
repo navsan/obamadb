@@ -6,7 +6,7 @@
 
 namespace obamadb {
 
-  class DataBlock;
+  class DenseDataBlock;
 
   static double alpha = 0.001;
 
@@ -40,8 +40,8 @@ namespace obamadb {
    * @param y The target values.
    * @param theta The current model. This will be changed during the course of the call.
    */
-  double error(DataBlock *const A,
-               DataBlock *const y,
+  double error(DenseDataBlock *const A,
+               DenseDataBlock *const y,
                double const *theta);
 
   /**
@@ -68,8 +68,8 @@ namespace obamadb {
    * @param theta The current model. This will be changed during the course of the call.
    */
   void gradientItr(
-    DataBlock const *A,
-    DataBlock const *y,
+    DenseDataBlock const *A,
+    DenseDataBlock const *y,
     double *theta);
 
   struct DoubleVector {

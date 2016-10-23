@@ -10,7 +10,7 @@ namespace obamadb {
 
   class DataView {
   public:
-    DataView(std::vector<DataBlock const *> blocks)
+    DataView(std::vector<DenseDataBlock const *> blocks)
       : blocks_(blocks), current_block_(0),current_idx_(0) {}
 
     DataView() : blocks_(), current_block_(0), current_idx_(0) {}
@@ -32,7 +32,7 @@ namespace obamadb {
       }
     }
 
-    void appendBlock(DataBlock const * block) {
+    void appendBlock(DenseDataBlock const * block) {
       blocks_.push_back(block);
     }
 
@@ -44,7 +44,7 @@ namespace obamadb {
 
   protected:
 
-    std::vector<DataBlock const *> blocks_;
+    std::vector<DenseDataBlock const *> blocks_;
     int current_block_;
     int current_idx_;
   };

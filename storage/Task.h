@@ -36,7 +36,7 @@ namespace obamadb {
 
     virtual void execute() {    };
 
-    static double error(const DoubleVector& theta, const DataBlock& block);
+    static double error(const DoubleVector& theta, const DenseDataBlock& block);
 
   protected:
     DataView *data_view_;
@@ -73,7 +73,7 @@ namespace obamadb {
     std::vector<int> degrees;
   };
 
-    SVMParams DefaultSVMParams(const std::vector<DataBlock*>& all_blocks);
+    SVMParams DefaultSVMParams(std::vector<DenseDataBlock*>& all_blocks);
 
   class SVMTask : public Task {
   public:
