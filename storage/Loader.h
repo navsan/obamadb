@@ -31,11 +31,25 @@ namespace obamadb {
      */
     static void save(const std::string& file_name, const DenseDataBlock& datablock);
 
+   /**
+    * Expects the data to be in the format:
+    * [ID][attribute index][value]
+    * where IDs are in increasing order and where on a new ID row, it will contain the class (-1,1)
+    * of the training example in the [value] position.
+    * @param file_name The file.
+    * @param blocks A vector which the method will populate.
+    */
+    static void loadFileToSparseDataBlocks(
+      const std::string &file_name,
+      std::vector<SparseDataBlock*>& blocks);
+
   private:
 
     static void loadFileToDataBlocks(
       const std::string &file_name,
       std::vector<DenseDataBlock*>& blocks);
+
+
 
     /**
      * Scans a single line of input and appends it to the given datablock.

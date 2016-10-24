@@ -2,7 +2,9 @@
 #define OBAMADB_DATABLOCK_H_
 
 #include "storage/StorageConstants.h"
+#include "storage/Utils.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
@@ -75,9 +77,106 @@ namespace obamadb {
     friend std::ostream& operator<<(std::ostream& os, const DataBlock& block);
   };
 
+  /**
+   * Optimized for storing rows of data where the majority of elements are null.
+   */
+  class SparseDataBlock : public DataBlock {
+    struct SDBEntry {
+      std::uint32_t offset_;
+      std::uint32_t size_;
+      std::int32_t class_; // the classification (-1,1) of the training example.
+    };
+
+  public:
+    SparseDataBlock()
+      : DataBlock(0),
+        initializing_(true),
+        entries_(reinterpret_cast<SDBEntry*>(store_)),
+        heap_offset_(0),
+        end_of_block_(reinterpret_cast<char*>(store_) + kStorageBlockSize) {
+
+    }
+
+    template<class T>
+    bool appendRow(const svector<T>& row, int classification) {
+      DCHECK(initializing_);
+
+      unsigned bytes_vec = sizeof(int) * row.numElements() + sizeof(T) * row.numElements();
+
+      if (remainingSpaceBytes() < (sizeof(SDBEntry) + bytes_vec)) {
+        return false;
+      }
+      heap_offset_ += bytes_vec;
+      SDBEntry* entry = entries_ + num_rows_;
+      entry->offset_ = heap_offset_;
+      entry->size_ = row.numElements();
+      entry->class_ = classification;
+      row.copyTo(end_of_block_ - heap_offset_);
+
+      num_rows_++;
+      num_columns_ = num_columns_ >= row.size() ? num_columns_ : row.size();
+      return true;
+    }
+
+    /**
+     * Blocks which have been finalized no longer can have rows appended to them.
+     */
+    void finalize() {
+      initializing_ = false;
+    }
+
+    double *getRow(unsigned row) const override {
+      CHECK(false);
+      return nullptr;
+    }
+
+    /**
+     * @param row
+     * @param col
+     * @return  The value stored at a particular index.
+     */
+    double get(unsigned row, unsigned col) const override {
+      DCHECK_LT(row, getNumRows()) << "Row index out of range.";
+      DCHECK_LT(col, getNumColumns()) << "Column index out of range.";
+
+      SDBEntry const & entry = entries_[row];
+      svector<double> vec(entry.size_, end_of_block_ - entry.offset_);
+      double * value = vec.get(col);
+      if (value == nullptr) {
+        return 0;
+      } else {
+        return *value;
+      }
+    }
+
+    /**
+     * Gets a reference vector for the row of the datablock requested.
+     * @param row the row.
+     * @return A svector which does not own the data requested.
+     */
+    std::pair<svector<double>, int> getRowVector(int row) const {
+      DCHECK_LT(row, getNumRows()) << "Row index out of range.";
+
+      SDBEntry const & entry = entries_[row];
+      return std::pair<svector<double>, int>(
+        svector<double>(entry.size_, end_of_block_ - entry.offset_), entry.class_);
+    }
+
+  private:
+    inline unsigned remainingSpaceBytes() const {
+      return kStorageBlockSize - (heap_offset_ + sizeof(SDBEntry) * num_rows_);
+    }
+
+
+    bool initializing_;
+    SDBEntry *entries_;
+    unsigned heap_offset_; // the heap grows backwards from the end of the block.
+                           // The end of last entry offset_ bytes from the end of the structure.
+    char * end_of_block_;
+  };
+
   class DenseDataBlock : public DataBlock {
   public:
-
     DenseDataBlock(unsigned width) :
       DataBlock(width),
       elements_(0),

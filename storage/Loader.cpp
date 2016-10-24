@@ -10,18 +10,34 @@
 namespace obamadb {
 
   inline unsigned scanForInt(const char *str, unsigned int *cursor, double *value) {
+    unsigned count = 0;
+
+    bool negate = '-' == str[*cursor];
+    if (negate) {
+      *cursor += 1;
+    }
+
     while (isdigit(str[*cursor])) {
       *value = *value * 10;
       *value = *value + static_cast<double>(str[*cursor] - 48);
       *cursor = *cursor + 1;
+      count++;
     }
+
+    if (negate) {
+      *value = *value * -1;
+    }
+
+    return count;
   }
 
   inline void scanForDouble(const char *str, unsigned *cursor, double *value) {
     scanForInt(str, cursor, value);
     if (str[*cursor] == '.') {
+      *cursor = *cursor + 1;
       double decimal = 0;
       unsigned count = scanForInt(str, cursor, &decimal);
+      decimal = *value < 0 ? decimal * -1 : decimal;
       *value = *value + (decimal / pow(10, count));
       *cursor = *cursor + 1;
     }
@@ -121,6 +137,88 @@ namespace obamadb {
       file << "\n";
     }
     file.close();
+  }
+
+  void scanSparseRowData(const std::string& line, double * row_id, double * attr_id, double * value) {
+    // Assume it populates it here.
+    char const *cstr = line.c_str();
+    unsigned i = 0;
+    scanThroughWhitespace(cstr, &i);
+    CHECK_NE('\0', cstr[i]) << "Line of whitespace detected.";
+    scanForDouble(cstr, &i, row_id);
+    scanThroughWhitespace(cstr, &i);
+    CHECK_NE('\0', cstr[i]) << "Malformed line.";
+    scanForDouble(cstr, &i, attr_id);
+    scanThroughWhitespace(cstr, &i);
+    CHECK_NE('\0', cstr[i]) << "Malformed line.";
+    scanForDouble(cstr, &i, value);
+  }
+
+  void Loader::loadFileToSparseDataBlocks(const std::string &file_name, std::vector<SparseDataBlock *> &blocks) {
+    if (!checkFileExists(file_name)) {
+      return;
+    }
+    std::ifstream infile;
+    std::string line;
+    infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
+
+    SparseDataBlock *current_block = new SparseDataBlock();
+    svector<double> temp_row;
+    bool new_line = true;
+
+    double last_id = -1;
+    double id = -1;
+    double idx = -1;
+    double value = -1;
+    double classification = -1;
+
+    std::getline(infile, line);
+    while (true) {
+      if (new_line) {
+        if (id != -1){
+          // write vector to block.
+          bool appended = current_block->appendRow(temp_row, classification);
+          if (!appended) {
+            current_block->finalize();
+            blocks.push_back(current_block);
+            current_block = new SparseDataBlock();
+            current_block->appendRow(temp_row, classification);
+          }
+          temp_row.clear();
+        }
+        last_id = 0;
+        idx = 0;
+        classification = 0;
+        scanSparseRowData(line, &last_id, &idx, &classification);
+        new_line = false;
+      } else {
+        if(!std::getline(infile, line)) {
+          // TODO: not DRY
+          bool appended = current_block->appendRow(temp_row, classification);
+          if (!appended) {
+            current_block->finalize();
+            blocks.push_back(current_block);
+            current_block = new SparseDataBlock();
+            current_block->appendRow(temp_row, classification);
+          }
+          break;
+        }
+        id = 0;
+        idx = 0;
+        value = 0;
+        scanSparseRowData(line, &id, &idx, &value);
+        if (id != last_id) {
+          new_line = true;
+        } else {
+          temp_row.push_back(idx, value);
+        }
+      }
+    }
+
+    blocks.push_back(current_block);
+    current_block->finalize();
+
+    infile.close();
   }
 
 }

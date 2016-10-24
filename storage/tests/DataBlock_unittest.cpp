@@ -174,7 +174,10 @@ namespace obamadb {
     for (int i = 0; i < 10; i++) {
       vec.push_back(i * 100, i);
     }
-    EXPECT_EQ(10, vec.size());
+    EXPECT_EQ(900, vec.size());
+    EXPECT_EQ(10, vec.numElements());
+    EXPECT_EQ(nullptr, vec.get(2));
+    EXPECT_EQ(2, *vec.get(200));
   }
 
 }

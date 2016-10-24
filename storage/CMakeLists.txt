@@ -24,6 +24,7 @@ add_library(obamadb_storage_tests_StorageTestHelpers
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.h")
 
 target_link_libraries(obamadb_storage_DataBlock
+        obamadb_storage_Utils
         glog)
 target_link_libraries(obamadb_storage_DataView
         glog
@@ -74,3 +75,4 @@ target_link_libraries(Loader_unittest
 add_test(Loader_unittest Loader_unittest)
 
 configure_file(tests/iris.dat iris.dat COPYONLY)
+configure_file(tests/sparse.dat sparse.dat COPYONLY)
