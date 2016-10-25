@@ -41,17 +41,21 @@ def read_text_file(filename, delimiter='\t'):
             yield [np.int32(document), np.int32(word), np.float64(frequency)]
 
 
-def process_input(rows):
+def process_input(rows, chunk_size=1000):
     """Assemble the data from an RCV1 file into feature vectors and labels."""
 
     feature_vectors, labels = [], []
     Row = cl.namedtuple('Row', ['document', 'word', 'frequency'])
     row = Row(*next(rows))
 
+    # To address memory issues, accumulate a list of SparseDataFrames
+    feature_vectors = []
+
     this_document = row.document
     features = np.zeros(NUM_WORDS)
     label = row.frequency
 
+    print "Entering iteration"
     for row in it.imap(Row._make, rows):
 
         # Get features of sparse vector
@@ -63,15 +67,31 @@ def process_input(rows):
         except StopIteration:
             pass
 
-        feature_vectors.append(features)
-        labels.append(label)  # Misnomer, this is the class label for this row
+        feature_vectors.append(pd.SparseSeries(features, fill_value=np.float64(0.0)))
+        labels.append(label)
+
+        # Debugging
+        if len(feature_vectors) % chunk_size == 0:
+            print len(feature_vectors)
+
+        # Grow the SparseDataFrame; retains SparseDataFrame type
+        """
+        if len(feature_vectors) % chunk_size == 0:
+            print "Adding to frames"
+            frames.append(pd.SparseDataFrame(feature_vectors))
+            feature_vectors = []
+        """
 
         # Setup for next ingestion of a frequency vector
         this_document = row.document
         features = np.zeros(NUM_WORDS)
-        label = row.frequency
+        label = row.frequency  # Misnomer, this is the class label for this row
 
-    return np.array(feature_vectors), np.array(labels)
+    # Flush remaining feature vectors to the frame
+    # frames.append(pd.DataFrame(feature_vectors).to_sparse(fill_value=np.float64(0.0)))
+
+    print "Creating SparseDataFrame, numpy array"
+    return pd.SparseDataFrame(feature_vectors), np.array(labels)
 
 
 def feature_vector_generator(rows):
