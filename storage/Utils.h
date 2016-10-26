@@ -5,6 +5,111 @@
 
 namespace  obamadb {
 
+  /**
+   * Virtual base class for an obamadb vector.
+   */
+  template<class T>
+  class ovector {
+  public:
+    virtual void clear() = 0;
+
+    virtual void push_back(const T& value) = 0;
+
+    virtual T* get(int index) const = 0;
+
+    virtual T* getLast() const = 0;
+
+    virtual int size() const = 0;
+
+    virtual void setMemory(int size, void * src) = 0;
+
+  };
+
+  template<class T>
+  class dvector : public ovector<T> {
+  public:
+    /**
+     * Create a dvector which owns its own memory.
+     * @param size Maximum number of non-null elements this can contain.
+     */
+    dvector(int size) :
+      values_(new T[size]),
+      num_elements_(0),
+      alloc_size_(size),
+      owns_memory_(true) {	}
+
+    /**
+     * Copy constructor.
+     */
+    dvector(const dvector<T>& other)
+      : num_elements_(other.num_elements_),
+        alloc_size_(other.alloc_size_),
+        values_(other.values_),
+        owns_memory_(false) { }
+
+    dvector(int size, void * vloc) :
+      num_elements_(size),
+      alloc_size_(size),
+      values_(reinterpret_cast<T*>(vloc)),
+      owns_memory_(false) {}
+
+    ~dvector() {
+      if (owns_memory_)
+        delete values_;
+    }
+
+    /**
+     * Creates an empty svector with a default amount of space.
+     */
+    dvector() : dvector(8) {}
+
+    void setMemory(int size, void * src) {
+      if(owns_memory_) {
+        delete values_;
+        owns_memory_ = false;
+      }
+      num_elements_ = size;
+      values_ = reinterpret_cast<T*>(src);
+    }
+
+    void clear() {
+      num_elements_ = 0;
+    }
+
+    void push_back(const T& value) {
+      if (num_elements_ == alloc_size_) {
+        T * tvalues = new T[alloc_size_ * 2];
+        memcpy(tvalues, values_, sizeof(T) * alloc_size_);
+        delete values_;
+        values_ = tvalues;
+        alloc_size_ *= 2;
+      }
+
+      values_[num_elements_] = value;
+      num_elements_++;
+    }
+
+    T* get(int index) const  {
+      DCHECK_LT(index, num_elements_);
+      return values_ + index;
+    }
+
+    T* getLast() const {
+      return values_ + num_elements_ - 1;
+    }
+
+    int size() const  {
+      return num_elements_;
+    }
+
+    T* values_;
+
+  private:
+    int num_elements_;
+    int alloc_size_;
+    bool owns_memory_;
+  };
+
   /*
    * A vector which stores index->entry pairs.
    *
@@ -13,7 +118,7 @@ namespace  obamadb {
    * check this.
    */
   template<class T>
-  class svector {
+  class svector : public ovector<T> {
   public:
 
     /**
@@ -21,10 +126,10 @@ namespace  obamadb {
      * @param size Maximum number of non-null elements this can contain.
      */
     svector(int size) :
-      num_elements_(0),
-      alloc_size_(size),
       index_(new int[size]),
       values_(new T[size]),
+      num_elements_(0),
+      alloc_size_(size),
       owns_memory_(true) {	}
 
     /**
@@ -38,10 +143,10 @@ namespace  obamadb {
      * @param vloc region where the index_ and T values are stored.
      */
     svector(int size, void * vloc)
-      : num_elements_(size),
-        alloc_size_(size),
-        index_(reinterpret_cast<int*>(vloc)),
+      : index_(reinterpret_cast<int*>(vloc)),
         values_(reinterpret_cast<T*>(index_ + num_elements_)),
+        num_elements_(size),
+        alloc_size_(size),
         owns_memory_(false) { }
 
     /**
@@ -59,6 +164,18 @@ namespace  obamadb {
         delete index_;
         delete values_;
       }
+    }
+
+    void setMemory(int size, void * src) {
+      if (owns_memory_){
+        delete index_;
+        delete values_;
+        owns_memory_ = false;
+      }
+
+      num_elements_ = size;
+      index_ = reinterpret_cast<int*>(src);
+      values_ = reinterpret_cast<T*>(index_ + size);
     }
 
     /**
@@ -84,17 +201,25 @@ namespace  obamadb {
       }
     }
 
+    void push_back(const T& value) {
+      if (alloc_size_ == num_elements_) {
+        doubleAllocation();
+      }
+
+      int index = 0;
+      if (num_elements_ > 0 ) {
+        index = index_[num_elements_ - 1] + 1;
+      }
+
+      index_[num_elements_] = index;
+      values_[num_elements_] = value;
+      num_elements_++;
+    }
+
     void push_back(int idx, const T& value) {
 
       if (alloc_size_ == num_elements_) {
-        // double the size.
-        int * tidx = new int[alloc_size_ * 2];
-        T * tvalues = new T[alloc_size_ * 2];
-        memcpy(tidx, index_, sizeof(int) * alloc_size_);
-        memcpy(tvalues, values_, sizeof(T) * alloc_size_);
-        index_ = tidx;
-        values_ = tvalues;
-        alloc_size_ *= 2;
+        doubleAllocation();
       }
 
       index_[num_elements_] = idx;
@@ -114,6 +239,17 @@ namespace  obamadb {
 
     int numElements() const {
       return num_elements_;
+    }
+
+    /**
+     * Within the sparse structure, get the element index which is referred to.
+     * Useful for doing a sparse iteration iteration.
+     * @param index Physical index within the data structure.
+     * @return Element index.
+     */
+    int elementAtIndex(int index) {
+      DCHECK_LT(index, num_elements_);
+      return index_[index];
     }
 
     /**
@@ -147,11 +283,30 @@ namespace  obamadb {
       return nullptr;
     }
 
-    int num_elements_;
-    int alloc_size_;
+    T* getLast() const {
+      return values_ + num_elements_ - 1;
+    }
+
     int * index_;
     T * values_;
 
+  private:
+
+    void doubleAllocation() {
+      // double the size.
+      int * tidx = new int[alloc_size_ * 2];
+      T * tvalues = new T[alloc_size_ * 2];
+      memcpy(tidx, index_, sizeof(int) * alloc_size_);
+      memcpy(tvalues, values_, sizeof(T) * alloc_size_);
+      delete index_;
+      delete values_;
+      index_ = tidx;
+      values_ = tvalues;
+      alloc_size_ *= 2;
+    }
+
+    int num_elements_;
+    int alloc_size_;
     bool owns_memory_;
   };
 

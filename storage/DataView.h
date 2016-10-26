@@ -10,29 +10,28 @@ namespace obamadb {
 
   class DataView {
   public:
-    DataView(std::vector<DenseDataBlock const *> blocks)
+    DataView(std::vector<DataBlock const *> blocks)
       : blocks_(blocks), current_block_(0),current_idx_(0) {}
 
     DataView() : blocks_(), current_block_(0), current_idx_(0) {}
 
-
-    virtual double * getNext() {
+    virtual bool getNext(ovector<double> * row) {
       if (blocks_.size() == 0) {
-        return nullptr;
+        return false;
       }
 
       if (current_idx_ < blocks_[current_block_]->getNumRows()) {
-        return blocks_[current_block_]->getRow(current_idx_++);
+        blocks_[current_block_]->getRowVector(current_idx_++, row);
       } else if (current_block_ < blocks_.size() - 1) {
         current_block_++;
         current_idx_ = 0;
-        return getNext();
-      } else {
-        return nullptr;
+        return getNext(row);
       }
+
+      return false;
     }
 
-    void appendBlock(DenseDataBlock const * block) {
+    void appendBlock(DataBlock const * block) {
       blocks_.push_back(block);
     }
 
@@ -44,7 +43,7 @@ namespace obamadb {
 
   protected:
 
-    std::vector<DenseDataBlock const *> blocks_;
+    std::vector<DataBlock const *> blocks_;
     int current_block_;
     int current_idx_;
   };
@@ -54,9 +53,9 @@ namespace obamadb {
     ShuffledDataView() : DataView(), index_shuffle_() {
     }
 
-    double * getNext() override {
+    bool getNext(ovector<double> * row) override {
       if (blocks_.size() == 0) {
-        return nullptr;
+        return false;
       }
 
       if (current_block_ == 0 && current_idx_ == 0 && blocks_.size() > 0) {
@@ -64,16 +63,16 @@ namespace obamadb {
       }
 
       if (current_idx_ < blocks_[current_block_]->getNumRows()) {
-        return blocks_[current_block_]->getRow(index_shuffle_[current_idx_++]);
+        blocks_[current_block_]->getRowVector(index_shuffle_[current_idx_++], row);
+        return true;
       } else if (current_block_ < blocks_.size() - 1) {
         current_block_++;
         current_idx_ = 0;
 
         reshuffle(blocks_[current_block_]->getNumRows());
-        return getNext();
-      } else {
-        return nullptr;
+        return getNext(row);
       }
+      return false;
     }
 
     void reset() override {

@@ -86,6 +86,28 @@ namespace obamadb {
     return os;
   }
 
+  std::ostream& operator<<(std::ostream& os, const SparseDataBlock& block) {
+    svector<double> row;
+    int cols_max = block.getNumColumns();
+    for (int i = 0; i < block.getNumRows(); i++){
+      block.getRowVector(i, &row);
+      int zeroes = 0;
+      for(int i = 0; i < row.numElements() - 1; i++) {
+        while (zeroes-- > 0) {
+          os << "0,";
+        }
+        os << row.values_[i] << ",";
+        zeroes = row.index_[i + 1] - row.index_[i];
+      }
+      zeroes = cols_max - row.index_[row.numElements() - 1];
+      while(zeroes-- > 0){
+        os << "0,";
+      }
+      os << row.values_[row.numElements() - 1] << "\n";
+    }
+    return os;
+  }
+
   double *DenseDataBlock::getRow(unsigned row) const {
     // TODO: make a DataBlock builder class which takes control of all unsafe editting of this class.
     // DCHECK_LT(row, getNumRows());

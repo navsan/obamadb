@@ -123,19 +123,25 @@ namespace obamadb {
     return blocks;
   }
 
-  void Loader::save(const std::string &file_name, const DenseDataBlock &datablock) {
+  void Loader::save(const std::string &file_name, const DataBlock *datablock) {
     std::ofstream file;
     file.open(file_name, std::ios::out | std::ios::binary);
 
     CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
 
-    for(int i = 0; i < datablock.getNumRows(); i++) {
-      double *row = datablock.getRow(i);
-      for(int j = 0; j < datablock.getNumColumns(); j++) {
-       file << row[j] << ", ";
+    if (datablock->getDataBlockType() == DataBlockType::kDense) {
+      for (int i = 0; i < datablock->getNumRows(); i++) {
+        double *row = datablock->getRow(i);
+        for (int j = 0; j < datablock->getNumColumns(); j++) {
+          file << row[j] << ", ";
+        }
+        file << "\n";
       }
-      file << "\n";
+    } else {
+      const SparseDataBlock* sdatablock = dynamic_cast<const SparseDataBlock*>(datablock);
+      file << *sdatablock;
     }
+
     file.close();
   }
 
@@ -154,7 +160,7 @@ namespace obamadb {
     scanForDouble(cstr, &i, value);
   }
 
-  void Loader::loadFileToSparseDataBlocks(const std::string &file_name, std::vector<SparseDataBlock *> &blocks) {
+  void Loader::loadFileToSparseDataBlocks(const std::string &file_name, std::vector<DataBlock *> &blocks) {
     if (!checkFileExists(file_name)) {
       return;
     }
@@ -177,12 +183,13 @@ namespace obamadb {
       if (new_line) {
         if (id != -1){
           // write vector to block.
-          bool appended = current_block->appendRow(temp_row, classification);
+          temp_row.push_back(classification);
+          bool appended = current_block->appendRow(temp_row);
           if (!appended) {
             current_block->finalize();
             blocks.push_back(current_block);
             current_block = new SparseDataBlock();
-            current_block->appendRow(temp_row, classification);
+            current_block->appendRow(temp_row);
           }
           temp_row.clear();
         }
@@ -194,12 +201,13 @@ namespace obamadb {
       } else {
         if(!std::getline(infile, line)) {
           // TODO: not DRY
-          bool appended = current_block->appendRow(temp_row, classification);
+          temp_row.push_back(classification);
+          bool appended = current_block->appendRow(temp_row);
           if (!appended) {
             current_block->finalize();
             blocks.push_back(current_block);
             current_block = new SparseDataBlock();
-            current_block->appendRow(temp_row, classification);
+            current_block->appendRow(temp_row);
           }
           break;
         }

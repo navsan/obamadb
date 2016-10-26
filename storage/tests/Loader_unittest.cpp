@@ -23,13 +23,18 @@ namespace obamadb {
 
   TEST(LoaderTest, TestLoadSparse) {
     Loader load;
-    std::vector<SparseDataBlock*> blocks;
+    std::vector<DataBlock*> blocks;
     load.loadFileToSparseDataBlocks("sparse.dat", blocks);
     ASSERT_EQ(1, blocks.size());
-    std::unique_ptr<SparseDataBlock> block(blocks[0]);
+    std::unique_ptr<SparseDataBlock> block(dynamic_cast<SparseDataBlock*>(blocks[0]));
 
     EXPECT_EQ(2, block->getNumRows());
-    EXPECT_EQ(23, block->getNumColumns());
+    EXPECT_EQ(24, block->getNumColumns());
 
+    svector<double> row;
+    block->getRowVector(0, &row);
+    EXPECT_EQ(-1, row.values_[row.numElements() - 1]);
+
+    std::cout << *block;
   }
 }

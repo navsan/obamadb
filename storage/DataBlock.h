@@ -14,6 +14,11 @@
 
 namespace obamadb {
 
+  enum class DataBlockType {
+    kDense,
+    kSparse
+  };
+
   class DataBlock {
   public:
     DataBlock(unsigned num_columns) :
@@ -45,6 +50,10 @@ namespace obamadb {
 
       return store_ + row * num_columns_;
     }
+
+    virtual void getRowVector(int row, ovector<double>* src) const = 0;
+
+    virtual DataBlockType getDataBlockType() const = 0;
 
     /**
      * @param row
@@ -84,7 +93,6 @@ namespace obamadb {
     struct SDBEntry {
       std::uint32_t offset_;
       std::uint32_t size_;
-      std::int32_t class_; // the classification (-1,1) of the training example.
     };
 
   public:
@@ -98,7 +106,7 @@ namespace obamadb {
     }
 
     template<class T>
-    bool appendRow(const svector<T>& row, int classification) {
+    bool appendRow(const svector<T>& row) {
       DCHECK(initializing_);
 
       unsigned bytes_vec = sizeof(int) * row.numElements() + sizeof(T) * row.numElements();
@@ -110,7 +118,6 @@ namespace obamadb {
       SDBEntry* entry = entries_ + num_rows_;
       entry->offset_ = heap_offset_;
       entry->size_ = row.numElements();
-      entry->class_ = classification;
       row.copyTo(end_of_block_ - heap_offset_);
 
       num_rows_++;
@@ -128,6 +135,18 @@ namespace obamadb {
     double *getRow(unsigned row) const override {
       CHECK(false);
       return nullptr;
+    }
+
+    DataBlockType getDataBlockType() const override {
+      return DataBlockType::kSparse;
+    }
+
+    void getRowVector(int row, ovector<double>* vec) const {
+      DCHECK_LT(row, getNumRows()) << "Row index out of range.";
+      DCHECK(dynamic_cast<svector<double>*>(vec) != nullptr);
+
+      SDBEntry const & entry = entries_[row];
+      vec->setMemory(entry.size_, end_of_block_ - entry.offset_);
     }
 
     /**
@@ -149,19 +168,6 @@ namespace obamadb {
       }
     }
 
-    /**
-     * Gets a reference vector for the row of the datablock requested.
-     * @param row the row.
-     * @return A svector which does not own the data requested.
-     */
-    std::pair<svector<double>, int> getRowVector(int row) const {
-      DCHECK_LT(row, getNumRows()) << "Row index out of range.";
-
-      SDBEntry const & entry = entries_[row];
-      return std::pair<svector<double>, int>(
-        svector<double>(entry.size_, end_of_block_ - entry.offset_), entry.class_);
-    }
-
   private:
     inline unsigned remainingSpaceBytes() const {
       return kStorageBlockSize - (heap_offset_ + sizeof(SDBEntry) * num_rows_);
@@ -173,7 +179,11 @@ namespace obamadb {
     unsigned heap_offset_; // the heap grows backwards from the end of the block.
                            // The end of last entry offset_ bytes from the end of the structure.
     char * end_of_block_;
+
+    friend std::ostream& operator<<(std::ostream& os, const SparseDataBlock& block);
   };
+
+  std::ostream& operator<<(std::ostream& os, const SparseDataBlock& block);
 
   class DenseDataBlock : public DataBlock {
   public:
@@ -225,6 +235,13 @@ namespace obamadb {
 
     DenseDataBlock* sliceRows(const std::vector<unsigned>& rows) const;
 
+    void getRowVector(int row, ovector<double>* vec) const {
+      DCHECK_LT(row, getNumRows()) << "Row index out of range.";
+      DCHECK(dynamic_cast<dvector<double>*>(vec) != nullptr);
+
+      vec->setMemory(num_columns_, store_ + row * num_columns_);
+    }
+
     void setWidth(std::uint32_t width) {
       LOG_IF(WARNING, (0 != elements_ % width)) << "Incompatible width.";
 
@@ -233,6 +250,10 @@ namespace obamadb {
 
     std::uint32_t getNumRows() const override {
       return elements_/num_columns_;
+    }
+
+    DataBlockType getDataBlockType() const override {
+      return DataBlockType::kDense;
     }
 
     double *getRow(unsigned row) const override;

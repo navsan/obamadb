@@ -1,10 +1,7 @@
 #include "storage/LinearMath.h"
 
 #include "storage/DataBlock.h"
-
 #include "glog/logging.h"
-#include "LinearMath.h"
-#include "Task.h"
 
 namespace obamadb {
 
@@ -69,4 +66,5 @@ namespace obamadb {
     }
     return std::sqrt(sq_diff_sum);
   }
+
 }

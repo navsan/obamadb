@@ -17,7 +17,7 @@ add_library(obamadb_storage_ThreadPool
         ThreadPool.cpp
         ThreadPool.h)
 add_library(obamadb_storage_Utils
-        ../empty_source.cpp
+        ../empty_src.cpp
         Utils.h)
 add_library(obamadb_storage_tests_StorageTestHelpers
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.cpp"
@@ -38,7 +38,8 @@ target_link_libraries(obamadb_storage_Loader
 target_link_libraries(obamadb_storage_Task
         glog
         obamadb_storage_DataBlock
-        obamadb_storage_LinearMath)
+        obamadb_storage_LinearMath
+        obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_ThreadPool
         glog
         obamadb_storage_Task)

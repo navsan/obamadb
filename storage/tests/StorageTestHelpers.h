@@ -1,6 +1,7 @@
 #ifndef OBAMADB_STORAGETESTHELPERS_H_
 #define OBAMADB_STORAGETESTHELPERS_H_
 
+#include <storage/DataBlock.h>
 #include "storage/LinearMath.h"
 
 namespace obamadb {
@@ -104,8 +105,17 @@ namespace obamadb {
 
     ~SynthData();
 
-    std::vector<DenseDataBlock *> getDataSet() {
+    std::vector<DenseDataBlock *> getDataSetDense() {
       return blocks_;
+    }
+
+    std::vector<DataBlock *> getDataSet() {
+      std::vector<DataBlock*> blocks;
+      for (int i = 0; i < blocks_.size(); i++) {
+        CHECK(blocks_[i]->getDataBlockType() == DataBlockType::kDense);
+        blocks.push_back(blocks_[i]);
+      }
+      return blocks;
     }
 
   private:

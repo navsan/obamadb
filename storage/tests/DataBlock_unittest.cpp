@@ -99,7 +99,7 @@ namespace obamadb {
     }
 
     SynthData data_set(dimension, num_examples, v1, v2, radius, radius);
-    std::vector<DenseDataBlock *> blocks = data_set.getDataSet();
+    std::vector<DenseDataBlock *> blocks = data_set.getDataSetDense();
     ASSERT_LT(0, blocks.size());
     unsigned num_positive_examples = 0;
     for (DenseDataBlock *block : blocks) {
@@ -140,7 +140,7 @@ namespace obamadb {
     }
 
     SynthData data_set(dimension, num_examples, v1, v2, radius, radius);
-    std::vector<DenseDataBlock *> blocks = data_set.getDataSet();
+    std::vector<DenseDataBlock *> blocks = data_set.getDataSetDense();
 
     // Initialize theta
     DoubleVector theta(dimension);

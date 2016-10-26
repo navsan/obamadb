@@ -29,7 +29,7 @@ namespace obamadb {
      * @param file_name
      * @param datablock
      */
-    static void save(const std::string& file_name, const DenseDataBlock& datablock);
+    static void save(const std::string& file_name, const DataBlock* datablock);
 
    /**
     * Expects the data to be in the format:
@@ -41,7 +41,7 @@ namespace obamadb {
     */
     static void loadFileToSparseDataBlocks(
       const std::string &file_name,
-      std::vector<SparseDataBlock*>& blocks);
+      std::vector<DataBlock*>& blocks);
 
   private:
 

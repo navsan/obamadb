@@ -7,6 +7,7 @@
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/LinearMath.h"
+#include "storage/Utils.h"
 
 namespace obamadb {
 
@@ -18,6 +19,10 @@ namespace obamadb {
     double *theta,
     unsigned width,
     double num_training_examples);
+
+  double dot(const dvector<double>& v1, double * d2);
+
+  double dot(const svector<double>& v1, double * d2);
 
   /*
    * The Task describes what a thread will perform.
@@ -34,9 +39,9 @@ namespace obamadb {
 
     ~Task() {};
 
-    virtual void execute() {    };
+    virtual void execute() {};
 
-    static double error(const DoubleVector& theta, const DenseDataBlock& block);
+    static double error(const DoubleVector &theta, const DataBlock &block);
 
   protected:
     DataView *data_view_;
@@ -48,15 +53,21 @@ namespace obamadb {
     LinearRegressionTask(DataView *dataView,
                          DoubleVector *doubleVector,
                          double ntraining_examples)
-    : Task(dataView, doubleVector),
-      num_training_examples_(ntraining_examples) { }
+      : Task(dataView, doubleVector),
+        num_training_examples_(ntraining_examples) {}
 
     void execute() override {
       data_view_->reset();
-      double *row = nullptr;
-      while ((row = data_view_->getNext()) != nullptr) {
-       // std::unique_lock<std::mutex> lk(update_gradient);
-        rowGradient(row, row[model_->dimension_], model_->values_, model_->dimension_, num_training_examples_);
+      dvector<double> row;
+      while ((data_view_->getNext(&row))) {
+        DCHECK_EQ(model_->dimension_, row.size() - 1);
+
+        double y = *row.getLast();
+        double residual = y - dot(row, model_->values_);
+        double train_factor = (alpha * 2.0) / model_->dimension_;
+        for (unsigned col = 0; col < row.size() - 1; ++col) {
+          model_->values_[col] += train_factor * residual * *row.get(col);
+        }
       }
     }
 
@@ -73,37 +84,38 @@ namespace obamadb {
     std::vector<int> degrees;
   };
 
-    SVMParams DefaultSVMParams(std::vector<DenseDataBlock*>& all_blocks);
+  SVMParams DefaultSVMParams(std::vector<DataBlock *> &all_blocks);
+
 
   class SVMTask : public Task {
   public:
-    SVMTask(DataView *dataView, DoubleVector *doubleVector, SVMParams& params)
+    SVMTask(DataView *dataView, DoubleVector *doubleVector, SVMParams &params)
       : Task(dataView, doubleVector), params_(params) {
 
     }
 
     void execute() override {
       data_view_->reset();
-      double *example = nullptr;
-      int itr = 0;
-      while((example = data_view_->getNext()) != nullptr){
-        itr++;
-        double const y = example[model_->dimension_];
-        double wxy = rowDot(example, model_->values_, model_->dimension_);
+      svector<double> row;
+      while (data_view_->getNext(&row)) {
+        double const y = *row.getLast();
+        double wxy = dot(row, model_->values_);
         wxy = wxy * y; // {-1, 1}
         // hinge active
         if (wxy < 1) {
           double const e = params_.step_size * y;
           // scale wieghts
-          for (int i = 0; i < model_->dimension_; i++) {
-            (*model_)[i] += example[i] * e;
+          for (int i = 0; i < row.numElements() - 1; i++) {
+            (*model_)[i] += row.values_[row.index_[i]] * e;
           }
         }
 
         double const scalar = params_.step_size * params_.mu;
-        for (int i = model_->dimension_; i-- > 0;) {
-          double const deg = params_.degrees[i];
-          model_->values_[i] *= 1 - scalar / deg;
+        // scale only the values which were updated.
+        for (int i = row.numElements() - 1; i-- > 0;) {
+          const int idx_j = row.index_[i];
+          double const deg = params_.degrees[idx_j];
+          model_->values_[idx_j] *= 1 - scalar / deg;
         }
       }
 
