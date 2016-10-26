@@ -2,7 +2,7 @@
 An example run of scikit-learn's SVM algorithm on the RCV1 dataset.
 
 Usage:
-python svm_example.py path_to_rcv1_train_file path_to_rcv1_test_file [binary]
+python svm_example.py path_to_rcv1_train_file path_to_rcv1_test_file [binary] 2> example.info 1> example.result
 """
 
 import sys
@@ -38,7 +38,7 @@ def read_text_file(filename, delimiter='\t'):
     """Read data from an RCV1 text file."""
     with open(filename, 'r') as file_in:
         for document, word, frequency in csv.reader(file_in, delimiter=delimiter):
-            yield [np.int32(document), np.int32(word), np.float64(frequency)]
+            yield [int(document), int(word), np.float64(frequency)]
 
 
 def process_input(rows, chunk_size=1000):
@@ -48,50 +48,48 @@ def process_input(rows, chunk_size=1000):
     Row = cl.namedtuple('Row', ['document', 'word', 'frequency'])
     row = Row(*next(rows))
 
-    # To address memory issues, accumulate a list of SparseDataFrames
-    feature_vectors = []
+    # To address memory issues
+    row_indices, col_indices = [], []
+    values = []
 
     this_document = row.document
     features = np.zeros(NUM_WORDS)
     label = row.frequency
 
-    print "Entering iteration"
-    for row in it.imap(Row._make, rows):
+    # Debugging
+    logging.debug("Entering iteration")
+    for i, row in enumerate(it.imap(Row._make, rows)):
 
         # Get features of sparse vector
         try:
             while row.document == this_document:
-                features[row.word] = row.frequency
+                row_indices.append(i)
+                col_indices.append(row.word)
+                values.append(row.frequency)
                 row = Row(*next(rows))
 
         except StopIteration:
             pass
 
-        feature_vectors.append(pd.SparseSeries(features, fill_value=np.float64(0.0)))
         labels.append(label)
 
         # Debugging
-        if len(feature_vectors) % chunk_size == 0:
-            print len(feature_vectors)
-
-        # Grow the SparseDataFrame; retains SparseDataFrame type
-        """
-        if len(feature_vectors) % chunk_size == 0:
-            print "Adding to frames"
-            frames.append(pd.SparseDataFrame(feature_vectors))
-            feature_vectors = []
-        """
+        if i % chunk_size == 0:
+            logging.debug(i)
 
         # Setup for next ingestion of a frequency vector
         this_document = row.document
         features = np.zeros(NUM_WORDS)
         label = row.frequency  # Misnomer, this is the class label for this row
 
-    # Flush remaining feature vectors to the frame
-    # frames.append(pd.DataFrame(feature_vectors).to_sparse(fill_value=np.float64(0.0)))
+    # Debugging
+    logging.debug("Greatest row index: %s", row_indices[-1])
+    logging.debug("len(values): %s", len(values))
+    logging.debug("len(row_indices): %s", len(row_indices))
+    logging.debug("len(col_indices): %s", len(col_indices))
 
-    print "Creating SparseDataFrame, numpy array"
-    return pd.SparseDataFrame(feature_vectors), np.array(labels)
+    feature_vectors = csr_matrix((values, (row_indices, col_indices)))
+    return feature_vectors, labels
 
 
 def feature_vector_generator(rows):
@@ -127,17 +125,18 @@ def feature_vector_generator(rows):
 
 def main(train_filename, test_filename, binary=False):
     """Run scikit-learn's SVM algorithm on the RCV1 dataset; print error."""
+
     logging.info("Reading train file")
     read_file = read_binary_file if binary else read_text_file
     train_rows = read_file(train_filename)
 
     logging.info("Processing train input")
     train_feature_vectors, train_labels = process_input(train_rows)
-    logging.info("Number of training examples: %s", len(train_feature_vectors))
+    logging.info("Number of training examples: %s", train_feature_vectors.shape[0])
 
     logging.info("Fitting SVM")
     classifier = svm.LinearSVC()
-    classifier.fit(csr_matrix(train_feature_vectors), train_labels)
+    classifier.fit(train_feature_vectors, train_labels)
 
     # Wouldn't normally do this, but memory-constrained
     del train_feature_vectors
@@ -148,11 +147,11 @@ def main(train_filename, test_filename, binary=False):
 
     logging.info("Processing test input")
     test_feature_vectors, test_labels = process_input(test_rows)
-    logging.info("Number of test examples: %s", len(test_feature_vectors))
+    logging.info("Number of test examples: %s", test_feature_vectors.shape[0])
 
     predictions = classifier.predict(test_feature_vectors)
     incorrect = sum(prediction != label for prediction, label in it.izip(predictions, test_labels))
-    error = float(incorrect) / len(test_feature_vectors)
+    error = float(incorrect) / test_feature_vectors.shape[0]
     print error
 
 
