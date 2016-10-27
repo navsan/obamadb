@@ -31,12 +31,28 @@ namespace obamadb {
     virtual void execute() {};
 
     /**
+     * The number of misclassified examples in a training block.
+     * @param theta The model.
+     * @param block The block.
+     * @return Number misclassified.
+     */
+    static int misclassified(const DoubleVector &theta, const SparseDataBlock<double> &block);
+
+      /**
+       * Gets the fraction of misclassified examples.
+       * @param theta The trained weights.
+       * @param block A sample of the data.
+       * @return Fraction of misclassified examples.
+       */
+    static double error(const DoubleVector &theta, const SparseDataBlock<double> &block);
+
+    /**
      * Gets the fraction of misclassified examples.
      * @param theta The trained weights.
-     * @param block A sample of the data.
+     * @param blocks All the data.
      * @return Fraction of misclassified examples.
      */
-    static double error(const DoubleVector &theta, const SparseDataBlock<double> &block);
+    static double error(const DoubleVector &theta, std::vector<SparseDataBlock<double> *> &block);
 
   protected:
     DataView *data_view_;
@@ -62,14 +78,15 @@ namespace obamadb {
   class SVMTask : public Task {
   public:
     SVMTask(DataView *dataView, DoubleVector *doubleVector, SVMParams &params)
-      : Task(dataView, doubleVector), params_(params) { }
+      : Task(dataView, doubleVector),
+        params_(params) { }
 
     /**
      * Calculates and applies the gradient of the SVM.
      */
     void execute() override;
 
-  private:
+  //private:
     SVMParams params_;
   };
 

@@ -46,7 +46,7 @@ void* WorkerLoop(void *worker_params) {
     if (meta->stop) {
       break;
     } else {
-      // printf("thread %d @ epoch %d\n", meta->thread_id, epoch);
+      //printf("thread %d @ epoch %d\n", meta->thread_id, epoch);
       meta->fn_execute_();
     }
     pthread_barrier_wait(meta->barrier2);

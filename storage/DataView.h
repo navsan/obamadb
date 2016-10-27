@@ -23,6 +23,7 @@ namespace obamadb {
 
       if (current_idx_ < blocks_[current_block_]->getNumRows()) {
         blocks_[current_block_]->getRowVector(current_idx_++, row);
+        return true;
       } else if (current_block_ < blocks_.size() - 1) {
         current_block_++;
         current_idx_ = 0;

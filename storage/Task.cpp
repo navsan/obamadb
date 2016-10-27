@@ -26,10 +26,9 @@ namespace obamadb {
     return dotsum;
   }
 
-  double Task::error(const DoubleVector &theta, const SparseDataBlock<double> &block) {
-    // Percent of misclassified training examples.
+  int Task::misclassified(const DoubleVector &theta, const SparseDataBlock<double> &block) {
     se_vector<double> row;
-    double misclassed = 0;
+    int misclassed = 0;
     for (int i = 0; i < block.getNumRows(); i++) {
       block.getRowVector(i, &row);
       double sq_sum = dot(row, theta.values_);
@@ -37,16 +36,33 @@ namespace obamadb {
       DCHECK(classification == 1 || classification == -1);
 
       if ((classification == 1 && sq_sum < 0) ||
-        (classification == -1 && sq_sum >= 0)) {
+          (classification == -1 && sq_sum >= 0)) {
         misclassed++;
       }
     }
-    return misclassed / (double) block.getNumRows();
+    return misclassed;
+  }
+
+  double Task::error(const DoubleVector &theta, const SparseDataBlock<double> &block) {
+    // Percent of misclassified training examples.
+    return  (double)misclassified(theta, block) / (double) block.getNumRows();
+  }
+
+  double Task::error(const DoubleVector &theta, std::vector<SparseDataBlock<double> *> &blocks) {
+    int total_misclassified = 0;
+    int total_examples = 0;
+    for (int i = 0; i < blocks.size(); i++) {
+      SparseDataBlock<double> const * block = blocks[i];
+      total_misclassified += misclassified(theta, *block);
+      total_examples += block->getNumRows();
+    }
+    return (double) total_misclassified/ (double) total_examples;
   }
 
   void SVMTask::execute() {
     data_view_->reset();
     se_vector<double> row;
+    double * theta = model_->values_;
     while (data_view_->getNext(&row)) {
       double const y = *row.getClassification();
       double wxy = dot(row, model_->values_);
@@ -55,7 +71,6 @@ namespace obamadb {
       if (wxy < 1) {
         double const e = params_.step_size * y;
         // scale weights
-        double * theta = model_->values_;
         for (int i = 0; i < row.numElements(); i++) {
           theta[row.index_[i]] = theta[row.index_[i]] + (row.values_[i] * e);
         }
@@ -66,7 +81,7 @@ namespace obamadb {
       for (int i = row.numElements(); i-- > 0;) {
         const int idx_j = row.index_[i];
         double const deg = params_.degrees[idx_j];
-        model_->values_[idx_j] *= 1 - scalar / deg;
+        theta[idx_j] *= 1 - scalar / deg;
       }
     }
 
