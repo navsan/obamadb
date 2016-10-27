@@ -40,8 +40,9 @@ add_executable(obamadb_main main.cpp)
 target_link_libraries(obamadb_main
         glog
         obamadb_storage_DataBlock
-        obamadb_storage_LinearMath
-        obamadb_storage_Loader
+        obamadb_storage_DataView
+        obamadb_storage_IO
+        obamadb_storage_SparseDataBlock
         obamadb_storage_ThreadPool
         obamadb_storage_Task
         obamadb_storage_tests_StorageTestHelpers)

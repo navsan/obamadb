@@ -1,21 +1,22 @@
 #ifndef OBAMADB_DATAVIEW_H_
 #define OBAMADB_DATAVIEW_H_
 
+#include "storage/DataBlock.h"
+#include "storage/SparseDataBlock.h"
+
 #include <algorithm>
 #include <vector>
-
-#include "storage/DataBlock.h"
 
 namespace obamadb {
 
   class DataView {
   public:
-    DataView(std::vector<DataBlock const *> blocks)
+    DataView(std::vector<SparseDataBlock<double> const *> blocks)
       : blocks_(blocks), current_block_(0),current_idx_(0) {}
 
     DataView() : blocks_(), current_block_(0), current_idx_(0) {}
 
-    virtual bool getNext(ovector<double> * row) {
+    virtual bool getNext(e_vector<double> * row) {
       if (blocks_.size() == 0) {
         return false;
       }
@@ -31,7 +32,7 @@ namespace obamadb {
       return false;
     }
 
-    void appendBlock(DataBlock const * block) {
+    void appendBlock(SparseDataBlock<double> const * block) {
       blocks_.push_back(block);
     }
 
@@ -43,7 +44,7 @@ namespace obamadb {
 
   protected:
 
-    std::vector<DataBlock const *> blocks_;
+    std::vector<SparseDataBlock<double> const *> blocks_;
     int current_block_;
     int current_idx_;
   };
@@ -53,7 +54,7 @@ namespace obamadb {
     ShuffledDataView() : DataView(), index_shuffle_() {
     }
 
-    bool getNext(ovector<double> * row) override {
+    bool getNext(e_vector<double> * row) override {
       if (blocks_.size() == 0) {
         return false;
       }

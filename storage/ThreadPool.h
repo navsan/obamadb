@@ -63,14 +63,13 @@ void* WorkerLoop(void *worker_params) {
  */
 class ThreadPool {
 public:
-  ThreadPool(std::vector<Task*>& tasks)
-  //ThreadPool(std::vector<LinearRegressionTask*>& tasks)
+  ThreadPool(std::vector<SVMTask*>& tasks)
     : meta_info_(), threads_(tasks.size()), num_workers_(tasks.size()) {
     pthread_barrier_init(&b1_, NULL, num_workers_ + 1);
     pthread_barrier_init(&b2_, NULL, num_workers_ + 1);
 
     for (int i = 0; i < tasks.size(); ++i) {
-      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, std::bind(&Task::execute, *tasks[i])));
+      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, std::bind(&SVMTask::execute, *tasks[i])));
     }
   }
 

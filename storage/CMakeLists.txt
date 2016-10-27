@@ -4,12 +4,15 @@ add_library(obamadb_storage_DataBlock
 add_library(obamadb_storage_DataView
         DataView.cpp
         DataView.h)
-add_library(obamadb_storage_Loader
-        Loader.cpp
-        Loader.h)
-add_library(obamadb_storage_LinearMath
-        LinearMath.cpp
-        LinearMath.h)
+add_library(obamadb_storage_IO
+        IO.cpp
+        IO.h)
+add_library(obamadb_storage_SparseDataBlock
+        SparseDataBlock.cpp
+        SparseDataBlock.h)
+add_library(obamadb_storage_StorageConstants
+        StorageConstants.h
+        StorageConstants.cpp)
 add_library(obamadb_storage_Task
         Task.cpp
         Task.h)
@@ -24,21 +27,25 @@ add_library(obamadb_storage_tests_StorageTestHelpers
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.h")
 
 target_link_libraries(obamadb_storage_DataBlock
+        obamadb_storage_StorageConstants
         obamadb_storage_Utils
         glog)
 target_link_libraries(obamadb_storage_DataView
         glog
-        obamadb_storage_DataBlock)
-target_link_libraries(obamadb_storage_LinearMath
+        obamadb_storage_DataBlock
+        obamadb_storage_SparseDataBlock)
+target_link_libraries(obamadb_storage_IO
         glog
-        obamadb_storage_DataBlock)
-target_link_libraries(obamadb_storage_Loader
+        obamadb_storage_DataBlock
+        obamadb_storage_SparseDataBlock
+        obamadb_storage_StorageConstants)
+target_link_libraries(obamadb_storage_SparseDataBlock
         glog
         obamadb_storage_DataBlock)
 target_link_libraries(obamadb_storage_Task
         glog
         obamadb_storage_DataBlock
-        obamadb_storage_LinearMath
+        obamadb_storage_SparseDataBlock
         obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_ThreadPool
         glog
@@ -46,34 +53,43 @@ target_link_libraries(obamadb_storage_ThreadPool
 target_link_libraries(obamadb_storage_Utils
         glog)
 target_link_libraries(obamadb_storage_tests_StorageTestHelpers
-        glog
-        obamadb_storage_DataBlock)
+        glog)
 
-add_dependencies(obamadb_storage_Loader
-        obamadb_storage_DataBlock)
-
-add_executable(DataBlock_unittest
-        "${CMAKE_CURRENT_SOURCE_DIR}/tests/DataBlock_unittest.cpp")
-target_link_libraries(DataBlock_unittest
+add_executable(IO_unittest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/IO_unittest.cpp")
+target_link_libraries(IO_unittest
         gtest
         gtest_main
         obamadb_storage_DataBlock
-        obamadb_storage_LinearMath
-        obamadb_storage_Loader
+        obamadb_storage_IO
+        obamadb_storage_SparseDataBlock
+        obamadb_storage_tests_StorageTestHelpers
+        ${LIBS})
+add_test(IO_unittest IO_unittest)
+
+add_executable(SparseDataBlock_unittest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/SparseDataBlock_unittest.cpp")
+target_link_libraries(SparseDataBlock_unittest
+        gtest
+        gtest_main
+        obamadb_storage_DataBlock
+        obamadb_storage_IO
         obamadb_storage_Utils
         obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
-add_test(DataBlock_unittest DataBlock_unittest)
+add_test(SparseDataBlock_unittest SparseDataBlock_unittest)
 
-add_executable(Loader_unittest
-        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Loader_unittest.cpp")
-target_link_libraries(Loader_unittest
+add_executable(Utils_unittest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Utils_unittest.cpp")
+target_link_libraries(Utils_unittest
         gtest
         gtest_main
-        obamadb_storage_Loader
+        obamadb_storage_DataBlock
+        obamadb_storage_IO
+        obamadb_storage_Utils
         obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
-add_test(Loader_unittest Loader_unittest)
+add_test(Utils_unittest Utils_unittest)
 
 configure_file(tests/iris.dat iris.dat COPYONLY)
 configure_file(tests/sparse.dat sparse.dat COPYONLY)
