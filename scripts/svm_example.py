@@ -8,14 +8,17 @@ python svm_example.py path_to_rcv1_train_file path_to_rcv1_test_file [binary] 2>
 import sys
 import csv
 import struct
+import timeit
+import cPickle
 import logging
 import itertools as it
 import collections as cl
 
 import numpy as np
-import pandas as pd
+# import pandas as pd
 from sklearn import svm
 from scipy.sparse import csr_matrix
+from sklearn.metrics import mean_squared_error
 
 
 NUM_WORDS = 47236
@@ -30,6 +33,8 @@ def read_binary_file(filename):
 
     with open(filename, 'rb') as rcv1:
         num_examples, = struct.unpack('i', rcv1.read(struct.calcsize('i')))
+        # Debugging
+        print "num_examples:", num_examples
         for _ in xrange(num_examples):
             yield struct.unpack(format, rcv1.read(struct_size))
 
@@ -41,10 +46,22 @@ def read_text_file(filename, delimiter='\t'):
             yield [int(document), int(word), np.float64(frequency)]
 
 
+def pickle_input(input, filename):
+    """Save input to a pickled file."""
+    with open(filename, 'w') as file_out:
+        cPickle.dump(input, file_out, cPickle.HIGHEST_PROTOCOL)
+
+
+def load_input(filename):
+    """Load input from a pickled file."""
+    with open(filename, 'r') as file_in:
+        return cPickle.load(file_in)
+
+
 def process_input(rows, chunk_size=1000):
     """Assemble the data from an RCV1 file into feature vectors and labels."""
 
-    feature_vectors, labels = [], []
+    labels = []
     Row = cl.namedtuple('Row', ['document', 'word', 'frequency'])
     row = Row(*next(rows))
 
@@ -53,7 +70,6 @@ def process_input(rows, chunk_size=1000):
     values = []
 
     this_document = row.document
-    features = np.zeros(NUM_WORDS)
     label = row.frequency
 
     # Debugging
@@ -79,7 +95,6 @@ def process_input(rows, chunk_size=1000):
 
         # Setup for next ingestion of a frequency vector
         this_document = row.document
-        features = np.zeros(NUM_WORDS)
         label = row.frequency  # Misnomer, this is the class label for this row
 
     # Debugging
@@ -88,8 +103,12 @@ def process_input(rows, chunk_size=1000):
     logging.debug("len(row_indices): %s", len(row_indices))
     logging.debug("len(col_indices): %s", len(col_indices))
 
-    feature_vectors = csr_matrix((values, (row_indices, col_indices)))
-    return feature_vectors, labels
+    return {
+        'row_indices': row_indices,
+        'col_indices': col_indices,
+        'values': values,
+        'labels': labels
+    }
 
 
 def feature_vector_generator(rows):
@@ -123,36 +142,101 @@ def feature_vector_generator(rows):
         label = row.frequency  # Misnomer, this is the class label for this row 
 
 
-def main(train_filename, test_filename, binary=False):
+def main(train_filename, test_filename, binary=False, number=3):
     """Run scikit-learn's SVM algorithm on the RCV1 dataset; print error."""
-
+ 
     logging.info("Reading train file")
     read_file = read_binary_file if binary else read_text_file
-    train_rows = read_file(train_filename)
+    train_input = process_input(read_file(train_filename))
 
-    logging.info("Processing train input")
-    train_feature_vectors, train_labels = process_input(train_rows)
+    # Unpack the training input
+    values = train_input['values']
+    row_indices = train_input['row_indices']
+    col_indices = train_input['col_indices']
+    train_labels = train_input['labels']
+
+    train_feature_vectors = csr_matrix((values, (row_indices, col_indices)))
     logging.info("Number of training examples: %s", train_feature_vectors.shape[0])
 
     logging.info("Fitting SVM")
     classifier = svm.LinearSVC()
+
+    # Time model-building process
+    def model():
+        classifier.fit(train_feature_vectors, train_labels)
+    print "Average model runtime:", timeit.timeit(model, number=number)
+
+    # Do it for real in the script
     classifier.fit(train_feature_vectors, train_labels)
 
     # Wouldn't normally do this, but memory-constrained
-    del train_feature_vectors
-    del train_labels
+    del train_input
 
     logging.info("Reading test file")
-    test_rows = read_file(test_filename)
+    test_input = process_input(read_file(test_filename))
 
-    logging.info("Processing test input")
-    test_feature_vectors, test_labels = process_input(test_rows)
+    # Unpack the test input
+    values = test_input['values']
+    row_indices = test_input['row_indices']
+    col_indices = test_input['col_indices']
+    test_labels = test_input['labels']
+
+    test_feature_vectors = csr_matrix((values, (row_indices, col_indices)))
     logging.info("Number of test examples: %s", test_feature_vectors.shape[0])
 
     predictions = classifier.predict(test_feature_vectors)
-    incorrect = sum(prediction != label for prediction, label in it.izip(predictions, test_labels))
-    error = float(incorrect) / test_feature_vectors.shape[0]
-    print error
+    rmse = np.sqrt(mean_squared_error(test_labels, predictions))
+    print "RMSE:", rmse
+
+
+def pickled_main(train_filename, test_filename, number=3):
+    """Run scikit-learn's SVM algorithm on the RCV1 dataset; print error."""
+
+    logging.info("Reading train file")
+    train_input = load_input(train_filename)
+
+    # Unpack the training input
+    values = train_input['values']
+    row_indices = train_input['row_indices']
+    col_indices = train_input['col_indices']
+    train_labels = train_input['labels']
+
+    train_feature_vectors = csr_matrix((values, (row_indices, col_indices)))
+    logging.info("Number of training examples: %s", train_feature_vectors.shape[0])
+
+    logging.info("Fitting SVM")
+    classifier = svm.LinearSVC()
+
+    # Time model-building process
+    def model():
+        classifier.fit(train_feature_vectors, train_labels)
+    print "Average model runtime:", timeit.timeit(model, number=number)
+
+    # Do it for real in the script
+    classifier.fit(train_feature_vectors, train_labels)
+
+    # Wouldn't normally do this, but memory-constrained
+    del train_input
+
+    logging.info("Reading test file")
+    test_input = load_input(test_filename)
+
+    # Unpack the test input
+    values = test_input['values']
+    row_indices = test_input['row_indices']
+    col_indices = test_input['col_indices']
+    test_labels = test_input['labels']
+
+    test_feature_vectors = csr_matrix((values, (row_indices, col_indices)))
+    logging.info("Number of test examples: %s", test_feature_vectors.shape[0])
+
+    predictions = classifier.predict(test_feature_vectors)
+    rmse = np.sqrt(mean_squared_error(test_labels, predictions))
+    print "RMSE:", rmse
+
+    # incorrect = sum(prediction != label for prediction, label in it.izip(predictions, test_labels))
+    # error = float(incorrect) / test_feature_vectors.shape[0]
+    # print error
 
 
 if __name__ == '__main__':
