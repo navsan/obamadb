@@ -16,8 +16,9 @@ import collections as cl
 
 import numpy as np
 # import pandas as pd
-from sklearn import svm
+# from sklearn import svm
 from scipy.sparse import csr_matrix
+from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import mean_squared_error
 
 
@@ -142,9 +143,14 @@ def feature_vector_generator(rows):
         label = row.frequency  # Misnomer, this is the class label for this row 
 
 
-def main(train_filename, test_filename, binary=False, number=3):
+def main(train_filename, test_filename, number=3, epochs=20,
+         init_learning_rate=0.1, binary=False):
     """Run scikit-learn's SVM algorithm on the RCV1 dataset; print error."""
- 
+    # Convert arguments
+    number = int(number)
+    epochs = int(epochs)
+    init_learning_rate = float(init_learning_rate)
+
     logging.info("Reading train file")
     read_file = read_binary_file if binary else read_text_file
     train_input = process_input(read_file(train_filename))
@@ -159,7 +165,14 @@ def main(train_filename, test_filename, binary=False, number=3):
     logging.info("Number of training examples: %s", train_feature_vectors.shape[0])
 
     logging.info("Fitting SVM")
-    classifier = svm.LinearSVC()
+    # classifier = svm.LinearSVC()
+    kwargs = {
+        'loss': 'hinge',
+        'penalty': 'l2',
+        'n_iter': epochs,
+        'eta0': init_learning_rate
+    }
+    classifier = SGDClassifier(**kwargs)
 
     # Time model-building process
     def model():
