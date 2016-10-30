@@ -62,7 +62,7 @@ namespace  obamadb {
 
     ~de_vector() {
       if (owns_memory_)
-        delete values_;
+        delete[] values_;
     }
 
     /**
@@ -72,7 +72,7 @@ namespace  obamadb {
 
     void setMemory(int size, void * src) {
       if(owns_memory_) {
-        delete values_;
+        delete[] values_;
         owns_memory_ = false;
       }
       num_elements_ = size;
@@ -96,7 +96,7 @@ namespace  obamadb {
       if (num_elements_ == alloc_size_) {
         T * tvalues = new T[alloc_size_ * 2];
         memcpy(tvalues, values_, sizeof(T) * alloc_size_);
-        delete values_;
+        delete[] values_;
         values_ = tvalues;
         alloc_size_ *= 2;
       }
@@ -189,16 +189,16 @@ namespace  obamadb {
 
     ~se_vector() {
       if (owns_memory_) {
-        delete index_;
-        delete values_;
+        delete[] index_;
+        delete[] values_;
         delete class_;
       }
     }
 
     void setMemory(int size, void * src) {
       if (owns_memory_){
-        delete index_;
-        delete values_;
+        delete[] index_;
+        delete[] values_;
         delete class_;
         owns_memory_ = false;
       }
@@ -329,50 +329,55 @@ namespace  obamadb {
     T * values_;
     T * class_;
 
+    int num_elements_;
+
   private:
 
     void doubleAllocation() {
+      DCHECK(owns_memory_);
       // double the size.
       int * tidx = new int[alloc_size_ * 2];
       T * tvalues = new T[alloc_size_ * 2];
       memcpy(tidx, index_, sizeof(int) * alloc_size_);
       memcpy(tvalues, values_, sizeof(T) * alloc_size_);
-      delete index_;
-      delete values_;
+      delete[] index_;
+      delete[] values_;
       index_ = tidx;
       values_ = tvalues;
       alloc_size_ *= 2;
     }
 
-    int num_elements_;
     int alloc_size_;
     bool owns_memory_;
   };
 
-  struct DoubleVector {
-    DoubleVector(unsigned dimension)
+  /**
+   * Simple vector for floating type numbers.
+   */
+  struct f_vector {
+    f_vector(unsigned dimension)
       : dimension_(dimension) {
-      values_ = new double[dimension_];
+      values_ = new float_t[dimension_];
     }
 
-    DoubleVector(const DoubleVector& other) {
+    f_vector(const f_vector& other) {
       dimension_ = other.dimension_;
-      values_ = new double[dimension_];
-      memcpy(values_, other.values_, sizeof(double) * dimension_);
+      values_ = new float_t[dimension_];
+      memcpy(values_, other.values_, sizeof(float_t) * dimension_);
     }
 
-    ~DoubleVector() {
-      delete values_;
+    ~f_vector() {
+      delete[] values_;
     }
 
-    double& operator[](int idx) const {
+    float_t& operator[](int idx) const {
       DCHECK_GT(dimension_, idx);
 
       return values_[idx];
     }
 
     unsigned dimension_;
-    double *values_;
+    float_t *values_;
 
   };
 

@@ -11,9 +11,9 @@
 
 namespace obamadb {
 
-  double dot(const de_vector<double>& v1, double * d2);
+  float_t dot(const de_vector<float_t>& v1, float_t * d2);
 
-  double dot(const se_vector<double>& v1, double * d2);
+  float_t dot(const se_vector<float_t>& v1, float_t * d2);
 
   /*
    * The Task describes what a thread will perform.
@@ -23,7 +23,7 @@ namespace obamadb {
     /*
      * Does not take ownership of the view or model.
      */
-    Task(DataView *dataView, DoubleVector *doubleVector)
+    Task(DataView *dataView, f_vector *doubleVector)
       : data_view_(dataView), model_(doubleVector) {}
 
     ~Task() {};
@@ -36,7 +36,7 @@ namespace obamadb {
      * @param block The block.
      * @return Number misclassified.
      */
-    static int misclassified(const DoubleVector &theta, const SparseDataBlock<double> &block);
+    static int misclassified(const f_vector &theta, const SparseDataBlock<float_t> &block);
 
       /**
        * Gets the fraction of misclassified examples.
@@ -44,7 +44,7 @@ namespace obamadb {
        * @param block A sample of the data.
        * @return Fraction of misclassified examples.
        */
-    static double error(const DoubleVector &theta, const SparseDataBlock<double> &block);
+    static float_t error(const f_vector &theta, const SparseDataBlock<float_t> &block);
 
     /**
      * Gets the fraction of misclassified examples.
@@ -52,23 +52,23 @@ namespace obamadb {
      * @param blocks All the data.
      * @return Fraction of misclassified examples.
      */
-    static double error(const DoubleVector &theta, std::vector<SparseDataBlock<double> *> &block);
+    static float_t error(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &block);
 
   protected:
     DataView *data_view_;
-    DoubleVector *model_;
+    f_vector *model_;
   };
 
   struct SVMParams {
-    SVMParams(double mu, double step_size, double step_decay, std::vector<int> degrees)
+    SVMParams(float_t mu, float_t step_size, float_t step_decay, std::vector<int> degrees)
       : mu(mu),
         step_size(step_size),
         step_decay(step_decay),
         degrees(degrees) {}
 
-    double mu;
-    double step_size;
-    double step_decay;
+    float_t mu;
+    float_t step_size;
+    float_t step_decay;
     std::vector<int> degrees;
   };
 
@@ -77,7 +77,7 @@ namespace obamadb {
 
   class SVMTask : public Task {
   public:
-    SVMTask(DataView *dataView, DoubleVector *doubleVector, SVMParams &params)
+    SVMTask(DataView *dataView, f_vector *doubleVector, SVMParams &params)
       : Task(dataView, doubleVector),
         params_(params) { }
 
@@ -101,7 +101,7 @@ namespace obamadb {
         dim = block.getNumColumns();
         degrees.resize(block.getNumColumns());
       }
-      se_vector<double> row;
+      se_vector<float_t> row;
       for (int i = 0; i < block.getNumRows(); i++) {
         block.getRowVector(i, &row);
         for (int j = 0; j < row.numElements(); j++) {

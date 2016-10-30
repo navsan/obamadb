@@ -37,26 +37,16 @@ struct ThreadMeta {
   bool stop;
 };
 
+/**
+ * Sets the current thread's core affinity. If the given core id is greater than the
+ * number of cores present, then we chose the core which is specified core modulo num_cores
+ * @param core_id Core to bind to.
+ * @return Return code of the pthread_set_affinity call.
+ */
+int setCoreAffinity(int core_id);
+
 // takes the thread_t pointer as an argument.
-void* WorkerLoop(void *worker_params) {
-  ThreadMeta *meta = reinterpret_cast<ThreadMeta*>(worker_params);
-  int epoch = 0;
-  while (true) {
-    pthread_barrier_wait(meta->barrier1);
-    if (meta->stop) {
-      break;
-    } else {
-      //printf("thread %d @ epoch %d\n", meta->thread_id, epoch);
-      meta->fn_execute_();
-    }
-    pthread_barrier_wait(meta->barrier2);
-
-    epoch++;
-  }
-
-  // printf("thread %d stopping\n", meta->thread_id);
-  return NULL;
-}
+void* WorkerLoop(void *worker_params);
 
 /*
  * A simple static-task thread pool.

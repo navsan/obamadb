@@ -2,6 +2,7 @@
 #define OBAMADB_STORAGE_LOADER_H_
 
 #include "storage/SparseDataBlock.h"
+#include "storage/StorageConstants.h"
 
 #include <cctype>
 #include <fstream>
@@ -40,7 +41,7 @@ namespace obamadb {
      * @param blocks List of SparseBlocks
      * @param nblocks The number of blocks which you would like to save.
      */
-    void save(const std::string& file_name, std::vector<SparseDataBlock<double>*> blocks, int nblocks);
+    void save(const std::string& file_name, std::vector<SparseDataBlock<float_t>*> blocks, int nblocks);
 
   }  // namespace IO
 }

@@ -13,7 +13,7 @@ namespace obamadb {
 
   namespace IO {
 
-    inline unsigned scanForInt(const char *str, unsigned int *cursor, double *value) {
+    inline unsigned scanForInt(const char *str, unsigned int *cursor, float_t *value) {
       unsigned count = 0;
 
       bool negate = '-' == str[*cursor];
@@ -23,7 +23,7 @@ namespace obamadb {
 
       while (isdigit(str[*cursor])) {
         *value = *value * 10;
-        *value = *value + static_cast<double>(str[*cursor] - 48);
+        *value = *value + static_cast<float_t>(str[*cursor] - 48);
         *cursor = *cursor + 1;
         count++;
       }
@@ -35,11 +35,11 @@ namespace obamadb {
       return count;
     }
 
-    inline void scanForDouble(const char *str, unsigned *cursor, double *value) {
+    inline void scanForDouble(const char *str, unsigned *cursor, float_t *value) {
       scanForInt(str, cursor, value);
       if (str[*cursor] == '.') {
         *cursor = *cursor + 1;
-        double decimal = 0;
+        float_t decimal = 0;
         unsigned count = scanForInt(str, cursor, &decimal);
         decimal = *value < 0 ? decimal * -1 : decimal;
         *value = *value + (decimal / pow(10, count));
@@ -58,7 +58,7 @@ namespace obamadb {
       return f.good();
     }
 
-    void scanSparseRowData(const std::string& line, double * row_id, double * attr_id, double * value) {
+    void scanSparseRowData(const std::string& line, float_t * row_id, float_t * attr_id, float_t * value) {
       // Assume it populates it here.
       char const *cstr = line.c_str();
       unsigned i = 0;
@@ -79,8 +79,8 @@ namespace obamadb {
     }
 
     template<>
-    std::vector<obamadb::SparseDataBlock<double>*> load(const std::string &file_name) {
-      std::vector<obamadb::SparseDataBlock<double>*> blocks;
+    std::vector<obamadb::SparseDataBlock<float_t>*> load(const std::string &file_name) {
+      std::vector<obamadb::SparseDataBlock<float_t>*> blocks;
 
       if (!checkFileExists(file_name)) {
         DCHECK(false) << "Could not open file for reading: " << file_name;
@@ -92,15 +92,15 @@ namespace obamadb {
       infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
       CHECK(infile.is_open());
 
-      obamadb::SparseDataBlock<double> *current_block = new SparseDataBlock<double>();
-      se_vector<double> temp_row;
+      obamadb::SparseDataBlock<float_t> *current_block = new SparseDataBlock<float_t>();
+      se_vector<float_t> temp_row;
       bool new_line = true;
 
-      double last_id = -1;
-      double id = -1;
-      double idx = -1;
-      double value = -1;
-      double classification = -1;
+      float_t last_id = -1;
+      float_t id = -1;
+      float_t idx = -1;
+      float_t value = -1;
+      float_t classification = -1;
 
       std::getline(infile, line);
       while (true) {
@@ -113,7 +113,7 @@ namespace obamadb {
             if (!appended) {
               current_block->finalize();
               blocks.push_back(current_block);
-              current_block = new SparseDataBlock<double>();
+              current_block = new SparseDataBlock<float_t>();
               current_block->appendRow(temp_row);
             }
             temp_row.clear();
@@ -131,7 +131,7 @@ namespace obamadb {
             if (!appended) {
               current_block->finalize();
               blocks.push_back(current_block);
-              current_block = new SparseDataBlock<double>();
+              current_block = new SparseDataBlock<float_t>();
               current_block->appendRow(temp_row);
             }
             break;
@@ -152,6 +152,7 @@ namespace obamadb {
 
       blocks.push_back(current_block);
       current_block->finalize();
+      return blocks;
     }
 
     template<class T>
@@ -170,22 +171,22 @@ namespace obamadb {
       file.close();
     }
 
-    void save(const std::string& file_name, std::vector<SparseDataBlock<double>*> blocks, int nblocks) {
+    void save(const std::string& file_name, std::vector<SparseDataBlock<float_t>*> blocks, int nblocks) {
       std::ofstream file;
       file.open(file_name, std::ios::out | std::ios::binary);
       CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
 
-      int max_columns = maxColumns<double>(blocks);
+      int max_columns = maxColumns<float_t>(blocks);
 
       DCHECK_LT(nblocks, blocks.size());
 
       for (int i = 0; i < nblocks; ++i) {
-        const SparseDataBlock<double> &block = *blocks[i];
-        se_vector<double> row;
+        const SparseDataBlock<float_t> &block = *blocks[i];
+        se_vector<float_t> row;
         for (int j = 0; j < block.getNumRows(); j++) {
           block.getRowVector(j, &row);
           for (int k = 0; k < max_columns; k++) {
-            double * dptr = row.get(k);
+            float_t * dptr = row.get(k);
             if (dptr == nullptr) {
               file << 0 << ",";
             } else {

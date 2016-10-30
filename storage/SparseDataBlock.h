@@ -20,7 +20,7 @@ namespace obamadb {
   template <typename T>
   std::ostream &operator<<(std::ostream &os, const SparseDataBlock<T> &block);
 
-  std::ostream &operator<<(std::ostream &os, const SparseDataBlock<double> &block);
+  std::ostream &operator<<(std::ostream &os, const SparseDataBlock<float_t> &block);
 
 
   /**
@@ -54,7 +54,18 @@ namespace obamadb {
       return DataBlockType::kSparse;
     }
 
-    void getRowVector(int row, e_vector<T> *vec) const;
+    void getRowVector(int row, e_vector<T> *vec) const override;
+
+    inline void getRowVectorFast(const int row, se_vector<T> *vec) const {
+//      DCHECK_LT(row, this->num_rows_) << "Row index out of range.";
+//      DCHECK(dynamic_cast<se_vector<float_t> *>(vec) != nullptr);
+
+      SDBEntry const &entry = entries_[row];
+      vec->num_elements_ = entry.size_;
+      vec->index_ = reinterpret_cast<int*>(end_of_block_ - entry.offset_);
+      vec->values_ = reinterpret_cast<T*>(vec->index_ + entry.size_);
+      vec->class_ = vec->values_ + entry.size_;
+    }
 
     /**
      * @return  The value stored at a particular index.
@@ -79,7 +90,7 @@ namespace obamadb {
     template<class A>
     friend std::ostream &operator<<(std::ostream &os, const SparseDataBlock<A> &block);
 
-    friend std::ostream &operator<<(std::ostream &os, const SparseDataBlock<double> &block);
+    friend std::ostream &operator<<(std::ostream &os, const SparseDataBlock<float_t> &block);
   };
 
   template<class T>
@@ -121,13 +132,15 @@ namespace obamadb {
   }
 
   template<class T>
-  void SparseDataBlock<T>::getRowVector(int row, e_vector<T> *vec) const {
+  void SparseDataBlock<T>::getRowVector(const int row, e_vector<T> *vec) const {
     DCHECK_LT(row, this->num_rows_) << "Row index out of range.";
-    DCHECK(dynamic_cast<se_vector<double> *>(vec) != nullptr);
+    DCHECK(dynamic_cast<se_vector<float_t> *>(vec) != nullptr);
 
     SDBEntry const &entry = entries_[row];
     vec->setMemory(entry.size_, end_of_block_ - entry.offset_);
   }
+
+
 
   template<class T>
   T* SparseDataBlock<T>::get(unsigned row, unsigned col) const {

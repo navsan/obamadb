@@ -43,6 +43,7 @@ target_link_libraries(obamadb_main
         obamadb_storage_DataView
         obamadb_storage_IO
         obamadb_storage_SparseDataBlock
+        obamadb_storage_StorageConstants
         obamadb_storage_ThreadPool
         obamadb_storage_Task
         obamadb_storage_tests_StorageTestHelpers)

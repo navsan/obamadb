@@ -11,11 +11,11 @@
 namespace obamadb {
 
   TEST(IOTest, TestLoadSparse) {
-    std::vector<SparseDataBlock<double>*> blocks = IO::load<double>("sparse.dat");
+    std::vector<SparseDataBlock<float_t>*> blocks = IO::load<float_t>("sparse.dat");
     ASSERT_EQ(1, blocks.size());
-    std::unique_ptr<SparseDataBlock<double>> block(dynamic_cast<SparseDataBlock<double>*>(blocks[0]));
+    std::unique_ptr<SparseDataBlock<float_t>> block(dynamic_cast<SparseDataBlock<float_t>*>(blocks[0]));
 
-    se_vector<double> r1;
+    se_vector<float_t> r1;
     block->getRowVector(0, &r1);
     EXPECT_EQ(-1, *r1.getClassification());
     EXPECT_EQ(3, r1.numElements());

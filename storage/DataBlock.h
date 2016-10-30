@@ -66,7 +66,7 @@ namespace obamadb {
     template<class A>
     friend std::ostream& operator<<(std::ostream& os, const DataBlock<A>& block);
 
-  protected:
+//  protected:
     std::uint32_t num_columns_;
     std::uint32_t num_rows_;
     T* store_;
