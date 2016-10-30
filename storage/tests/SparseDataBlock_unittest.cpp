@@ -7,6 +7,8 @@
 #include "storage/tests/StorageTestHelpers.h"
 
 #include <cstdlib>
+#include <memory>
+
 
 namespace obamadb {
 

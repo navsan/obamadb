@@ -3,6 +3,8 @@
 #include "storage/DataBlock.h"
 #include "storage/SparseDataBlock.h"
 
+#include <memory>
+
 #include "storage/tests/StorageTestHelpers.h"
 
 namespace obamadb {

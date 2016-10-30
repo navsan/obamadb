@@ -8,8 +8,8 @@
 
 #include "storage/tests/StorageTestHelpers.h"
 
-#include <ctime>
-
+#include <time.h>
+#include <sys/time.h>
 #include <iostream>
 #include <string>
 #include <memory>
@@ -26,6 +26,13 @@ namespace obamadb {
         shared_theta[i] = static_cast<float_t>((1.0 - fmod((double)rand()/100.0, 2)) / 10.0);
     }
     return shared_theta;
+  }
+
+  unsigned long getTimeNS() {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (unsigned long long) ts.tv_nsec +
+           (unsigned long long) ts.tv_sec * 1000 * 1000 * 1000;
   }
 
   /**
@@ -50,20 +57,25 @@ namespace obamadb {
     }
   }
 
-  int main() {
+  int main(int argc, char** argv) {
+    CHECK_EQ(3, argc) << "usage: " << argv[0] << " [training data] [testing data]";
+    std::string train_fp(argv[1]);
+    std::string test_fp(argv[2]);
+
     const int num_threads = 4;
     const float_t error_bound = 0.008; // stop when error falls below.
 
     printf("Reading input files...\n");
-    std::vector<SparseDataBlock<float_t>*> blocks_train = IO::load<float_t>("/home/marc/workspace/obamaDB/data/RCV1.train.tsv");
- //   std::vector<SparseDataBlock<float_t>*> blocks_train = IO::load<float_t>("/home/marc/workspace/obamaDB/data/RCV1.test.tsv");
+    printf("Loading: %s\n", train_fp.c_str());
+    std::vector<SparseDataBlock<float_t>*> blocks_train = IO::load<float_t>(train_fp);
 
     printf("Read in %lu training blocks for a total size of %ldmb\n",blocks_train.size(), ((blocks_train.size() * kStorageBlockSize) / 1000000));
 
 //    IO::save("/tmp/rcv_block.csv", blocks_train, 1);
 //    return 0;
 
-    std::vector<SparseDataBlock<float_t>*> blocks_test = IO::load<float_t>("/home/marc/workspace/obamaDB/data/RCV1.test.tsv");
+    printf("Loading: %s\n", test_fp.c_str());
+    std::vector<SparseDataBlock<float_t>*> blocks_test = IO::load<float_t>(test_fp);
     printf("Read in %lu test blocks for a total size of %ldmb\n",blocks_test.size(), ((blocks_test.size() * kStorageBlockSize) / 1000000));
 
     SVMParams svm_params = DefaultSVMParams<float_t>(blocks_train);
@@ -95,9 +107,12 @@ namespace obamadb {
       f_vector last_theta(shared_theta);
 
       clock_t begin = clock();
+
+
+      auto start = getTimeNS();
       tp.cycle();
-      clock_t end = clock();
-      float_t elapsed_secs = float_t(end - begin) / CLOCKS_PER_SEC;
+      auto end = getTimeNS();
+      double elapsed_time_s = (double(end - start))/ 1000000000;
 
       last_error_train = Task::error(shared_theta, blocks_train);
       last_error_test = Task::error(shared_theta, blocks_test);
@@ -107,7 +122,7 @@ namespace obamadb {
         diff += std::abs(last_theta.values_[i] - shared_theta.values_[i]);
       }
 
-      printf("%-3d: train {%f, %f, %f}, test {%f, %f], Dtheta: %f\n", cycle, last_error_train, std::sqrt(last_error_train), elapsed_secs, last_error_test, std::sqrt(last_error_test), diff);
+      printf("%-3d: train {%f, %f, %f}, test {%f, %f], Dtheta: %f\n", cycle, last_error_train, std::sqrt(last_error_train), elapsed_time_s, last_error_test, std::sqrt(last_error_test), diff);
     }
     tp.stop();
 
@@ -129,6 +144,6 @@ namespace obamadb {
 
 } // namespace obamadb
 
-int main() {
-  obamadb::main();
+int main(int argc, char **argv) {
+  obamadb::main(argc, argv);
 }
