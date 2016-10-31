@@ -31,32 +31,57 @@ namespace obamadb {
     int misclassed = 0;
     for (int i = 0; i < block.getNumRows(); i++) {
       block.getRowVector(i, &row);
-      float_t sq_sum = dot(row, theta.values_);
+      float_t dot_prod = dot(row, theta.values_);
       float_t classification = *row.getClassification();
       DCHECK(classification == 1 || classification == -1);
 
-      if ((classification == 1 && sq_sum < 0) ||
-          (classification == -1 && sq_sum >= 0)) {
+      if ((classification == 1 && dot_prod < 0) ||
+          (classification == -1 && dot_prod >= 0)) {
         misclassed++;
       }
     }
     return misclassed;
   }
 
-  float_t Task::error(const f_vector &theta, const SparseDataBlock<float_t> &block) {
-    // Percent of misclassified training examples.
-    return  (float_t)misclassified(theta, block) / (float_t) block.getNumRows();
-  }
-
-  float_t Task::error(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks) {
-    int total_misclassified = 0;
-    int total_examples = 0;
+  /**
+   * @return Fraction of misclassified training examples.
+   */
+  float_t Task::fraction_error(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks) {
+    double total_misclassified = 0;
+    double total_examples = 0;
     for (int i = 0; i < blocks.size(); i++) {
       SparseDataBlock<float_t> const * block = blocks[i];
       total_misclassified += misclassified(theta, *block);
       total_examples += block->getNumRows();
     }
-    return (float_t) total_misclassified/ (float_t) total_examples;
+    return (float_t) total_misclassified/total_examples;
+  }
+
+  /**
+   * @return  Root mean squared error.
+   */
+  float_t Task::rms_error(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks) {
+    return (float_t) std::sqrt(Task::fraction_error(theta, blocks));
+  }
+
+
+  float_t Task::rms_error_loss(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks) {
+    double total_examples = 0;
+    float_t loss = 0;
+    for (int i = 0; i < blocks.size(); i++) {
+      SparseDataBlock<float_t> const &block = *blocks[i];
+      se_vector<float_t> row;
+      int misclassed = 0;
+      for (int i = 0; i < block.getNumRows(); i++) {
+        block.getRowVector(i, &row);
+        float_t dot_prod = dot(row, theta.values_);
+        float_t classification = *row.getClassification();
+        DCHECK(classification == 1 || classification == -1);
+        loss += std::max(1 - dot_prod * classification, static_cast<float_t >(0.0));
+      }
+      total_examples += block.getNumRows();
+    }
+    return (float_t) std::sqrt(loss)/std::sqrt(total_examples);
   }
 
   inline void scaleAndAdd(float_t* theta, const se_vector<float_t>& vec, const float_t e) {

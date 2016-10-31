@@ -44,7 +44,7 @@ namespace obamadb {
        * @param block A sample of the data.
        * @return Fraction of misclassified examples.
        */
-    static float_t error(const f_vector &theta, const SparseDataBlock<float_t> &block);
+    static float_t fraction_error(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &block);
 
     /**
      * Gets the fraction of misclassified examples.
@@ -52,7 +52,10 @@ namespace obamadb {
      * @param blocks All the data.
      * @return Fraction of misclassified examples.
      */
-    static float_t error(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &block);
+    static float_t rms_error(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &block);
+
+    static float_t rms_error_loss(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks);
+
 
   protected:
     DataView *data_view_;

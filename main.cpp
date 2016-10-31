@@ -57,6 +57,15 @@ namespace obamadb {
     }
   }
 
+  template<class T>
+  int TotalRows(const std::vector<SparseDataBlock<T> *> &data_blocks) {
+    int examples =0;
+    for(auto block : data_blocks) {
+      examples += block->getNumRows();
+    }
+    return examples;
+  }
+
   int main(int argc, char** argv) {
     CHECK_EQ(3, argc) << "usage: " << argv[0] << " [training data] [testing data]";
     std::string train_fp(argv[1]);
@@ -69,14 +78,14 @@ namespace obamadb {
     printf("Loading: %s\n", train_fp.c_str());
     std::vector<SparseDataBlock<float_t>*> blocks_train = IO::load<float_t>(train_fp);
 
-    printf("Read in %lu training blocks for a total size of %ldmb\n",blocks_train.size(), ((blocks_train.size() * kStorageBlockSize) / 1000000));
-
-//    IO::save("/tmp/rcv_block.csv", blocks_train, 1);
-//    return 0;
+    printf("Read in %lu training blocks for a total size of %ldmb with %d examples\n",blocks_train.size(), ((blocks_train.size() * kStorageBlockSize) / 1000000),  TotalRows(blocks_train));
 
     printf("Loading: %s\n", test_fp.c_str());
     std::vector<SparseDataBlock<float_t>*> blocks_test = IO::load<float_t>(test_fp);
-    printf("Read in %lu test blocks for a total size of %ldmb\n",blocks_test.size(), ((blocks_test.size() * kStorageBlockSize) / 1000000));
+    printf("Read in %lu test blocks for a total size of %ldmb with %d examples\n",blocks_test.size(), ((blocks_test.size() * kStorageBlockSize) / 1000000), TotalRows(blocks_test));
+
+//    IO::save("/tmp/rcv_block.csv", blocks_test, 2);
+//    return 0;
 
     SVMParams svm_params = DefaultSVMParams<float_t>(blocks_train);
     DCHECK_EQ(svm_params.degrees.size(), maxColumns(blocks_train));
@@ -95,14 +104,14 @@ namespace obamadb {
 
     // Create ThreadPool + Workers
     const int tcycles = 20;
-    float_t last_error_train = Task::error(shared_theta, blocks_train);
-    float_t last_error_test = Task::error(shared_theta, blocks_test);
+    float_t train_rmse = Task::rms_error(shared_theta, blocks_train);
+    float_t test_rmse = Task::rms_error(shared_theta, blocks_test);
     printf("itr: train {fraction misclassified, RMSE, time to train}, test {fraction misclassified, RMSE}, Dtheta \n");
-    printf("%-3d: train {%f, %f}, test {%f, %f], Dtheta: %d\n", -1, last_error_train, std::sqrt(last_error_train), last_error_test, std::sqrt(last_error_test), 0);
+    printf("%-3d: train {%f, %f}, test {%f, %f], Dtheta: %d\n", -1, train_rmse, std::sqrt(train_rmse), test_rmse, std::sqrt(test_rmse), 0);
     ThreadPool tp(tasks);
     tp.begin();
     for (int cycle = 0;
-         cycle < tcycles && last_error_test > error_bound;
+         cycle < tcycles && test_rmse > error_bound;
          cycle++) {
       f_vector last_theta(shared_theta);
 
@@ -114,15 +123,18 @@ namespace obamadb {
       auto end = getTimeNS();
       double elapsed_time_s = (double(end - start))/ 1000000000;
 
-      last_error_train = Task::error(shared_theta, blocks_train);
-      last_error_test = Task::error(shared_theta, blocks_test);
+      double train_fraction_error = Task::fraction_error(shared_theta, blocks_train);
+      train_rmse = Task::rms_error_loss(shared_theta, blocks_train);
+
+      double test_fraction_error = Task::fraction_error(shared_theta, blocks_test);
+      test_rmse = Task::rms_error_loss(shared_theta, blocks_test);
 
       float_t diff = 0;
       for (int i = 0; i < last_theta.dimension_; i++) {
         diff += std::abs(last_theta.values_[i] - shared_theta.values_[i]);
       }
 
-      printf("%-3d: train {%f, %f, %f}, test {%f, %f], Dtheta: %f\n", cycle, last_error_train, std::sqrt(last_error_train), elapsed_time_s, last_error_test, std::sqrt(last_error_test), diff);
+      printf("%-3d: train {%f, %f, %f}, test {%f, %f}, dtheta: %f\n", cycle, train_fraction_error, train_rmse, elapsed_time_s, test_fraction_error, test_rmse, diff);
     }
     tp.stop();
 

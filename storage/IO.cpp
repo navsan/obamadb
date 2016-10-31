@@ -178,7 +178,7 @@ namespace obamadb {
 
       int max_columns = maxColumns<float_t>(blocks);
 
-      DCHECK_LT(nblocks, blocks.size());
+      DCHECK_LE(nblocks, blocks.size());
 
       for (int i = 0; i < nblocks; ++i) {
         const SparseDataBlock<float_t> &block = *blocks[i];
