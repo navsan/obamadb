@@ -4,7 +4,7 @@
 
 namespace obamadb {
 
-  int setCoreAffinity(int core_id) {
+  int setLinuxCoreAffinity(int core_id) {
     int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
     DLOG_IF(WARNING, core_id < 0 || core_id >= num_cores) << "Attempted to bind thread to non-existant core: " << core_id;
     core_id = core_id % num_cores;
@@ -15,6 +15,13 @@ namespace obamadb {
     pthread_t current_thread = pthread_self();
     return pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
   }
+
+  int setMacCoreAffinity(int core_id) {
+    // No-op defined for compatibility
+  }
+
+  // Determine which function is used based on platform
+  int (*setCoreAffinity)(int) = IS_APPLE ? setMacCoreAffinity : setLinuxCoreAffinity;
 
   void *WorkerLoop(void *worker_params) {
     ThreadMeta *meta = reinterpret_cast<ThreadMeta*>(worker_params);

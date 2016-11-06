@@ -1,6 +1,8 @@
 #ifndef OBAMADB_THREADPOOL_H_
 #define OBAMADB_THREADPOOL_H_
 
+#include "ThreadPoolMacCompatibility.h"
+
 #include <iostream>
 #include <pthread.h>
 #include <functional>
@@ -43,7 +45,9 @@ struct ThreadMeta {
  * @param core_id Core to bind to.
  * @return Return code of the pthread_set_affinity call.
  */
-int setCoreAffinity(int core_id);
+// int setCoreAffinity(int core_id);
+// Changed to a function pointer so it can be set conditioned on platform (Linux/Mac OS X)
+extern int (*setCoreAffinity)(int);
 
 // takes the thread_t pointer as an argument.
 void* WorkerLoop(void *worker_params);

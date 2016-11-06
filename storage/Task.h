@@ -4,6 +4,10 @@
 #include <iostream>
 #include <mutex>
 
+// For portability; std namespace sometimes doesn't have math functions
+#include <cmath>
+
+
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/SparseDataBlock.h"

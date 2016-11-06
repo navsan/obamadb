@@ -1,3 +1,4 @@
+#include <cmath>
 #include "Task.h"
 
 #include "storage/DataBlock.h"
