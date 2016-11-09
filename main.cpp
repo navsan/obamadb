@@ -30,7 +30,7 @@ namespace obamadb {
 
   unsigned long getTimeNS() {
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
     return (unsigned long long) ts.tv_nsec +
            (unsigned long long) ts.tv_sec * 1000 * 1000 * 1000;
   }
