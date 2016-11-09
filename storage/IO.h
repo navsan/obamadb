@@ -26,6 +26,9 @@ namespace obamadb {
     template<class T>
     std::vector<SparseDataBlock<T>*> load(const std::string& file_name);
 
+    template<class T>
+    std::vector<SparseDataBlock<T>*> load_csv(const std::string& file_name);
+
     /**
      * Saves a datablock to the specified filename.
      *

@@ -376,6 +376,10 @@ namespace  obamadb {
       return values_[idx];
     }
 
+    void clear() {
+      memset(values_,0, sizeof(float_t) * dimension_);
+    }
+
     unsigned dimension_;
     float_t *values_;
 

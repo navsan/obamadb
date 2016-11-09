@@ -56,6 +56,7 @@ namespace obamadb {
 
     static float_t rms_error_loss(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks);
 
+    static float_t l2Distance(const f_vector &v1, const f_vector &v2);
 
   protected:
     DataView *data_view_;

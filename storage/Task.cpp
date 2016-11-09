@@ -71,7 +71,6 @@ namespace obamadb {
     for (int i = 0; i < blocks.size(); i++) {
       SparseDataBlock<float_t> const &block = *blocks[i];
       se_vector<float_t> row;
-      int misclassed = 0;
       for (int i = 0; i < block.getNumRows(); i++) {
         block.getRowVector(i, &row);
         float_t dot_prod = dot(row, theta.values_);
@@ -82,6 +81,15 @@ namespace obamadb {
       total_examples += block.getNumRows();
     }
     return (float_t) std::sqrt(loss)/std::sqrt(total_examples);
+  }
+
+  float_t Task::l2Distance(const f_vector &v1, const f_vector &v2) {
+    DCHECK_EQ(v1.dimension_, v2.dimension_);
+    double dist_sum = 0;
+    for (int i = 0; i < v1.dimension_; i++) {
+      dist_sum += std::pow(v1.values_[i] - v2.values_[i], 2);
+    }
+    return (float_t) std::sqrt(dist_sum);
   }
 
   inline void scaleAndAdd(float_t* theta, const se_vector<float_t>& vec, const float_t e) {

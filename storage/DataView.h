@@ -39,6 +39,10 @@ namespace obamadb {
       blocks_.push_back(block);
     }
 
+    void clear() {
+      blocks_.clear();
+    }
+
 
     inline void reset() {
       current_block_ = 0;

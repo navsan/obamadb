@@ -74,6 +74,19 @@ namespace obamadb {
     }
 
     template<class T>
+    std::vector<SparseDataBlock<T>*> load_csv(const std::string& file_name){
+      CHECK(false) << "Not implemented for the general case.";
+    }
+
+    template<>
+    std::vector<obamadb::SparseDataBlock<float_t>*> load_csv(const std::string &file_name) {
+      std::vector<obamadb::SparseDataBlock<float_t> *> blocks;
+      // TODO: load a normal, "dense" CSV
+      return blocks;
+    }
+
+
+    template<class T>
     std::vector<obamadb::SparseDataBlock<T>*> load(const std::string &file_name) {
       CHECK(false) << "Not implemented for the general case.";
     }
