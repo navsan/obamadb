@@ -21,10 +21,13 @@ namespace obamadb {
   template<class T>
   class DataBlock {
   public:
-    DataBlock(unsigned num_columns) :
-      num_columns_(num_columns),
+    DataBlock(unsigned size_bytes) :
+      num_columns_(0),
       num_rows_(0),
-      store_(reinterpret_cast<T*>(new char[kStorageBlockSize])) {}
+      block_size_bytes_(size_bytes),
+      store_(reinterpret_cast<T*>(new char[size_bytes])) {}
+
+    DataBlock() : DataBlock(kStorageBlockSize) {}
 
     ~DataBlock() {
       delete store_;
@@ -69,6 +72,7 @@ namespace obamadb {
 //  protected:
     std::uint32_t num_columns_;
     std::uint32_t num_rows_;
+    std::uint32_t block_size_bytes_;
     T* store_;
   };
 

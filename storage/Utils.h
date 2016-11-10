@@ -209,6 +209,10 @@ namespace  obamadb {
       class_ = reinterpret_cast<T*>(values_ + size);
     }
 
+    bool owns_memory() const {
+      return owns_memory_;
+    }
+
     /**
      * Copies the core data structure. Does not copy the numElements. Copies exactly as many elements as there are
      * stored. This means if the svector was overallocated, it does not include the empty space.
@@ -383,6 +387,59 @@ namespace  obamadb {
     unsigned dimension_;
     float_t *values_;
 
+  };
+
+  class QuickRandom {
+  public:
+    QuickRandom() : x(15486719), y(19654991), z(16313527), char_index(0) {
+      LOG_IF(FATAL, sizeof(std::uint64_t) != 8) << "Expect 64_t to be 8 bytes long.";
+      // warm up 5 cycles.
+      for (int i = 0; i < 5; i++) {
+        nextInt64();
+      }
+    }
+
+    inline std::uint64_t nextInt64() {
+      // TODO: there are many other ways to generate random numbers,
+      // http://stackoverflow.com/questions/1640258/need-a-fast-random-generator-for-c
+      // has several more techniques to choose from and includes this one.
+      std::uint64_t t;
+      x ^= x << 16;
+      x ^= x >> 5;
+      x ^= x << 1;
+
+      t = x;
+      x = y;
+      y = z;
+      z = t ^ x ^ y;
+
+      return z;
+    }
+
+    inline std::uint32_t nextInt32() {
+      if (char_index == 0) {
+        char_index = 4;
+        return *reinterpret_cast<uint32_t *>(&z);
+      } else if (char_index == 4) {
+        char_index = 8;
+        return reinterpret_cast<uint32_t *>(&z)[1];
+      } else {
+        nextInt64();
+        char_index = 4;
+        return *reinterpret_cast<uint32_t *>(&z);
+      }
+    }
+
+    inline unsigned char nextChar() {
+      if (char_index >= 8) {
+        nextInt64();
+        char_index = 0;
+      }
+      return reinterpret_cast<unsigned char*>(&z)[char_index++];
+    }
+
+    std::uint64_t x, y, z;
+    int char_index;
   };
 
 }  // namespace obamadb
