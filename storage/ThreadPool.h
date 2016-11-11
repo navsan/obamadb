@@ -31,9 +31,9 @@ namespace obamadb {
       int count;
       int tripCount;
     } pthread_barrier_t;
-#else
-    typedef pthread_barrier_t barrier_t;
 #endif
+
+typedef pthread_barrier_t barrier_t;
 
     inline int barrier_init(pthread_barrier_t *barrier, const pthread_barrierattr_t *attr, unsigned int count) {
 #if APPLE
@@ -161,9 +161,9 @@ public:
   }
 
   void cycle() {
-    pthread_barrier_wait(&b1_);
+    barrier_wait(&b1_);
     // workers do the routine
-    pthread_barrier_wait(&b2_);
+    barrier_wait(&b2_);
     // workers are finished with routine and waiting on 1.
     // Here is an opportunity to re-allocate work, and do an update to the model.
   }
@@ -172,7 +172,7 @@ public:
     for (unsigned i = 0; i < num_workers_; i++) {
       meta_info_[i].stop = true;
     }
-    pthread_barrier_wait(&b1_);
+    barrier_wait(&b1_);
     for (unsigned i = 0; i < num_workers_; i++) {
       pthread_join(threads_[i], NULL);
     }
