@@ -1,32 +1,18 @@
 #ifndef OBAMADB_UTILS_H
 #define OBAMADB_UTILS_H
 
-
-#include <time.h>
+#include <chrono>
 
 #include "glog/logging.h"
 
-#define PRINT_TIMING(block) { std::uint64_t time_start_ns = getTimeNS();\
+#define PRINT_TIMING(block) { auto time_start = std::chrono::steady_clock::now();\
                               block\
-                              std::uint64_t time_end_ns = getTimeNS();\
-                              double time_elapsed_ms = (double)(time_end_ns - time_start_ns) / 1000000.0; \
-                              printf("[%s:%d] %s elapsed time %f\n",__FILE__, __LINE__, __FUNCTION__, time_elapsed_ms); \
+                              auto time_end = std::chrono::steady_clock::now();\
+                              std::chrono::duration<double, std::milli> time_ms = time_end - time_start;\
+                              printf("[%s:%d] %s elapsed time %f\n",__FILE__, __LINE__, __FUNCTION__, time_ms.count()); \
                             }
 
 namespace  obamadb {
-
-  /**
-   * Uses the MONOTONIC clock to get the current time in nanoseconds.
-   * @return MONOTONIC time in ns.
-   */
-  inline std::uint64_t getTimeNS() {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (std::uint64_t) ts.tv_nsec +
-           (std::uint64_t) ts.tv_sec * 1000 * 1000 * 1000;
-  }
-
-
   /**
    * Virtual base class for a training example vector.
    * Each vector is a map of attribute index->attribute value and a slot for classification.

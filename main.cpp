@@ -86,10 +86,12 @@ namespace obamadb {
          cycle++) {
       f_vector last_theta(shared_theta);
 
-      auto start = getTimeNS();
+      auto time_start = std::chrono::steady_clock::now();
       tp.cycle();
-      auto end = getTimeNS();
-      double elapsed_time_s = (double(end - start))/ 1e9;
+      auto time_end = std::chrono::steady_clock::now();
+      std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
+
+      double elapsed_time_s = (time_ms.count())/ 1e3;
 
       double train_fraction_error = 0; // Task::fraction_error(shared_theta, mat_train->blocks_);
       train_rmse = 0; // Task::rms_error_loss(shared_theta, mat_train->blocks_);
@@ -127,7 +129,7 @@ namespace obamadb {
     PRINT_TIMING({mat_test.reset(IO::load(test_fp));});
     printMatrixStats(mat_test.get());
 
-    DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
+//    DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
 
     //train_svm(mat_train.get(), mat_test.get(), num_threads);
 
