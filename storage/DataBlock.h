@@ -21,6 +21,12 @@ namespace obamadb {
   template<class T>
   class DataBlock {
   public:
+    DataBlock(unsigned numRows, unsigned numColumns) :
+      num_columns_(numRows),
+      num_rows_(numColumns),
+      block_size_bytes_(kStorageBlockSize),
+      store_(reinterpret_cast<T*>(new char[kStorageBlockSize])) {}
+
     DataBlock(unsigned size_bytes) :
       num_columns_(0),
       num_rows_(0),

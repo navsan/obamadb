@@ -7,6 +7,9 @@ add_library(obamadb_storage_DataView
 add_library(obamadb_storage_IO
         IO.cpp
         IO.h)
+add_library(obamadb_storage_Matrix
+        Matrix.cpp
+        Matrix.h)
 add_library(obamadb_storage_SparseDataBlock
         SparseDataBlock.cpp
         SparseDataBlock.h)
@@ -39,6 +42,12 @@ target_link_libraries(obamadb_storage_IO
         obamadb_storage_DataBlock
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants)
+target_link_libraries(obamadb_storage_Matrix
+        glog
+        obamadb_storage_DataBlock
+        obamadb_storage_SparseDataBlock
+        obamadb_storage_StorageConstants
+        obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_SparseDataBlock
         glog
         obamadb_storage_DataBlock)
@@ -66,6 +75,19 @@ target_link_libraries(IO_unittest
         obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
 add_test(IO_unittest IO_unittest)
+
+add_executable(Matrix_unittest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Matrix_unittest.cpp")
+target_link_libraries(Matrix_unittest
+        gtest
+        gtest_main
+        obamadb_storage_IO
+        obamadb_storage_Matrix
+        obamadb_storage_SparseDataBlock
+        obamadb_storage_Utils
+        obamadb_storage_tests_StorageTestHelpers
+        ${LIBS})
+add_test(Matrix_unittest Matrix_unittest)
 
 add_executable(SparseDataBlock_unittest
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/SparseDataBlock_unittest.cpp")

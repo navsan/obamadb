@@ -27,8 +27,8 @@ namespace obamadb {
   TEST(IOTest, TestCreateSparseProjection) {
     double m = 47000, n = 20; // m corresponds to the dimension of the original matrix.
     std::unique_ptr<SparseDataBlock<signed char>> pdb(GetRandomProjectionMatrix(m,n));
-    ASSERT_EQ(m, pdb->getNumRows());
-    ASSERT_EQ(n, pdb->getNumColumns());
+    ASSERT_EQ(n, pdb->getNumRows());
+    ASSERT_EQ(m, pdb->getNumColumns());
     int counts[3] = {0,0,0};
     se_vector<signed char> row;
     row.setMemory(0, nullptr); // cheap way to clear ownership
@@ -47,5 +47,4 @@ namespace obamadb {
     EXPECT_TRUE(counts[1] > freq_zero * (1.0 - tolerance) && counts[1] < freq_zero * (1.0 + tolerance));
     // TODO could also test for variance in the distribution.
   }
-
 }

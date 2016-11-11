@@ -40,6 +40,18 @@ namespace obamadb {
      *
      * @param size_mb Size in bytes.
      */
+    SparseDataBlock(unsigned numRows, unsigned numColumns)
+      : DataBlock<T>(numRows, numColumns),
+        initializing_(true),
+        entries_(reinterpret_cast<SDBEntry *>(this->store_)),
+        heap_offset_(0),
+        end_of_block_(reinterpret_cast<char *>(this->store_) + this->block_size_bytes_) {}
+
+    /**
+     * Creates a datablock with the specified size.
+     *
+     * @param size_mb Size in bytes.
+     */
     SparseDataBlock(int size_bytes)
       : DataBlock<T>(size_bytes),
         initializing_(true),
@@ -88,6 +100,8 @@ namespace obamadb {
     T* get(unsigned row, unsigned col) const override;
 
     T* operator()(unsigned row, unsigned col) override;
+
+    int numNonZeroElements() const;
 
   private:
     /**
@@ -140,7 +154,7 @@ namespace obamadb {
   template<class T>
   void SparseDataBlock<T>::getRowVector(const int row, e_vector<T> *vec) const {
     DCHECK_LT(row, this->num_rows_) << "Row index out of range.";
-    DCHECK(dynamic_cast<se_vector<float_t> *>(vec) != nullptr);
+  //  DCHECK(dynamic_cast<se_vector<float_t> *>(vec) != nullptr);
 
     SDBEntry const &entry = entries_[row];
     vec->setMemory(entry.size_, end_of_block_ - entry.offset_);
@@ -169,6 +183,19 @@ namespace obamadb {
   }
 
   /**
+   * @return Number of non zero elements. Does not include classification column.
+   */
+  template<class T>
+  int SparseDataBlock<T>::numNonZeroElements() const {
+    int nnz = 0;
+    for (int i = 0; i < this->num_rows_; i++) {
+      const SDBEntry & sdbe = entries_[i];
+      nnz += sdbe.size_;
+    }
+    return nnz;
+  }
+
+  /**
    * Get the maximum number of columns in a set of blocks.
    * @param blocks
    * @return
@@ -185,48 +212,45 @@ namespace obamadb {
   }
 
   /**
-   * Generates a random projection matrix with dimensions m by n. Entries of this matrix
-   * are in {-1, 0, 1} and appear with probablities { 1/2sqrt(m), 1 - 1/sqrt(m), 1/sqrt(m) }.
+   * Generates a random projection matrix with dimensions k x dimension. Entries of this matrix
+   * are in {-1, 0, 1} and appear with probablities { 1/2sqrt(dimension), 1 - 1/sqrt(dimension),
+   * 1/sqrt(dimension) }.
    *
-   * n will correspond to the number of features in the resultant matrix. This quantity is
-   * also sometimes called k. Im not sure how to choose this.
+   * Ordinarily, we'd return the transpose of this matrix so that the dimensions line up
+   * with A*R, but instead we return the transpose so that we can compute the multiplication
+   * faster (row,rowwise) instead of (row,columnwise).
    *
-   * m will need to match up with the number of features in your original dataset.
-   *
-   * @param m rows
-   * @param n columns, dimension of the data.
+   * @param dimension The dimension (n columns) of the data set which we are compressing.
+   * @param k Determines the factor of compression for this data set (k << dimension).
    * @return A caller-owned DataBlock.
    */
-  static SparseDataBlock<signed char>* GetRandomProjectionMatrix(int m, int n) {
+  static SparseDataBlock<signed char>* GetRandomProjectionMatrix(int dimension, int k) {
     // Estimate how large of a block we will need so that we can fit the entire thing in one go.
-    int est_size = ((m * n) * (1.0/sqrt(m)) * (sizeof(char) + sizeof(int)))   // size of total number of svectors
-                   + (m * (sizeof(SparseDataBlock<signed char>::SDBEntry) + sizeof(char)));       // size of total number of entries and additional classification in the svector
+    int est_size = ((dimension * k) * (1.0/sqrt(dimension)) * (sizeof(char) + sizeof(int)))          // size of total number of svectors
+                   + (dimension * (sizeof(SparseDataBlock<signed char>::SDBEntry) + sizeof(char)));  // size of total number of entries and additional classification in the svector
     SparseDataBlock<signed char> *pdb = new SparseDataBlock<signed char>(est_size);
-    pdb->num_columns_ = n;
+    pdb->num_columns_ = dimension;
     QuickRandom qr;
     std::uint32_t max_uint32 = 0;
     max_uint32 -= 1;
-    std::uint32_t bound_neq1 = (1.0/(2.0*sqrt(m))) * max_uint32;
+    std::uint32_t bound_neq1 = (1.0/(2.0*sqrt(dimension))) * max_uint32;
     std::uint32_t bound_pos1 = bound_neq1 * 2;
-    int nnz = 0;
-    for(int i = 0; i < m; i++) {
+    for(int i = 0; i < k; i++) {
       se_vector<signed char> row;
-      for (int j = 0; j < n; j++) {
+      for (int j = 0; j < dimension; j++) {
         std::uint32_t rand = qr.nextInt32();
         if(rand < bound_neq1) {
           row.push_back(j, -1);
         } else if (rand < bound_pos1) {
           row.push_back(j, 1);
         }
-
-        if (rand < bound_pos1) {
-          nnz++;
-        }
       }
-      DCHECK_GE(n, row.size());
+      DCHECK_GE(dimension, row.size());
      // DCHECK_NE(0, row.num_elements_);
-      CHECK(pdb->appendRow(row));
+      CHECK(pdb->appendRow(row)); // If false, we ran out of room.
     }
+    DCHECK_EQ(k, pdb->num_rows_);
+    DCHECK_EQ(dimension, pdb->num_columns_);
     return pdb;
   }
 }

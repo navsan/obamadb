@@ -1,5 +1,7 @@
 #include "storage/IO.h"
+
 #include "storage/DataBlock.h"
+#include "storage/Matrix.h"
 #include "storage/SparseDataBlock.h"
 
 #include <iostream>
@@ -184,33 +186,8 @@ namespace obamadb {
       file.close();
     }
 
-    void save(const std::string& file_name, std::vector<SparseDataBlock<float_t>*> blocks, int nblocks) {
-      std::ofstream file;
-      file.open(file_name, std::ios::out | std::ios::binary);
-      CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
-
-      int max_columns = maxColumns<float_t>(blocks);
-
-      DCHECK_LE(nblocks, blocks.size());
-
-      for (int i = 0; i < nblocks; ++i) {
-        const SparseDataBlock<float_t> &block = *blocks[i];
-        se_vector<float_t> row;
-        for (int j = 0; j < block.getNumRows(); j++) {
-          block.getRowVector(j, &row);
-          for (int k = 0; k < max_columns; k++) {
-            float_t * dptr = row.get(k);
-            if (dptr == nullptr) {
-              file << 0 << ",";
-            } else {
-              file << *dptr << ",";
-            }
-          }
-          file << *row.getClassification() << "\n";
-        }
-      }
-
-      file.close();
+    void save(const std::string& file_name, const Matrix& mat) {
+      save(file_name, mat.blocks_, mat.blocks_.size());
     }
 
   } // namespace IO
