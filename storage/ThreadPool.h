@@ -161,9 +161,9 @@ public:
   }
 
   void cycle() {
-    barrier_wait(&b1_);
+    threading::barrier_wait(&b1_);
     // workers do the routine
-    barrier_wait(&b2_);
+    threading::barrier_wait(&b2_);
     // workers are finished with routine and waiting on 1.
     // Here is an opportunity to re-allocate work, and do an update to the model.
   }
@@ -172,7 +172,7 @@ public:
     for (unsigned i = 0; i < num_workers_; i++) {
       meta_info_[i].stop = true;
     }
-    barrier_wait(&b1_);
+    threading::barrier_wait(&b1_);
     for (unsigned i = 0; i < num_workers_; i++) {
       pthread_join(threads_[i], NULL);
     }
