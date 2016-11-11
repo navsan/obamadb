@@ -35,14 +35,14 @@ namespace obamadb {
   }
 
   TEST(TestMatrix, TestLoad) {
-    std::vector<SparseDataBlock<float_t>*> blocks = IO::load<float_t>("sparse.dat");
+    std::vector<SparseDataBlock<float_t>*> blocks = IO::load_blocks<float_t>("sparse.dat");
     ASSERT_EQ(1, blocks.size());
     Matrix mat(blocks);
     EXPECT_EQ(blocks[0]->getNumColumns(), mat.numColumns_);
     EXPECT_EQ(blocks[0]->getNumRows(), mat.numRows_);
 
     // try another method of loading the matrix
-    std::unique_ptr<SparseDataBlock<float_t>> block(IO::load<float_t>("sparse.dat").front());
+    std::unique_ptr<SparseDataBlock<float_t>> block(IO::load_blocks<float_t>("sparse.dat").front());
     Matrix mat2;
     se_vector<float_t> row;
     row.setMemory(0, nullptr);

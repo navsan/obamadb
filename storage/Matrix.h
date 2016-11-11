@@ -99,9 +99,13 @@ namespace obamadb {
     /**
      * Performs a random projection multiplication on the matrix and returns a new compressed
      * version of the matrix.
+     *
+     * This corresponds to the creating the matrix b in b = (1/sqrt(k))A*R where R is the random
+     * projections matrix with i.i.d entries, zero mean, and constant variance.
      */
     Matrix* randomProjectionsCompress() const {
-      const int kCompressionConstant = 0.5 * numColumns_; // TODO: how to choose this number.
+      const int kCompressionConstant = 0.5 * numColumns_; // TODO: How do we choose this number? Corresponds to k in the Very Sparse Random Projections
+      const float_t kNormalizingConstant = 1.0/sqrt(kCompressionConstant);
       std::unique_ptr<SparseDataBlock<signed char>> projection(
         GetRandomProjectionMatrix(numColumns_, kCompressionConstant));
       Matrix *result = new Matrix();
@@ -119,7 +123,7 @@ namespace obamadb {
             projection->getRowVectorFast(k, &row_b);
             float_t f = sparseDot(row_a, row_b);
             if (f != 0) {
-              row_c.push_back(k, f);
+              row_c.push_back(k, f * kNormalizingConstant);
             }
           }
           result->addRow(row_c);
@@ -138,6 +142,17 @@ namespace obamadb {
         nnz += block->numNonZeroElements();
       }
       return (double ) (numElements - nnz) / (double) numElements;
+    }
+
+    /**
+     * @return The total size of the owned data.
+     */
+    std::uint64_t sizeBytes() const {
+      std::uint64_t size;
+      for(auto block : blocks_) {
+        size += block->block_size_bytes_;
+      }
+      return size;
     }
 
     int numColumns_;

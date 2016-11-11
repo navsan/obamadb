@@ -26,10 +26,17 @@ namespace obamadb {
     * @return nullptr if datafile did not exist or was corrupt.
     */
     template<class T>
-    std::vector<SparseDataBlock<T>*> load(const std::string& file_name);
+    std::vector<SparseDataBlock<T>*> load_blocks(const std::string &file_name);
 
     template<class T>
     std::vector<SparseDataBlock<T>*> load_csv(const std::string& file_name);
+
+    /**
+     * Load a sparse file representation of a dataset into a matrix.
+     * @param filename The sparse datafile.
+     * @return Caller-owned matrix.
+     */
+    Matrix* load(const std::string &filename);
 
     /**
      * Saves a datablock to the specified filename.

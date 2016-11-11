@@ -8,14 +8,13 @@
 
 #include "storage/tests/StorageTestHelpers.h"
 
-#include <time.h>
-#include <sys/time.h>
 #include <iostream>
 #include <string>
 #include <memory>
 #include <vector>
 
 #include <glog/logging.h>
+#include <storage/Matrix.h>
 
 namespace obamadb {
 
@@ -26,13 +25,6 @@ namespace obamadb {
         shared_theta[i] = static_cast<float_t>((1.0 - fmod((double)rand()/100.0, 2)) / 10.0);
     }
     return shared_theta;
-  }
-
-  unsigned long getTimeNS() {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (unsigned long long) ts.tv_nsec +
-           (unsigned long long) ts.tv_sec * 1000 * 1000 * 1000;
   }
 
   /**
@@ -57,45 +49,45 @@ namespace obamadb {
     }
   }
 
-  template<class T>
-  int TotalRows(const std::vector<SparseDataBlock<T> *> &data_blocks) {
-    int examples =0;
-    for(auto block : data_blocks) {
-      examples += block->getNumRows();
-    }
-    return examples;
+  void printMatrixStats(Matrix const * mat) {
+    printf("Matrix: %lu training blocks for a total size of %ldmb with %d examples with %f sparsity\n",
+           mat->blocks_.size(),
+           (mat->sizeBytes() / 1000000),
+           mat->numRows_,
+           mat->getSparsity());
   }
 
   int main(int argc, char** argv) {
     CHECK_EQ(3, argc) << "usage: " << argv[0] << " [training data] [testing data]";
+
     std::string train_fp(argv[1]);
     std::string test_fp(argv[2]);
 
     const int num_threads = 4;
     const float_t error_bound = 0.008; // stop when error falls below.
+    std::unique_ptr<Matrix> mat_train;
+    std::unique_ptr<Matrix> mat_test;
 
     printf("Reading input files...\n");
     printf("Loading: %s\n", train_fp.c_str());
-    std::vector<SparseDataBlock<float_t>*> blocks_train = IO::load<float_t>(train_fp);
-
-    printf("Read in %lu training blocks for a total size of %ldmb with %d examples\n",blocks_train.size(), ((blocks_train.size() * kStorageBlockSize) / 1000000),  TotalRows(blocks_train));
+    PRINT_TIMING({mat_train.reset(IO::load(train_fp));});
+    printMatrixStats(mat_train.get());
 
     printf("Loading: %s\n", test_fp.c_str());
-    std::vector<SparseDataBlock<float_t>*> blocks_test = IO::load<float_t>(test_fp);
-    printf("Read in %lu test blocks for a total size of %ldmb with %d examples\n",blocks_test.size(), ((blocks_test.size() * kStorageBlockSize) / 1000000), TotalRows(blocks_test));
+    PRINT_TIMING({mat_test.reset(IO::load(test_fp));});
+    printMatrixStats(mat_test.get());
 
-//    IO::save("/tmp/rcv_block.csv", blocks_test, 2);
-//    return 0;
+    DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
 
-    SVMParams svm_params = DefaultSVMParams<float_t>(blocks_train);
-    DCHECK_EQ(svm_params.degrees.size(), maxColumns(blocks_train));
-    f_vector shared_theta = getTheta(maxColumns(blocks_train));
+    SVMParams svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
+    DCHECK_EQ(svm_params.degrees.size(), maxColumns(mat_train->blocks_));
+    f_vector shared_theta = getTheta(mat_train->numColumns_);
 
     // Create the tasks for the Threadpool.
     // Roughly allocates work.
     std::vector<std::unique_ptr<DataView>> data_views;
 
-    allocateBlocks(num_threads, blocks_train, data_views);
+    allocateBlocks(num_threads, mat_train->blocks_, data_views);
     // Create tasks
     std::vector<SVMTask*> tasks;
     for (int i = 0; i < num_threads; i++) {
@@ -104,8 +96,8 @@ namespace obamadb {
 
     // Create ThreadPool + Workers
     const int tcycles = 20;
-    float_t train_rmse = Task::rms_error(shared_theta, blocks_train);
-    float_t test_rmse = Task::rms_error(shared_theta, blocks_test);
+    float_t train_rmse = Task::rms_error(shared_theta, mat_train->blocks_);
+    float_t test_rmse = Task::rms_error(shared_theta, mat_test->blocks_);
     printf("itr: train {fraction misclassified, RMSE, time to train}, test {fraction misclassified, RMSE}, Dtheta \n");
     printf("%-3d: train {%f, %f}, test {%f, %f], Dtheta: %d\n", -1, train_rmse, std::sqrt(train_rmse), test_rmse, std::sqrt(test_rmse), 0);
     ThreadPool tp(tasks);
@@ -115,19 +107,16 @@ namespace obamadb {
          cycle++) {
       f_vector last_theta(shared_theta);
 
-      clock_t begin = clock();
-
-
       auto start = getTimeNS();
       tp.cycle();
       auto end = getTimeNS();
-      double elapsed_time_s = (double(end - start))/ 1000000000;
+      double elapsed_time_s = (double(end - start))/ 1e9;
 
-      double train_fraction_error = Task::fraction_error(shared_theta, blocks_train);
-      train_rmse = Task::rms_error_loss(shared_theta, blocks_train);
+      double train_fraction_error = 0; // Task::fraction_error(shared_theta, mat_train->blocks_);
+      train_rmse = 0; // Task::rms_error_loss(shared_theta, mat_train->blocks_);
 
-      double test_fraction_error = Task::fraction_error(shared_theta, blocks_test);
-      test_rmse = Task::rms_error_loss(shared_theta, blocks_test);
+      double test_fraction_error = Task::fraction_error(shared_theta,  mat_test->blocks_);
+      test_rmse = Task::rms_error_loss(shared_theta,  mat_test->blocks_);
 
       float_t diff = 0;
       for (int i = 0; i < last_theta.dimension_; i++) {
@@ -138,22 +127,13 @@ namespace obamadb {
     }
     tp.stop();
 
-
-//    const int blocks_to_save = 2;
-//    IO::save("/tmp/RCV1.dense.csv", blocks_train, blocks_to_save);
-//    printf("Saved %d blocks to /tmp\n", blocks_to_save);
-
-    std::ofstream outfile;
-    outfile.open("/tmp/theta.dat", std::ios::binary | std::ios::out);
-    for(int i = 0; i < shared_theta.dimension_; i++) {
-       outfile << shared_theta.values_[i] << " ";
-    }
-    printf("Saved model to /tmp/theta.dat\n");
-
-
+//    std::ofstream outfile;
+//    outfile.open("/tmp/theta.dat", std::ios::binary | std::ios::out);
+//    for(int i = 0; i < shared_theta.dimension_; i++) {
+//       outfile << shared_theta.values_[i] << " ";
+//    }
+//    printf("Saved model to /tmp/theta.dat\n");
   }
-
-
 } // namespace obamadb
 
 int main(int argc, char **argv) {

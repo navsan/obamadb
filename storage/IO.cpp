@@ -89,12 +89,12 @@ namespace obamadb {
 
 
     template<class T>
-    std::vector<obamadb::SparseDataBlock<T>*> load(const std::string &file_name) {
+    std::vector<obamadb::SparseDataBlock<T>*> load_blocks(const std::string &file_name) {
       CHECK(false) << "Not implemented for the general case.";
     }
 
     template<>
-    std::vector<obamadb::SparseDataBlock<float_t>*> load(const std::string &file_name) {
+    std::vector<obamadb::SparseDataBlock<float_t>*> load_blocks(const std::string &file_name) {
       std::vector<obamadb::SparseDataBlock<float_t>*> blocks;
 
       if (!checkFileExists(file_name)) {
@@ -188,6 +188,12 @@ namespace obamadb {
 
     void save(const std::string& file_name, const Matrix& mat) {
       save(file_name, mat.blocks_, mat.blocks_.size());
+    }
+
+    Matrix *load(const std::string &filename) {
+      std::vector<obamadb::SparseDataBlock<float_t>*> blocks = load_blocks<float_t>(filename);
+      Matrix *mat = new Matrix(blocks);
+      return mat;
     }
 
   } // namespace IO
