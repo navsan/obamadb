@@ -52,33 +52,12 @@ namespace obamadb {
   void printMatrixStats(Matrix const * mat) {
     printf("Matrix: %lu training blocks for a total size of %ldmb with %d examples with %f sparsity\n",
            mat->blocks_.size(),
-           (mat->sizeBytes() / 1000000),
+           (long) (mat->sizeBytes() / 1e6),
            mat->numRows_,
            mat->getSparsity());
   }
 
-  int main(int argc, char** argv) {
-    CHECK_EQ(3, argc) << "usage: " << argv[0] << " [training data] [testing data]";
-
-    std::string train_fp(argv[1]);
-    std::string test_fp(argv[2]);
-
-    const int num_threads = 4;
-    const float_t error_bound = 0.008; // stop when error falls below.
-    std::unique_ptr<Matrix> mat_train;
-    std::unique_ptr<Matrix> mat_test;
-
-    printf("Reading input files...\n");
-    printf("Loading: %s\n", train_fp.c_str());
-    PRINT_TIMING({mat_train.reset(IO::load(train_fp));});
-    printMatrixStats(mat_train.get());
-
-    printf("Loading: %s\n", test_fp.c_str());
-    PRINT_TIMING({mat_test.reset(IO::load(test_fp));});
-    printMatrixStats(mat_test.get());
-
-    DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
-
+  void train_svm(Matrix* mat_train, Matrix* mat_test, int num_threads) {
     SVMParams svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params.degrees.size(), maxColumns(mat_train->blocks_));
     f_vector shared_theta = getTheta(mat_train->numColumns_);
@@ -103,7 +82,7 @@ namespace obamadb {
     ThreadPool tp(tasks);
     tp.begin();
     for (int cycle = 0;
-         cycle < tcycles && test_rmse > error_bound;
+         cycle < tcycles;
          cycle++) {
       f_vector last_theta(shared_theta);
 
@@ -126,6 +105,41 @@ namespace obamadb {
       printf("%-3d: train {%f, %f, %f}, test {%f, %f}, dtheta: %f\n", cycle, train_fraction_error, train_rmse, elapsed_time_s, test_fraction_error, test_rmse, diff);
     }
     tp.stop();
+  }
+
+  int main(int argc, char** argv) {
+    CHECK_EQ(3, argc) << "usage: " << argv[0] << " [training data] [testing data]";
+
+    std::string train_fp(argv[1]);
+    std::string test_fp(argv[2]);
+
+    const int num_threads = 4;
+    const float_t error_bound = 0.008; // stop when error falls below.
+    std::unique_ptr<Matrix> mat_train;
+    std::unique_ptr<Matrix> mat_test;
+
+//    printf("Reading input files...\n");
+//    printf("Loading: %s\n", train_fp.c_str());
+//    PRINT_TIMING({mat_train.reset(IO::load(train_fp));});
+//    printMatrixStats(mat_train.get());
+
+    printf("Loading: %s\n", test_fp.c_str());
+    PRINT_TIMING({mat_test.reset(IO::load(test_fp));});
+    printMatrixStats(mat_test.get());
+
+    DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
+
+    //train_svm(mat_train.get(), mat_test.get(), num_threads);
+
+    const int compressionConst = 5000;
+    std::pair<Matrix*, SparseDataBlock<signed char>*> compress_res;
+    PRINT_TIMING( { compress_res = mat_test->randomProjectionsCompress(compressionConst);} );
+    mat_test.reset(compress_res.first);
+//    mat_test.reset(mat_test->randomProjectionsCompress(compress_res.second, compressionConst));
+//    delete compress_res.second;
+
+//    printMatrixStats(mat_train.get());
+    printMatrixStats(mat_test.get());
 
 //    std::ofstream outfile;
 //    outfile.open("/tmp/theta.dat", std::ios::binary | std::ios::out);

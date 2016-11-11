@@ -56,15 +56,14 @@ namespace obamadb {
 
   TEST(TestMatrix, TestProjection) {
     std::unique_ptr<Matrix> mat(getRandomSparseMatrix(1000,1000, 0.9));
-    std::unique_ptr<Matrix> compressed_mat(mat->randomProjectionsCompress());
+    std::pair<Matrix*, SparseDataBlock<signed char>*> res_pair = mat->randomProjectionsCompress(mat->numColumns_ * 0.5);
+    std::unique_ptr<Matrix> compressed_mat(res_pair.first);
     const int kCompressionConstant = 0.5 * mat->numColumns_;
-    SparseDataBlock<signed char> *projection = GetRandomProjectionMatrix(mat->numColumns_, kCompressionConstant);
-    std::vector<SparseDataBlock<signed char>*> proj_vec;
-    proj_vec.push_back(projection);
+    std::vector<SparseDataBlock<signed char>*> proj_vec = { res_pair.second };
 
     IO::save<signed char>("/tmp/matB.csv", proj_vec, 1);
     IO::save("/tmp/matA.csv", *mat);
-    IO::save("/tmp/proj.csv", *compressed_mat);
+    IO::save("/tmp/matR.csv", *compressed_mat);
   }
 
   TEST(TestMatrix, TestRandomMatrix) {

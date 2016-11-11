@@ -97,30 +97,29 @@ namespace obamadb {
     }
 
     /**
-     * Performs a random projection multiplication on the matrix and returns a new compressed
-     * version of the matrix.
+     * Do a row-by-row multiplication (normally we do a row-column multiplication, but here we
+     * are much better optimized for row wise multiplications and so we do this method.
      *
-     * This corresponds to the creating the matrix b in b = (1/sqrt(k))A*R where R is the random
-     * projections matrix with i.i.d entries, zero mean, and constant variance.
+     * The operation A * B is equivilent to A rowwise* B' where B' is the transpose of B.
+     * @param mat
+     * @param kNormalizingConstant An optional constant to mutliply each memeber by (chose 1 if not desired)
+     * @return Caller-owned matrix result of the multiplication.
      */
-    Matrix* randomProjectionsCompress() const {
-      const int kCompressionConstant = 0.5 * numColumns_; // TODO: How do we choose this number? Corresponds to k in the Very Sparse Random Projections
-      const float_t kNormalizingConstant = 1.0/sqrt(kCompressionConstant);
-      std::unique_ptr<SparseDataBlock<signed char>> projection(
-        GetRandomProjectionMatrix(numColumns_, kCompressionConstant));
+    Matrix* matrixMultiplyRowWise(const SparseDataBlock<signed char>* mat, float_t kNormalizingConstant) const {
       Matrix *result = new Matrix();
       se_vector<float_t> row_a;
       row_a.setMemory(0, nullptr);
       se_vector<signed char> row_b;
       row_b.setMemory(0, nullptr);
+
       int current_block = 0;
       for (int i = 0; i < blocks_.size(); i++) {
         const SparseDataBlock<float_t> *block = blocks_[i];
         for (int j = 0; j < block->getNumRows(); j++) {
           se_vector<float_t> row_c;
           block->getRowVectorFast(j, &row_a);
-          for (int k = 0; k < projection->getNumRows(); k++) {
-            projection->getRowVectorFast(k, &row_b);
+          for (int k = 0; k < mat->getNumRows(); k++) {
+            mat->getRowVectorFast(k, &row_b);
             float_t f = sparseDot(row_a, row_b);
             if (f != 0) {
               row_c.push_back(k, f * kNormalizingConstant);
@@ -130,6 +129,39 @@ namespace obamadb {
         }
       }
       return result;
+    }
+
+    /**
+     * Performs a random projection multiplication on the matrix and returns a new compressed
+     * version of the matrix.
+     *
+     * This corresponds to the creating the matrix b in b = (1/sqrt(k))A*R where R is the random
+     * projections matrix with i.i.d entries, zero mean, and constant variance.
+     *
+     * @return the compressed matrix (b), and the projection matrix (r) used to generate it.
+     */
+    std::pair<Matrix*, SparseDataBlock<signed char>*> randomProjectionsCompress(int compressionConstant) const {
+      // TODO: How do we choose compressionConstant? Corresponds to k in the Very Sparse Random Projections
+      const float_t kNormalizingConstant = 1.0/sqrt(compressionConstant);
+      std::unique_ptr<SparseDataBlock<signed char>> projection(
+        GetRandomProjectionMatrix(numColumns_, compressionConstant));
+      return
+        {
+          this->matrixMultiplyRowWise(projection.get(), compressionConstant),
+          projection.release()
+        };
+    }
+
+    /**
+     * Uses a given projection matrix to perform compression
+     *
+     * @param projection_mat
+     * @param compressionConstant
+     * @return
+     */
+    Matrix* randomProjectionsCompress(SparseDataBlock<signed char>* projection_mat, int compressionConstant) const {
+      const float_t kNormalizingConstant = 1.0/sqrt(compressionConstant);
+      return matrixMultiplyRowWise(projection_mat, compressionConstant);
     }
 
     /**
