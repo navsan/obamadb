@@ -126,28 +126,31 @@ namespace obamadb {
     std::unique_ptr<Matrix> mat_train;
     std::unique_ptr<Matrix> mat_test;
 
-//    printf("Reading input files...\n");
-//    printf("Loading: %s\n", train_fp.c_str());
-//    PRINT_TIMING({mat_train.reset(IO::load(train_fp));});
-//    printMatrixStats(mat_train.get());
+    printf("Reading input files...\n");
+    printf("Loading: %s\n", train_fp.c_str());
+    PRINT_TIMING({mat_train.reset(IO::load(train_fp));});
+    printMatrixStats(mat_train.get());
 
     printf("Loading: %s\n", test_fp.c_str());
     PRINT_TIMING({mat_test.reset(IO::load(test_fp));});
     printMatrixStats(mat_test.get());
 
-//    DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
+    DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
 
     //train_svm(mat_train.get(), mat_test.get(), num_threads);
 
     const int compressionConst = 500;
     std::pair<Matrix*, SparseDataBlock<signed char>*> compress_res;
-    PRINT_TIMING( { compress_res = mat_test->randomProjectionsCompress(compressionConst);} );
-    mat_test.reset(compress_res.first);
+    PRINT_TIMING( { compress_res = mat_train->randomProjectionsCompress(compressionConst);} );
+
+    printMatrixStats(compress_res.first);
+
+//    mat_test.reset(compress_res.first);
 //    mat_test.reset(mat_test->randomProjectionsCompress(compress_res.second, compressionConst));
 //    delete compress_res.second;
-
-//    printMatrixStats(mat_train.get());
-    printMatrixStats(mat_test.get());
+//
+////    printMatrixStats(mat_train.get());
+//    printMatrixStats(mat_test.get());
 
 //    std::ofstream outfile;
 //    outfile.open("/tmp/theta.dat", std::ios::binary | std::ios::out);

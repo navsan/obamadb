@@ -47,6 +47,7 @@ target_link_libraries(obamadb_storage_Matrix
         obamadb_storage_DataBlock
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants
+        obamadb_storage_ThreadPool
         obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_SparseDataBlock
         glog
@@ -57,8 +58,7 @@ target_link_libraries(obamadb_storage_Task
         obamadb_storage_SparseDataBlock
         obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_ThreadPool
-        glog
-        obamadb_storage_Task)
+        glog)
 target_link_libraries(obamadb_storage_Utils
         glog)
 target_link_libraries(obamadb_storage_tests_StorageTestHelpers

@@ -3,8 +3,11 @@
 
 #include "storage/SparseDataBlock.h"
 #include "storage/StorageConstants.h"
+#include "storage/ThreadPool.h"
 
+#include <algorithm>
 #include <vector>
+#include <mutex>
 
 namespace obamadb {
 
@@ -96,6 +99,68 @@ namespace obamadb {
       numRows_++;
     }
 
+    struct PMultiState {
+      PMultiState(const Matrix * matA,
+                  const SparseDataBlock<signed char> *matB,
+                  float_t kNormalizingConstant,
+                  Matrix *result,
+                  int total_threads)
+        : matA_(matA),
+          matB_(matB),
+          kNormalizingConstant_(kNormalizingConstant),
+          result_(result),
+          total_threads_(total_threads),
+          result_lock_() {}
+
+      const Matrix * matA_;
+      const SparseDataBlock<signed char>* matB_;
+      float_t kNormalizingConstant_;
+      Matrix *result_;
+      int total_threads_;
+      std::mutex result_lock_;
+    };
+
+    static void parallelMultiplyHelper(int thread_id, void* state) {
+      PMultiState * pstate = reinterpret_cast<PMultiState*>(state);
+      const int numBlocks = pstate->matA_->blocks_.size();
+      const int blocks_per_thread = numBlocks / pstate->total_threads_;
+      int block_lower_lim = blocks_per_thread * thread_id;
+      int block_upper_lim = std::min(blocks_per_thread * (thread_id + 1), numBlocks);
+
+      const std::vector<SparseDataBlock<float_t> *> & blocks_ = pstate->matA_->blocks_;
+      se_vector<float_t> row_a(0, nullptr);
+      se_vector<signed char> row_b(0, nullptr);
+
+      SparseDataBlock<float_t> * result_block = new SparseDataBlock<float_t>();
+      int current_block = 0;
+      for (int i = block_lower_lim; i < block_upper_lim; i++) {
+        const SparseDataBlock<float_t> *block = blocks_[i];
+        for (int j = 0; j < block->getNumRows(); j++) {
+          se_vector<float_t> row_c;
+          block->getRowVectorFast(j, &row_a);
+          for (int k = 0; k < pstate->matB_->getNumRows(); k++) {
+            pstate->matB_->getRowVectorFast(k, &row_b);
+            float_t f = sparseDot(row_a, row_b);
+            if (f != 0) {
+              row_c.push_back(k, f * pstate->kNormalizingConstant_);
+            }
+          }
+          if (!result_block->appendRow(row_c)) {
+            pstate->result_lock_.lock();
+            pstate->result_->addBlock(result_block);
+            pstate->result_lock_.unlock();
+            result_block = new SparseDataBlock<float_t>();
+          }
+        }
+      }
+
+      if (result_block->getNumRows() != 0) {
+        pstate->result_lock_.lock();
+        pstate->result_->addBlock(result_block);
+        pstate->result_lock_.unlock();
+      }
+    }
+
     /**
      * Do a row-by-row multiplication (normally we do a row-column multiplication, but here we
      * are much better optimized for row wise multiplications and so we do this method.
@@ -107,25 +172,16 @@ namespace obamadb {
      */
     Matrix* matrixMultiplyRowWise(const SparseDataBlock<signed char>* mat, float_t kNormalizingConstant) const {
       Matrix *result = new Matrix();
-      se_vector<float_t> row_a(0, nullptr);
-      se_vector<signed char> row_b(0, nullptr);
+      // Hack to make this parallel
+      int numThreads = std::min((size_t)threading::numCores(), blocks_.size());
+      DLOG(INFO) << "Parallelizing matrix multiplication with " << numThreads << " threads";
 
-      int current_block = 0;
-      for (int i = 0; i < blocks_.size(); i++) {
-        const SparseDataBlock<float_t> *block = blocks_[i];
-        for (int j = 0; j < block->getNumRows(); j++) {
-          se_vector<float_t> row_c;
-          block->getRowVectorFast(j, &row_a);
-          for (int k = 0; k < mat->getNumRows(); k++) {
-            mat->getRowVectorFast(k, &row_b);
-            float_t f = sparseDot(row_a, row_b);
-            if (f != 0) {
-              row_c.push_back(k, f * kNormalizingConstant);
-            }
-          }
-          result->addRow(row_c);
-        }
-      }
+      PMultiState * shared_state = new PMultiState(this, mat, kNormalizingConstant, result, numThreads);
+      ThreadPool tp(parallelMultiplyHelper, shared_state, numThreads);
+      tp.begin();
+      tp.cycle();
+      tp.stop();
+
       return result;
     }
 

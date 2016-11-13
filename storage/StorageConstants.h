@@ -7,7 +7,7 @@ namespace obamadb {
 
   typedef float float_t;
 
-  const std::uint64_t kStorageBlockSize = 16e6;  // 4 megabytes.
+  const std::uint64_t kStorageBlockSize = 2e6;  // 2 megabytes.
 
 }  // namespace obamadb
 

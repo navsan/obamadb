@@ -16,7 +16,7 @@
 #include <pthread.h>
 #endif
 
-#include "storage/Task.h"
+#include "glog/logging.h"
 
 namespace obamadb {
 
@@ -107,7 +107,14 @@ typedef pthread_barrier_t barrier_t;
      return pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
 #endif
    }
-  }
+
+    /**
+     * TODO: APPLE variant?
+     * @return Number of cores on this machine.
+     */
+    int numCores();
+
+  } // end namespace threading
 
 /*
  * Information relating to the running state of a thread.
@@ -152,6 +159,27 @@ public:
 
     for (int i = 0; i < thread_states.size(); ++i) {
       meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, thread_fn, thread_states[i]));
+    }
+  }
+
+  /**
+   * ctor
+   *
+   * Every thread will be given the same state. Useful in situations
+   * where the thread_id passed to thread_fn determines the allotment of
+   * data amonst the threads.
+   *
+   * @param thread_fn Function which thread will execute. The int param will the the thread id
+   *      and the void* param will the the thread's thread local state.
+   * @param shared_thread_state State to be shared amongst all threads
+   */
+  ThreadPool(std::function<void(int, void*)> thread_fn, void* shared_thread_state, int num_threads)
+    : meta_info_(), threads_(num_threads), num_workers_(num_threads) {
+    threading::barrier_init(&b1_, NULL, num_workers_ + 1);
+    threading::barrier_init(&b2_, NULL, num_workers_ + 1);
+
+    for (int i = 0; i < num_workers_; ++i) {
+      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, thread_fn, shared_thread_state));
     }
   }
 

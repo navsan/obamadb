@@ -19,4 +19,13 @@ namespace obamadb {
     return NULL;
   }
 
+
+  int threading::numCores() {
+#if APPLE
+    return 4;
+#else
+    return sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+  }
+
 } // namespace obamadb
