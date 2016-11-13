@@ -68,10 +68,16 @@ namespace obamadb {
 
     allocateBlocks(num_threads, mat_train->blocks_, data_views);
     // Create tasks
-    std::vector<SVMTask*> tasks;
-    for (int i = 0; i < num_threads; i++) {
-      tasks.push_back(new SVMTask(data_views[i].get(), &shared_theta, svm_params));
+    std::vector<std::unique_ptr<SVMTask>> tasks(num_threads);
+    std::vector<void*> thread_states;
+    for (int i = 0; i < tasks.size(); i++) {
+      tasks[i].reset(new SVMTask(data_views[i].get(), &shared_theta, svm_params));
+      thread_states.push_back(tasks.back().get());
     }
+    auto update_fn = [](int tid, void* state) {
+      SVMTask * task = reinterpret_cast<SVMTask*>(state);
+      task->execute();
+    };
 
     // Create ThreadPool + Workers
     const int tcycles = 20;
@@ -79,7 +85,7 @@ namespace obamadb {
     float_t test_rmse = Task::rms_error(shared_theta, mat_test->blocks_);
     printf("itr: train {fraction misclassified, RMSE, time to train}, test {fraction misclassified, RMSE}, Dtheta \n");
     printf("%-3d: train {%f, %f}, test {%f, %f], Dtheta: %d\n", -1, train_rmse, std::sqrt(train_rmse), test_rmse, std::sqrt(test_rmse), 0);
-    ThreadPool tp(tasks);
+    ThreadPool tp(update_fn, thread_states);
     tp.begin();
     for (int cycle = 0;
          cycle < tcycles;
@@ -133,7 +139,7 @@ namespace obamadb {
 
     //train_svm(mat_train.get(), mat_test.get(), num_threads);
 
-    const int compressionConst = 5000;
+    const int compressionConst = 500;
     std::pair<Matrix*, SparseDataBlock<signed char>*> compress_res;
     PRINT_TIMING( { compress_res = mat_test->randomProjectionsCompress(compressionConst);} );
     mat_test.reset(compress_res.first);

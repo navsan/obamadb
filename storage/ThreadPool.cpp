@@ -11,7 +11,7 @@ namespace obamadb {
       if (meta->stop) {
         break;
       } else {
-        meta->fn_execute_();
+        meta->fn_execute_(meta->thread_id, meta->state_);
       }
       threading::barrier_wait(meta->barrier2);
       epoch++;

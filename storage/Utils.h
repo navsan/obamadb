@@ -187,7 +187,7 @@ namespace  obamadb {
     /**
      * Copy constructor.
      */
-    se_vector(const se_vector& other)
+    se_vector(const se_vector<T>& other)
       : num_elements_(other.num_elements_),
         alloc_size_(other.alloc_size_),
         index_(other.index_),

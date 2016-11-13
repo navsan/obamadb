@@ -12,7 +12,7 @@
 #include <printf.h>
 #include <unistd.h>
 #include <vector>
-#ifndef APPLE
+#ifndef __APPLE__
 #include <pthread.h>
 #endif
 
@@ -116,11 +116,13 @@ struct ThreadMeta {
   ThreadMeta(int thread_id,
              threading::barrier_t *barrier1,
              threading::barrier_t *barrier2,
-             std::function<void()> task_fn) :
+             std::function<void(int, void*)> task_fn,
+             void* state) :
     thread_id(thread_id),
     barrier1(barrier1),
     barrier2(barrier2),
     fn_execute_(task_fn),
+    state_(state),
     stop(false) {}
 
   int thread_id;
@@ -128,7 +130,8 @@ struct ThreadMeta {
   threading::barrier_t *barrier1;
   threading::barrier_t *barrier2;
 
-  std::function<void()> fn_execute_;
+  std::function<void(int, void*)> fn_execute_;
+  void* state_;
 
   bool stop;
 };
@@ -141,13 +144,14 @@ void* WorkerLoop(void *worker_params);
  */
 class ThreadPool {
 public:
-  ThreadPool(std::vector<SVMTask*>& tasks)
-    : meta_info_(), threads_(tasks.size()), num_workers_(tasks.size()) {
+  ThreadPool(std::function<void(int, void*)> thread_fn,
+             const std::vector<void*> &thread_states)
+    : meta_info_(), threads_(thread_states.size()), num_workers_(thread_states.size()) {
     threading::barrier_init(&b1_, NULL, num_workers_ + 1);
     threading::barrier_init(&b2_, NULL, num_workers_ + 1);
 
-    for (int i = 0; i < tasks.size(); ++i) {
-      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, std::bind(&SVMTask::execute, *tasks[i])));
+    for (int i = 0; i < thread_states.size(); ++i) {
+      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, thread_fn, thread_states[i]));
     }
   }
 

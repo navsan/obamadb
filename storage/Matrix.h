@@ -11,7 +11,7 @@ namespace obamadb {
   namespace {
 
     inline float_t sparseDot(const se_vector<float_t> & a, const se_vector<signed char> & b) {
-      int ai = 0, bi =0;
+      int ai = 0, bi = 0;
       float_t sum_prod = 0;
       while(ai < a.num_elements_ && bi < b.num_elements_) {
         if(a.index_[ai] == b.index_[bi]) {
@@ -107,10 +107,8 @@ namespace obamadb {
      */
     Matrix* matrixMultiplyRowWise(const SparseDataBlock<signed char>* mat, float_t kNormalizingConstant) const {
       Matrix *result = new Matrix();
-      se_vector<float_t> row_a;
-      row_a.setMemory(0, nullptr);
-      se_vector<signed char> row_b;
-      row_b.setMemory(0, nullptr);
+      se_vector<float_t> row_a(0, nullptr);
+      se_vector<signed char> row_b(0, nullptr);
 
       int current_block = 0;
       for (int i = 0; i < blocks_.size(); i++) {
