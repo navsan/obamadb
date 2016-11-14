@@ -146,6 +146,7 @@ namespace obamadb {
               row_c.push_back(k, f * pstate->kNormalizingConstant_);
             }
           }
+          *row_c.class_ = *row_a.class_;
           if (!result_block->appendRow(row_c)) {
             pstate->result_lock_.lock();
             pstate->result_->addBlock(result_block);
@@ -171,7 +172,8 @@ namespace obamadb {
      * @param kNormalizingConstant An optional constant to mutliply each memeber by (chose 1 if not desired)
      * @return Caller-owned matrix result of the multiplication.
      */
-    Matrix* matrixMultiplyRowWise(const SparseDataBlock<signed char>* mat, float_t kNormalizingConstant) const {
+    Matrix* matrixMultiplyRowWise(const SparseDataBlock<signed char>* mat,
+                                  float_t kNormalizingConstant) const {
       Matrix *result = new Matrix();
       // Hack to make this parallel
       int numThreads = std::min((size_t)threading::numCores(), blocks_.size());

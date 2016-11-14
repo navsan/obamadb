@@ -115,13 +115,30 @@ namespace obamadb {
     tp.stop();
   }
 
+  void doCompression(Matrix const * train,
+                     Matrix const * test,
+                     std::unique_ptr<Matrix>& compressedTrain,
+                     std::unique_ptr<Matrix>& compressedTest) {
+    const int compressionConst = 500;
+    std::pair<Matrix*, SparseDataBlock<signed char>*> compressResult;
+    PRINT_TIMING_MSG("Compress Train", { compressResult = train->randomProjectionsCompress(compressionConst);} );
+    compressedTrain.reset(compressResult.first);
+    printMatrixStats(compressedTrain.get());
+    PRINT_TIMING_MSG("Save Compress Train", {IO::save("/tmp/matB_train.dat", *compressedTrain);});
+    std::vector<SparseDataBlock<signed char>*> blocksR = { compressResult.second };
+    PRINT_TIMING_MSG("Save R matrix", {IO::save<signed char>("/tmp/matR.dat", blocksR, 1);});
+    std::unique_ptr<SparseDataBlock<signed char>> blockR(compressResult.second);
+    PRINT_TIMING_MSG("Compress Test", { compressedTest.reset(test->randomProjectionsCompress(blockR.get(), compressionConst)); });
+    PRINT_TIMING_MSG("Save Test matrix", {IO::save("/tmp/matB_test.dat", *compressedTest);});
+  }
+
   int main(int argc, char** argv) {
     CHECK_EQ(3, argc) << "usage: " << argv[0] << " [training data] [testing data]";
 
     std::string train_fp(argv[1]);
     std::string test_fp(argv[2]);
 
-    const int num_threads = 4;
+    const int num_threads = 40;
     const float_t error_bound = 0.008; // stop when error falls below.
     std::unique_ptr<Matrix> mat_train;
     std::unique_ptr<Matrix> mat_test;
@@ -139,21 +156,18 @@ namespace obamadb {
 
     //train_svm(mat_train.get(), mat_test.get(), num_threads);
 
-    const int compressionConst = 500;
-    std::pair<Matrix*, SparseDataBlock<signed char>*> compress_res;
-    PRINT_TIMING( { compress_res = mat_train->randomProjectionsCompress(compressionConst);} );
+    std::unique_ptr<Matrix> ctrain;
+    std::unique_ptr<Matrix> ctest;
+    doCompression(mat_train.get(), mat_test.get(), ctrain, ctest);
 
-    printMatrixStats(compress_res.first);
-    PRINT_TIMING({IO::save("/slowdisk/matB.dat", *compress_res.first);});
-    std::vector<SparseDataBlock<signed char>*> vmat_r = {compress_res.second};
-    PRINT_TIMING({IO::save<signed char>("/slowdisk/matR.dat", vmat_r, 1);});
+    train_svm(ctrain.get(), ctest.get(), num_threads);
 
-
+    return 0;
 //    mat_test.reset(compress_res.first);
 //    mat_test.reset(mat_test->randomProjectionsCompress(compress_res.second, compressionConst));
 //    delete compress_res.second;
 //
-////    printMatrixStats(mat_train.get());
+//    printMatrixStats(mat_train.get());
 //    printMatrixStats(mat_test.get());
 
 //    std::ofstream outfile;
@@ -166,5 +180,5 @@ namespace obamadb {
 } // namespace obamadb
 
 int main(int argc, char **argv) {
-  obamadb::main(argc, argv);
+  return obamadb::main(argc, argv);
 }

@@ -9,7 +9,15 @@
                               block\
                               auto time_end = std::chrono::steady_clock::now();\
                               std::chrono::duration<double, std::milli> time_ms = time_end - time_start;\
-                              printf("[%s:%d] %s elapsed time %f\n",__FILE__, __LINE__, __FUNCTION__, time_ms.count()); \
+                              printf("[TIMING][%s:%d] elapsed time %f\n",__FILE__, __LINE__, time_ms.count()); \
+                            }
+
+#define PRINT_TIMING_MSG(msg, block) { \
+                              auto time_start = std::chrono::steady_clock::now();\
+                              block\
+                              auto time_end = std::chrono::steady_clock::now();\
+                              std::chrono::duration<double, std::milli> time_ms = time_end - time_start;\
+                              printf("[TIMING][%s:%d][%s] elapsed time %f\n",__FILE__, __LINE__, msg, time_ms.count()); \
                             }
 
 #define DISABLE_COPY_AND_ASSIGN(CLASS) \
