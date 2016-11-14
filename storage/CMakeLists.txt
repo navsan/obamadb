@@ -10,15 +10,15 @@ add_library(obamadb_storage_IO
 add_library(obamadb_storage_Matrix
         Matrix.cpp
         Matrix.h)
+add_library(obamadb_storage_MLTask
+        MLTask.cpp
+        MLTask.h)
 add_library(obamadb_storage_SparseDataBlock
         SparseDataBlock.cpp
         SparseDataBlock.h)
 add_library(obamadb_storage_StorageConstants
         StorageConstants.h
         StorageConstants.cpp)
-add_library(obamadb_storage_Task
-        Task.cpp
-        Task.h)
 add_library(obamadb_storage_ThreadPool
         ThreadPool.cpp
         ThreadPool.h)
@@ -49,14 +49,14 @@ target_link_libraries(obamadb_storage_Matrix
         obamadb_storage_StorageConstants
         obamadb_storage_ThreadPool
         obamadb_storage_Utils)
-target_link_libraries(obamadb_storage_SparseDataBlock
-        glog
-        obamadb_storage_DataBlock)
-target_link_libraries(obamadb_storage_Task
+target_link_libraries(obamadb_storage_MLTask
         glog
         obamadb_storage_DataBlock
         obamadb_storage_SparseDataBlock
         obamadb_storage_Utils)
+target_link_libraries(obamadb_storage_SparseDataBlock
+        glog
+        obamadb_storage_DataBlock)
 target_link_libraries(obamadb_storage_ThreadPool
         glog)
 target_link_libraries(obamadb_storage_Utils

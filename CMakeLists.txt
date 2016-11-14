@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.3)
 project(obamadb)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -45,5 +45,5 @@ target_link_libraries(obamadb_main
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants
         obamadb_storage_ThreadPool
-        obamadb_storage_Task
+        obamadb_storage_MLTask
         obamadb_storage_tests_StorageTestHelpers)

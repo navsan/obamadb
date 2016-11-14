@@ -6,8 +6,9 @@
 #include "storage/ThreadPool.h"
 
 #include <algorithm>
-#include <vector>
+#include <memory>
 #include <mutex>
+#include <vector>
 
 namespace obamadb {
 

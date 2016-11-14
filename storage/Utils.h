@@ -12,6 +12,10 @@
                               printf("[%s:%d] %s elapsed time %f\n",__FILE__, __LINE__, __FUNCTION__, time_ms.count()); \
                             }
 
+#define DISABLE_COPY_AND_ASSIGN(CLASS) \
+            CLASS & operator=(const CLASS&) = delete;\
+            CLASS(const CLASS&) = delete
+
 namespace  obamadb {
   /**
    * Virtual base class for a training example vector.

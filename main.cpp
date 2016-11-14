@@ -1,12 +1,12 @@
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/IO.h"
+#include <storage/Matrix.h>
+#include "storage/MLTask.h"
 #include "storage/SparseDataBlock.h"
-#include "storage/Task.h"
-#include "storage/ThreadPool.h"
 #include "storage/StorageConstants.h"
-
 #include "storage/tests/StorageTestHelpers.h"
+#include "storage/ThreadPool.h"
 
 #include <iostream>
 #include <string>
@@ -14,7 +14,7 @@
 #include <vector>
 
 #include <glog/logging.h>
-#include <storage/Matrix.h>
+
 
 namespace obamadb {
 
@@ -58,8 +58,8 @@ namespace obamadb {
   }
 
   void train_svm(Matrix* mat_train, Matrix* mat_test, int num_threads) {
-    SVMParams svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
-    DCHECK_EQ(svm_params.degrees.size(), maxColumns(mat_train->blocks_));
+    SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
+    DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     f_vector shared_theta = getTheta(mat_train->numColumns_);
 
     // Create the tasks for the Threadpool.
@@ -76,13 +76,13 @@ namespace obamadb {
     }
     auto update_fn = [](int tid, void* state) {
       SVMTask * task = reinterpret_cast<SVMTask*>(state);
-      task->execute();
+      task->execute(tid, nullptr);
     };
 
     // Create ThreadPool + Workers
     const int tcycles = 20;
-    float_t train_rmse = Task::rms_error(shared_theta, mat_train->blocks_);
-    float_t test_rmse = Task::rms_error(shared_theta, mat_test->blocks_);
+    float_t train_rmse = ml::rmsError(shared_theta, mat_train->blocks_);
+    float_t test_rmse = ml::rmsError(shared_theta, mat_test->blocks_);
     printf("itr: train {fraction misclassified, RMSE, time to train}, test {fraction misclassified, RMSE}, Dtheta \n");
     printf("%-3d: train {%f, %f}, test {%f, %f], Dtheta: %d\n", -1, train_rmse, std::sqrt(train_rmse), test_rmse, std::sqrt(test_rmse), 0);
     ThreadPool tp(update_fn, thread_states);
@@ -102,8 +102,8 @@ namespace obamadb {
       double train_fraction_error = 0; // Task::fraction_error(shared_theta, mat_train->blocks_);
       train_rmse = 0; // Task::rms_error_loss(shared_theta, mat_train->blocks_);
 
-      double test_fraction_error = Task::fraction_error(shared_theta,  mat_test->blocks_);
-      test_rmse = Task::rms_error_loss(shared_theta,  mat_test->blocks_);
+      double test_fraction_error = ml::fractionMisclassified(shared_theta,  mat_test->blocks_);
+      test_rmse = ml::rmsErrorLoss(shared_theta,  mat_test->blocks_);
 
       float_t diff = 0;
       for (int i = 0; i < last_theta.dimension_; i++) {
@@ -144,6 +144,10 @@ namespace obamadb {
     PRINT_TIMING( { compress_res = mat_train->randomProjectionsCompress(compressionConst);} );
 
     printMatrixStats(compress_res.first);
+    PRINT_TIMING({IO::save("/slowdisk/matB.dat", *compress_res.first);});
+    std::vector<SparseDataBlock<signed char>*> vmat_r = {compress_res.second};
+    PRINT_TIMING({IO::save<signed char>("/slowdisk/matR.dat", vmat_r, 1);});
+
 
 //    mat_test.reset(compress_res.first);
 //    mat_test.reset(mat_test->randomProjectionsCompress(compress_res.second, compressionConst));
