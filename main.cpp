@@ -67,7 +67,6 @@ namespace obamadb {
     float_t testRmsLoss = ml::rmsErrorLoss(theta, matTest->blocks_);
     float_t trainFractionMisclassified = ml::fractionMisclassified(theta,matTrain->blocks_);
     float_t testFractionMisclassified = ml::fractionMisclassified(theta,matTest->blocks_);
-    printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss, dtheta\n");
     float_t dTheta = 0;
     for (int i = 0; i < oldTheta.dimension_; i++) {
       dTheta += std::abs(oldTheta.values_[i] - theta.values_[i]);
@@ -75,10 +74,11 @@ namespace obamadb {
     printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified, trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
   }
 
-  void train_svm(Matrix* mat_train, Matrix* mat_test, int num_threads) {
+
+  void trainSVM(Matrix *mat_train, Matrix *mat_test, int num_threads) {
     SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
-    f_vector shared_theta = getTheta(mat_train->numColumns_);
+    f_vector sharedTheta = getTheta(mat_train->numColumns_);
 
     // Create the tasks for the Threadpool.
     // Roughly allocates work.
@@ -89,7 +89,7 @@ namespace obamadb {
     std::vector<std::unique_ptr<SVMTask>> tasks(num_threads);
     std::vector<void*> threadStates;
     for (int i = 0; i < tasks.size(); i++) {
-      tasks[i].reset(new SVMTask(data_views[i].release(), &shared_theta, svm_params));
+      tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
       threadStates.push_back(tasks[i].get());
     }
 
@@ -102,25 +102,33 @@ namespace obamadb {
     const int totalCycles = 20;
     ThreadPool tp(update_fn, threadStates);
     tp.begin();
-    printSVMItrStats(mat_train, mat_test, shared_theta, shared_theta, -1, 0);
+    printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss, dtheta\n");
+    printSVMItrStats(mat_train, mat_test, sharedTheta, sharedTheta, -1, 0);
+    float totalTrainTime = 0.0;
     for (int cycle = 0; cycle < totalCycles; cycle++) {
-      f_vector last_theta(shared_theta);
+      f_vector last_theta(sharedTheta);
 
       auto time_start = std::chrono::steady_clock::now();
       tp.cycle();
       auto time_end = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
-      double elapsed_time_s = (time_ms.count())/ 1e3;
-      printSVMItrStats(mat_train, mat_test, shared_theta, last_theta, cycle, elapsed_time_s);
+      double elapsedTimeSec = (time_ms.count())/ 1e3;
+      totalTrainTime += elapsedTimeSec;
+      printSVMItrStats(mat_train, mat_test, sharedTheta, last_theta, cycle, elapsedTimeSec);
     }
     tp.stop();
+
+    float avgTrainTime = totalTrainTime / totalCycles;
+    float finalFractionMispredicted = ml::fractionMisclassified(sharedTheta, mat_test->blocks_);
+    printf(">%d,%d,%f,%f\n",mat_test->numColumns_, num_threads, avgTrainTime, finalFractionMispredicted);
   }
 
   void doCompression(Matrix const * train,
                      Matrix const * test,
                      std::unique_ptr<Matrix>& compressedTrain,
-                     std::unique_ptr<Matrix>& compressedTest) {
-    const int compressionConst = 500;
+                     std::unique_ptr<Matrix>& compressedTest,
+                     int compressionConst) {
+
     std::pair<Matrix*, SparseDataBlock<signed char>*> compressResult;
     PRINT_TIMING_MSG("Compress Training Mat", { compressResult = train->randomProjectionsCompress(compressionConst);} );
     compressedTrain.reset(compressResult.first);
@@ -134,13 +142,16 @@ namespace obamadb {
   }
 
   int main(int argc, char** argv) {
-    CHECK_EQ(3, argc) << "usage: " << argv[0] << " [training data] [testing data]";
+    CHECK_EQ(5, argc) << "usage: " << argv[0] << " [training data] [testing data] [compression constant] [num threads]";
 
     std::string train_fp(argv[1]);
     std::string test_fp(argv[2]);
+    const int kCompressionConst = std::stoi(argv[3]);
+    CHECK_LT(0, kCompressionConst);
+    const int numThreads = std::stoi(argv[4]);
 
-    const int num_threads = 40;
-    const float_t error_bound = 0.008; // stop when error falls below.
+    printf("Nthreads: %d, compressionConst: %d\n", numThreads, kCompressionConst);
+
     std::unique_ptr<Matrix> mat_train;
     std::unique_ptr<Matrix> mat_test;
 
@@ -155,22 +166,16 @@ namespace obamadb {
 
     DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
 
-    train_svm(mat_train.get(), mat_test.get(), num_threads);
+    // trainSVM(mat_train.get(), mat_test.get(), numThreads);
 
     std::unique_ptr<Matrix> ctrain;
     std::unique_ptr<Matrix> ctest;
-    doCompression(mat_train.get(), mat_test.get(), ctrain, ctest);
+    doCompression(mat_train.get(), mat_test.get(), ctrain, ctest, kCompressionConst);
+    printMatrixStats(ctrain.get());
+    printMatrixStats(ctest.get());
 
-    train_svm(ctrain.get(), ctest.get(), num_threads);
-
+    trainSVM(ctrain.get(), ctest.get(), numThreads);
     return 0;
-
-//    std::ofstream outfile;
-//    outfile.open("/tmp/theta.dat", std::ios::binary | std::ios::out);
-//    for(int i = 0; i < shared_theta.dimension_; i++) {
-//       outfile << shared_theta.values_[i] << " ";
-//    }
-//    printf("Saved model to /tmp/theta.dat\n");
   }
 } // namespace obamadb
 
