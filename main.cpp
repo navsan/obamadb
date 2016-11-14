@@ -69,11 +69,12 @@ namespace obamadb {
     allocateBlocks(num_threads, mat_train->blocks_, data_views);
     // Create tasks
     std::vector<std::unique_ptr<SVMTask>> tasks(num_threads);
-    std::vector<void*> thread_states;
+    std::vector<void*> threadStates;
     for (int i = 0; i < tasks.size(); i++) {
-      tasks[i].reset(new SVMTask(data_views[i].get(), &shared_theta, svm_params));
-      thread_states.push_back(tasks.back().get());
+      tasks[i].reset(new SVMTask(data_views[i].release(), &shared_theta, svm_params));
+      threadStates.push_back(tasks[i].get());
     }
+
     auto update_fn = [](int tid, void* state) {
       SVMTask * task = reinterpret_cast<SVMTask*>(state);
       task->execute(tid, nullptr);
@@ -85,7 +86,7 @@ namespace obamadb {
     float_t test_rmse = ml::rmsError(shared_theta, mat_test->blocks_);
     printf("itr: train {fraction misclassified, RMSE, time to train}, test {fraction misclassified, RMSE}, Dtheta \n");
     printf("%-3d: train {%f, %f}, test {%f, %f], Dtheta: %d\n", -1, train_rmse, std::sqrt(train_rmse), test_rmse, std::sqrt(test_rmse), 0);
-    ThreadPool tp(update_fn, thread_states);
+    ThreadPool tp(update_fn, threadStates);
     tp.begin();
     for (int cycle = 0;
          cycle < tcycles;
@@ -121,15 +122,15 @@ namespace obamadb {
                      std::unique_ptr<Matrix>& compressedTest) {
     const int compressionConst = 500;
     std::pair<Matrix*, SparseDataBlock<signed char>*> compressResult;
-    PRINT_TIMING_MSG("Compress Train", { compressResult = train->randomProjectionsCompress(compressionConst);} );
+    PRINT_TIMING_MSG("Compress Training Mat", { compressResult = train->randomProjectionsCompress(compressionConst);} );
     compressedTrain.reset(compressResult.first);
     printMatrixStats(compressedTrain.get());
-    PRINT_TIMING_MSG("Save Compress Train", {IO::save("/tmp/matB_train.dat", *compressedTrain);});
+    //PRINT_TIMING_MSG("Save Compress Training Mat", {IO::save("/tmp/matB_train.dat", *compressedTrain);});
     std::vector<SparseDataBlock<signed char>*> blocksR = { compressResult.second };
-    PRINT_TIMING_MSG("Save R matrix", {IO::save<signed char>("/tmp/matR.dat", blocksR, 1);});
+    //PRINT_TIMING_MSG("Save R Mat", {IO::save<signed char>("/tmp/matR.dat", blocksR, 1);});
     std::unique_ptr<SparseDataBlock<signed char>> blockR(compressResult.second);
-    PRINT_TIMING_MSG("Compress Test", { compressedTest.reset(test->randomProjectionsCompress(blockR.get(), compressionConst)); });
-    PRINT_TIMING_MSG("Save Test matrix", {IO::save("/tmp/matB_test.dat", *compressedTest);});
+    PRINT_TIMING_MSG("Compress Test Mat", { compressedTest.reset(test->randomProjectionsCompress(blockR.get(), compressionConst)); });
+    //PRINT_TIMING_MSG("Save Test Mat", {IO::save("/tmp/matB_test.dat", *compressedTest);});
   }
 
   int main(int argc, char** argv) {

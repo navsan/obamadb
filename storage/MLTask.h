@@ -115,9 +115,9 @@ namespace obamadb {
    * @return Caller-owned SVM params.
    */
   template<class T>
-  SVMParams* DefaultSVMParams(std::vector<SparseDataBlock<T>*> &all_blocks) {
+  SVMParams* DefaultSVMParams(std::vector<SparseDataBlock<T>*>& all_blocks) {
     SVMParams * params = new SVMParams(1, 0.1, 0.99);
-    int dim = all_blocks[0]->getNumColumns();  // the assumption here is that the last element is that classification
+    int dim = 0;
     std::vector<int>& degrees = params->degrees;
 
     for (int k = 0; k < all_blocks.size(); ++k) {
