@@ -50,7 +50,7 @@ namespace obamadb {
       return misclassified;
     }
 
-    float_t fractionMisclassified(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks) {
+    float_t fractionMisclassified(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
       double total_misclassified = 0;
       double total_examples = 0;
       for (int i = 0; i < blocks.size(); i++) {
@@ -61,11 +61,11 @@ namespace obamadb {
       return (float_t) total_misclassified / total_examples;
     }
 
-    float_t rmsError(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks) {
+    float_t rmsError(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
       return (float_t) std::sqrt(fractionMisclassified(theta, blocks));
     }
 
-    float_t rmsErrorLoss(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks) {
+    float_t rmsErrorLoss(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
       double total_examples = 0;
       float_t loss = 0;
       se_vector<float_t> row(0, nullptr);

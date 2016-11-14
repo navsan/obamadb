@@ -57,6 +57,24 @@ namespace obamadb {
            mat->getSparsity());
   }
 
+  void printSVMItrStats(Matrix const * matTrain,
+                        Matrix const * matTest,
+                        f_vector const & theta,
+                        f_vector const & oldTheta,
+                        int itr,
+                        float timeTrain) {
+    float_t trainRmsLoss = ml::rmsErrorLoss(theta, matTrain->blocks_);
+    float_t testRmsLoss = ml::rmsErrorLoss(theta, matTest->blocks_);
+    float_t trainFractionMisclassified = ml::fractionMisclassified(theta,matTrain->blocks_);
+    float_t testFractionMisclassified = ml::fractionMisclassified(theta,matTest->blocks_);
+    printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss, dtheta\n");
+    float_t dTheta = 0;
+    for (int i = 0; i < oldTheta.dimension_; i++) {
+      dTheta += std::abs(oldTheta.values_[i] - theta.values_[i]);
+    }
+    printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified, trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
+  }
+
   void train_svm(Matrix* mat_train, Matrix* mat_test, int num_threads) {
     SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
@@ -81,37 +99,19 @@ namespace obamadb {
     };
 
     // Create ThreadPool + Workers
-    const int tcycles = 20;
-    float_t train_rmse = ml::rmsError(shared_theta, mat_train->blocks_);
-    float_t test_rmse = ml::rmsError(shared_theta, mat_test->blocks_);
-    printf("itr: train {fraction misclassified, RMSE, time to train}, test {fraction misclassified, RMSE}, Dtheta \n");
-    printf("%-3d: train {%f, %f}, test {%f, %f], Dtheta: %d\n", -1, train_rmse, std::sqrt(train_rmse), test_rmse, std::sqrt(test_rmse), 0);
+    const int totalCycles = 20;
     ThreadPool tp(update_fn, threadStates);
     tp.begin();
-    for (int cycle = 0;
-         cycle < tcycles;
-         cycle++) {
+    printSVMItrStats(mat_train, mat_test, shared_theta, shared_theta, -1, 0);
+    for (int cycle = 0; cycle < totalCycles; cycle++) {
       f_vector last_theta(shared_theta);
 
       auto time_start = std::chrono::steady_clock::now();
       tp.cycle();
       auto time_end = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
-
       double elapsed_time_s = (time_ms.count())/ 1e3;
-
-      double train_fraction_error = 0; // Task::fraction_error(shared_theta, mat_train->blocks_);
-      train_rmse = 0; // Task::rms_error_loss(shared_theta, mat_train->blocks_);
-
-      double test_fraction_error = ml::fractionMisclassified(shared_theta,  mat_test->blocks_);
-      test_rmse = ml::rmsErrorLoss(shared_theta,  mat_test->blocks_);
-
-      float_t diff = 0;
-      for (int i = 0; i < last_theta.dimension_; i++) {
-        diff += std::abs(last_theta.values_[i] - shared_theta.values_[i]);
-      }
-
-      printf("%-3d: train {%f, %f, %f}, test {%f, %f}, dtheta: %f\n", cycle, train_fraction_error, train_rmse, elapsed_time_s, test_fraction_error, test_rmse, diff);
+      printSVMItrStats(mat_train, mat_test, shared_theta, last_theta, cycle, elapsed_time_s);
     }
     tp.stop();
   }
@@ -155,7 +155,7 @@ namespace obamadb {
 
     DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
 
-    //train_svm(mat_train.get(), mat_test.get(), num_threads);
+    train_svm(mat_train.get(), mat_test.get(), num_threads);
 
     std::unique_ptr<Matrix> ctrain;
     std::unique_ptr<Matrix> ctest;
@@ -164,12 +164,6 @@ namespace obamadb {
     train_svm(ctrain.get(), ctest.get(), num_threads);
 
     return 0;
-//    mat_test.reset(compress_res.first);
-//    mat_test.reset(mat_test->randomProjectionsCompress(compress_res.second, compressionConst));
-//    delete compress_res.second;
-//
-//    printMatrixStats(mat_train.get());
-//    printMatrixStats(mat_test.get());
 
 //    std::ofstream outfile;
 //    outfile.open("/tmp/theta.dat", std::ios::binary | std::ios::out);

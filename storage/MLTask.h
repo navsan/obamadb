@@ -25,14 +25,14 @@ namespace obamadb {
      * @param block A sample of the data.
      * @return Fraction of misclassified examples.
      */
-    float_t fractionMisclassified(const f_vector &theta, std::vector<SparseDataBlock<float_t>*>& block);
+    float_t fractionMisclassified(const f_vector &theta, std::vector<SparseDataBlock<float_t>*> const & block);
 
     /**
      * Root mean squared error.
      * @param theta The trained weights.
      * @param blocks All the data.
      */
-    float_t rmsError(const f_vector &theta, std::vector<SparseDataBlock<float_t>*>& block);
+    float_t rmsError(const f_vector &theta, std::vector<SparseDataBlock<float_t>*> const & block);
 
     /**
      * TODO: this is really SVM loss.
@@ -40,7 +40,7 @@ namespace obamadb {
      * @param blocks
      * @return
      */
-    float_t rmsErrorLoss(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> &blocks);
+    float_t rmsErrorLoss(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> const &blocks);
 
     /**
      * @return The L2 distance between two vectors.
