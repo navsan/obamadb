@@ -94,7 +94,7 @@ namespace obamadb {
     }
 
     auto update_fn = [](int tid, void* state) {
-      SVMTask * task = reinterpret_cast<SVMTask*>(state);
+      SVMTask* task = reinterpret_cast<SVMTask*>(state);
       task->execute(tid, nullptr);
     };
 
@@ -142,6 +142,7 @@ namespace obamadb {
   }
 
   int main(int argc, char** argv) {
+    ::google::InitGoogleLogging(argv[0]);
     CHECK_EQ(5, argc) << "usage: " << argv[0] << " [training data] [testing data] [compression constant] [num threads]";
 
     std::string train_fp(argv[1]);

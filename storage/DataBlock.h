@@ -80,6 +80,8 @@ namespace obamadb {
     std::uint32_t num_rows_;
     std::uint32_t block_size_bytes_;
     T* store_;
+
+    DISABLE_COPY_AND_ASSIGN(DataBlock);
   };
 
 }  // namespace obamadb

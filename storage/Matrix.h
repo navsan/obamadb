@@ -237,7 +237,7 @@ namespace obamadb {
      * @return The total size of the owned data.
      */
     std::uint64_t sizeBytes() const {
-      std::uint64_t size;
+      std::uint64_t size = 0;
       for(auto block : blocks_) {
         size += block->block_size_bytes_;
       }
