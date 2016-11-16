@@ -4,6 +4,9 @@ add_library(obamadb_storage_DataBlock
 add_library(obamadb_storage_DataView
         DataView.cpp
         DataView.h)
+add_library(obamadb_storage_exvector
+        exvector.cpp
+        exvector.h)
 add_library(obamadb_storage_IO
         IO.cpp
         IO.h)
@@ -30,21 +33,27 @@ add_library(obamadb_storage_tests_StorageTestHelpers
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.h")
 
 target_link_libraries(obamadb_storage_DataBlock
+        glog
+        obamadb_storage_exvector
         obamadb_storage_StorageConstants
-        obamadb_storage_Utils
-        glog)
+        obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_DataView
         glog
         obamadb_storage_DataBlock
+        obamadb_storage_exvector
         obamadb_storage_SparseDataBlock)
+target_link_libraries(obamadb_storage_exvector
+        glog)
 target_link_libraries(obamadb_storage_IO
         glog
         obamadb_storage_DataBlock
+        obamadb_storage_exvector
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants)
 target_link_libraries(obamadb_storage_Matrix
         glog
         obamadb_storage_DataBlock
+        obamadb_storage_exvector
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants
         obamadb_storage_ThreadPool
@@ -52,11 +61,13 @@ target_link_libraries(obamadb_storage_Matrix
 target_link_libraries(obamadb_storage_MLTask
         glog
         obamadb_storage_DataBlock
+        obamadb_storage_exvector
         obamadb_storage_SparseDataBlock
         obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_SparseDataBlock
         glog
-        obamadb_storage_DataBlock)
+        obamadb_storage_DataBlock
+        obamadb_storage_exvector)
 target_link_libraries(obamadb_storage_ThreadPool
         glog)
 target_link_libraries(obamadb_storage_Utils
@@ -70,6 +81,7 @@ target_link_libraries(IO_unittest
         gtest
         gtest_main
         obamadb_storage_DataBlock
+        obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_SparseDataBlock
         obamadb_storage_tests_StorageTestHelpers
@@ -81,6 +93,7 @@ add_executable(Matrix_unittest
 target_link_libraries(Matrix_unittest
         gtest
         gtest_main
+        obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_Matrix
         obamadb_storage_SparseDataBlock
@@ -95,6 +108,7 @@ target_link_libraries(SparseDataBlock_unittest
         gtest
         gtest_main
         obamadb_storage_DataBlock
+        obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_Utils
         obamadb_storage_tests_StorageTestHelpers
@@ -107,6 +121,7 @@ target_link_libraries(Utils_unittest
         gtest
         gtest_main
         obamadb_storage_DataBlock
+        obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_Utils
         obamadb_storage_tests_StorageTestHelpers

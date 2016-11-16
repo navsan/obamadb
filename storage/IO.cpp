@@ -1,12 +1,13 @@
 #include "storage/IO.h"
 
+#include "storage/exvector.h"
 #include "storage/DataBlock.h"
 #include "storage/Matrix.h"
 #include "storage/SparseDataBlock.h"
 
+#include <cmath>
 #include <iostream>
 #include <fstream>
-#include <cmath>
 
 #include "glog/logging.h"
 
@@ -108,7 +109,7 @@ namespace obamadb {
       CHECK(infile.is_open());
 
       obamadb::SparseDataBlock<float_t> *current_block = new SparseDataBlock<float_t>();
-      se_vector<float_t> temp_row;
+      svector<float_t> temp_row;
       bool new_line = true;
 
       float_t last_id = -1;

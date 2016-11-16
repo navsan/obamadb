@@ -1,6 +1,7 @@
 #ifndef OBAMADB_MATRIX_H
 #define OBAMADB_MATRIX_H
 
+#include "storage/exvector.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/StorageConstants.h"
 #include "storage/ThreadPool.h"
@@ -14,7 +15,7 @@ namespace obamadb {
 
   namespace {
 
-    inline float_t sparseDot(const se_vector<float_t> & a, const se_vector<signed char> & b) {
+    inline float_t sparseDot(const svector<float_t> & a, const svector<signed char> & b) {
       int ai = 0, bi = 0;
       float_t sum_prod = 0;
       while(ai < a.num_elements_ && bi < b.num_elements_) {
@@ -83,7 +84,7 @@ namespace obamadb {
      * block will be created.
      * @param row Row to append
      */
-    void addRow(const se_vector<float_t> &row) {
+    void addRow(const svector<float_t> &row) {
       if(blocks_.size() == 0 || !blocks_.back()->appendRow(row)) {
         blocks_.push_back(new SparseDataBlock<float_t>());
         bool appended = blocks_.back()->appendRow(row);
@@ -122,22 +123,21 @@ namespace obamadb {
     };
 
     static void parallelMultiplyHelper(int thread_id, void* state) {
-      PMultiState * pstate = reinterpret_cast<PMultiState*>(state);
+      PMultiState *pstate = reinterpret_cast<PMultiState *>(state);
       const int numBlocks = pstate->matA_->blocks_.size();
       const int blocks_per_thread = numBlocks / pstate->total_threads_;
       int block_lower_lim = blocks_per_thread * thread_id;
       int block_upper_lim = std::min(blocks_per_thread * (thread_id + 1), numBlocks);
 
-      const std::vector<SparseDataBlock<float_t> *> & blocks_ = pstate->matA_->blocks_;
-      se_vector<float_t> row_a(0, nullptr);
-      se_vector<signed char> row_b(0, nullptr);
+      const std::vector<SparseDataBlock<float_t> *> &blocks_ = pstate->matA_->blocks_;
+      svector<float_t> row_a(0, nullptr);
+      svector<signed char> row_b(0, nullptr);
 
-      SparseDataBlock<float_t> * result_block = new SparseDataBlock<float_t>();
-      int current_block = 0;
+      SparseDataBlock<float_t> *result_block = new SparseDataBlock<float_t>();
       for (int i = block_lower_lim; i < block_upper_lim; i++) {
         const SparseDataBlock<float_t> *block = blocks_[i];
         for (int j = 0; j < block->getNumRows(); j++) {
-          se_vector<float_t> row_c;
+          svector<float_t> row_c;
           block->getRowVectorFast(j, &row_a);
           for (int k = 0; k < pstate->matB_->getNumRows(); k++) {
             pstate->matB_->getRowVectorFast(k, &row_b);
@@ -180,7 +180,7 @@ namespace obamadb {
       DLOG(INFO) << "Parallelizing matrix multiplication with " << numThreads << " threads";
 
       PMultiState * shared_state = new PMultiState(this, mat, kNormalizingConstant, result, numThreads);
-      ThreadPool tp(parallelMultiplyHelper, shared_state, numThreads);
+      ThreadPool tp(Matrix::parallelMultiplyHelper, shared_state, numThreads);
       tp.begin();
       tp.cycle();
       tp.stop();
@@ -199,7 +199,6 @@ namespace obamadb {
      */
     std::pair<Matrix*, SparseDataBlock<signed char>*> randomProjectionsCompress(int compressionConstant) const {
       // TODO: How do we choose compressionConstant? Corresponds to k in the Very Sparse Random Projections
-      const float_t kNormalizingConstant = 1.0/sqrt(compressionConstant);
       std::unique_ptr<SparseDataBlock<signed char>> projection(
         GetRandomProjectionMatrix(numColumns_, compressionConstant));
       return

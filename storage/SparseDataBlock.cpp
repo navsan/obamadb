@@ -1,12 +1,11 @@
 #include "storage/SparseDataBlock.h"
-#include "storage/DataBlock.h"
-#include "storage/StorageConstants.h"
 
+#include "storage/exvector.h"
 
 namespace obamadb {
 
   std::ostream &operator<<(std::ostream &os, const SparseDataBlock<float_t> &block) {
-    se_vector<float_t> row;
+    svector<float_t> row;
     int cols_max = block.getNumColumns();
     for (int i = 0; i < block.getNumRows(); i++) {
       block.getRowVector(i, &row);

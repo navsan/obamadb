@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "storage/DataBlock.h"
+#include "storage/exvector.h"
 #include "storage/IO.h"
 #include "storage/Matrix.h"
 #include "storage/SparseDataBlock.h"
@@ -9,7 +10,6 @@
 
 #include <cstdlib>
 #include <memory>
-
 
 namespace obamadb {
 
@@ -21,7 +21,7 @@ namespace obamadb {
     sparsity_lim -= 1;
     sparsity_lim *= sparsity;
 
-    se_vector<float_t> row;
+    svector<float_t> row;
     for (int i = 0; i < m; i++) {
       for (int j = 0; j < n; j++) {
         if (qr.nextInt32() > sparsity_lim) {
@@ -44,7 +44,7 @@ namespace obamadb {
     // try another method of loading the matrix
     std::unique_ptr<SparseDataBlock<float_t>> block(IO::load_blocks<float_t>("sparse.dat").front());
     Matrix mat2;
-    se_vector<float_t> row;
+    svector<float_t> row;
     row.setMemory(0, nullptr);
     for(int i = 0; i < block->getNumRows(); i++) {
       block->getRowVectorFast(i, &row);

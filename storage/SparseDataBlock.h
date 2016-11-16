@@ -2,6 +2,7 @@
 #define OBAMADB_SPARSEDATABLOCK_H
 
 #include "storage/DataBlock.h"
+#include "storage/exvector.h"
 #include "storage/StorageConstants.h"
 #include "storage/Utils.h"
 
@@ -66,7 +67,7 @@ namespace obamadb {
      * @param row Row to append.
      * @return True if the append succeeded, false if the block is full.
      */
-    bool appendRow(const se_vector<T> &row);
+    bool appendRow(const svector<T> &row);
 
     /**
      * Blocks which have been finalized no longer can have rows appended to them.
@@ -79,9 +80,9 @@ namespace obamadb {
       return DataBlockType::kSparse;
     }
 
-    void getRowVector(int row, e_vector<T> *vec) const override;
+    void getRowVector(int row, exvector<T> *vec) const override;
 
-    inline void getRowVectorFast(const int row, se_vector<T> *vec) const {
+    inline void getRowVectorFast(const int row, svector<T> *vec) const {
       DCHECK_LT(row, this->num_rows_) << "Row index out of range.";
 //      DCHECK(dynamic_cast<se_vector<float_t> *>(vec) != nullptr);
       DCHECK_EQ(false, vec->owns_memory());
@@ -133,7 +134,7 @@ namespace obamadb {
   }
 
   template<class T>
-  bool SparseDataBlock<T>::appendRow(const se_vector<T> &row) {
+  bool SparseDataBlock<T>::appendRow(const svector<T> &row) {
     DCHECK(initializing_);
 
     if (remainingSpaceBytes() < (sizeof(SDBEntry) + row.sizeBytes())) {
@@ -152,7 +153,7 @@ namespace obamadb {
   }
 
   template<class T>
-  void SparseDataBlock<T>::getRowVector(const int row, e_vector<T> *vec) const {
+  void SparseDataBlock<T>::getRowVector(const int row, exvector<T> *vec) const {
     DCHECK_LT(row, this->num_rows_) << "Row index out of range.";
   //  DCHECK(dynamic_cast<se_vector<float_t> *>(vec) != nullptr);
 
@@ -168,7 +169,7 @@ namespace obamadb {
     DCHECK_LT(col, this->num_columns_) << "Column index out of range.";
 
     SDBEntry const &entry = entries_[row];
-    se_vector<T> vec(entry.size_, end_of_block_ - entry.offset_);
+    svector<T> vec(entry.size_, end_of_block_ - entry.offset_);
     T* value = vec.get(col);
     if (value == nullptr) {
       return 0;
@@ -236,7 +237,7 @@ namespace obamadb {
     std::uint32_t bound_neq1 = (1.0/(2.0*sqrt(dimension))) * max_uint32;
     std::uint32_t bound_pos1 = bound_neq1 * 2;
     for(int i = 0; i < k; i++) {
-      se_vector<signed char> row;
+      svector<signed char> row;
       for (int j = 0; j < dimension; j++) {
         std::uint32_t rand = qr.nextInt32();
         if(rand < bound_neq1) {

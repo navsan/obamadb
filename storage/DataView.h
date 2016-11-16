@@ -2,6 +2,7 @@
 #define OBAMADB_DATAVIEW_H_
 
 #include "storage/DataBlock.h"
+#include "storage/exvector.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/StorageConstants.h"
 
@@ -17,7 +18,7 @@ namespace obamadb {
 
     DataView() : blocks_(), current_block_(0), current_idx_(0) {}
 
-    inline bool getNext(se_vector<float_t> * row) {
+    inline bool getNext(svector<float_t> * row) {
 //      if (blocks_.size() == 0) {
 //        return false;
 //      }

@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "storage/DataBlock.h"
+#include "storage/exvector.h"
 #include "storage/IO.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
@@ -9,7 +10,6 @@
 #include <cstdlib>
 #include <memory>
 
-
 namespace obamadb {
 
   TEST(IOTest, TestLoadSparse) {
@@ -17,7 +17,7 @@ namespace obamadb {
     ASSERT_EQ(1, blocks.size());
     std::unique_ptr<SparseDataBlock<float_t>> block(dynamic_cast<SparseDataBlock<float_t>*>(blocks[0]));
 
-    se_vector<float_t> r1;
+    svector<float_t> r1;
     block->getRowVector(0, &r1);
     EXPECT_EQ(-1, *r1.getClassification());
     EXPECT_EQ(3, r1.numElements());
@@ -30,7 +30,7 @@ namespace obamadb {
     ASSERT_EQ(n, pdb->getNumRows());
     ASSERT_EQ(m, pdb->getNumColumns());
     int counts[3] = {0,0,0};
-    se_vector<signed char> row;
+    svector<signed char> row;
     row.setMemory(0, nullptr); // cheap way to clear ownership
     for (int i = 0; i < pdb->getNumRows(); i++) {
       pdb->getRowVectorFast(i, &row);

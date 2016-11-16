@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "storage/IO.h"
+#include "storage/exvector.h"
 #include "storage/DataBlock.h"
 #include "storage/SparseDataBlock.h"
 
@@ -18,7 +19,7 @@ namespace obamadb {
     EXPECT_EQ(2, block->getNumRows());
     EXPECT_EQ(24, block->getNumColumns());
 
-    se_vector<float_t> row;
+    svector<float_t> row;
     block->getRowVector(0, &row);
 
     EXPECT_EQ(12.111, row.values_[row.numElements() - 1]);

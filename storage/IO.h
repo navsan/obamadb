@@ -1,6 +1,7 @@
 #ifndef OBAMADB_STORAGE_LOADER_H_
 #define OBAMADB_STORAGE_LOADER_H_
 
+#include "storage/exvector.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/StorageConstants.h"
 
@@ -65,7 +66,7 @@ namespace obamadb {
 
       for (int i = 0; i < nblocks; ++i) {
         const SparseDataBlock<T> &block = *blocks[i];
-        se_vector<T> row;
+        svector<T> row;
         for (int j = 0; j < block.getNumRows(); j++) {
           block.getRowVector(j, &row);
           for (int k = 0; k < max_columns; k++) {

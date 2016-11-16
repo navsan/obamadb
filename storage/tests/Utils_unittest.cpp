@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "storage/DataBlock.h"
+#include "storage/exvector.h"
 #include "storage/IO.h"
 #include "storage/Utils.h"
 
@@ -8,11 +9,10 @@
 #include <cstdlib>
 #include <memory>
 
-
 namespace obamadb {
 
   TEST(UtilsTest, TestSVector) {
-    se_vector<int> vec(10);
+    svector<int> vec(10);
     for (int i = 0; i < 10; i++) {
       vec.push_back(i * 100, i);
     }
@@ -23,7 +23,7 @@ namespace obamadb {
   }
 
   TEST(UtilsTest, TestSVectorMemory) {
-    se_vector<int> vec(10);
+    svector<int> vec(10);
     for (int i = 0; i < 10; i++) {
       vec.push_back(i * 100, i);
     }
@@ -34,7 +34,7 @@ namespace obamadb {
     std::unique_ptr<char> buffer(new char[vec.sizeBytes()]);
     vec.copyTo(buffer.get());
     // Read back out the vector.
-    se_vector<int> vec2(vec.numElements(), buffer.get());
+    svector<int> vec2(vec.numElements(), buffer.get());
 
     EXPECT_EQ(900, vec2.size());
     EXPECT_EQ(10, vec2.numElements());
@@ -42,7 +42,7 @@ namespace obamadb {
     EXPECT_EQ(2, *vec2.get(200));
     EXPECT_EQ(*vec.class_, *vec2.class_);
 
-    se_vector<int> vec3 = vec2;
+    svector<int> vec3 = vec2;
 
     EXPECT_EQ(900, vec3.size());
     EXPECT_EQ(10, vec3.numElements());

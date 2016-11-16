@@ -2,6 +2,7 @@
 
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
+#include "storage/exvector.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
 
@@ -12,7 +13,7 @@ namespace obamadb {
     /**
      * Dot product
      */
-    float_t dot(const de_vector<float_t> &v1, float_t *d2) {
+    float_t dot(const dvector<float_t> &v1, float_t *d2) {
       float_t dotsum = 0;
       float_t *__restrict__ pv1 = v1.values_;
       float_t *__restrict__ pv2 = d2;
@@ -25,7 +26,7 @@ namespace obamadb {
     /**
      * Dot product
      */
-    float_t dot(const se_vector<float_t> &v1, float_t *d2) {
+    float_t dot(const svector<float_t> &v1, float_t *d2) {
       float_t dotsum = 0;
       float_t const *const __restrict__ pv1 = v1.values_;
       int const *const __restrict__ pvi1 = v1.index_;
@@ -36,8 +37,8 @@ namespace obamadb {
       return dotsum;
     }
 
-    int numMisclassified(const f_vector &theta, const SparseDataBlock<float_t> &block) {
-      se_vector<float_t> row(0, nullptr);
+    int numMisclassified(const fvector &theta, const SparseDataBlock<float_t> &block) {
+      svector<float_t> row(0, nullptr);
       int misclassified = 0;
       for (int i = 0; i < block.getNumRows(); i++) {
         block.getRowVectorFast(i, &row);
@@ -50,7 +51,7 @@ namespace obamadb {
       return misclassified;
     }
 
-    float_t fractionMisclassified(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
+    float_t fractionMisclassified(const fvector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
       double total_misclassified = 0;
       double total_examples = 0;
       for (int i = 0; i < blocks.size(); i++) {
@@ -61,14 +62,14 @@ namespace obamadb {
       return (float_t) total_misclassified / total_examples;
     }
 
-    float_t rmsError(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
+    float_t rmsError(const fvector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
       return (float_t) std::sqrt(fractionMisclassified(theta, blocks));
     }
 
-    float_t rmsErrorLoss(const f_vector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
+    float_t rmsErrorLoss(const fvector &theta, std::vector<SparseDataBlock<float_t> *> const & blocks) {
       double total_examples = 0;
       float_t loss = 0;
-      se_vector<float_t> row(0, nullptr);
+      svector<float_t> row(0, nullptr);
       for (int i = 0; i < blocks.size(); i++) {
         SparseDataBlock<float_t> const &block = *blocks[i];
 
@@ -84,7 +85,7 @@ namespace obamadb {
       return (float_t) std::sqrt(loss) / std::sqrt(total_examples);
     }
 
-    float_t L2Distance(const f_vector &v1, const f_vector &v2) {
+    float_t L2Distance(const fvector &v1, const fvector &v2) {
       DCHECK_EQ(v1.dimension_, v2.dimension_);
 
       double dist_sum = 0;
@@ -100,7 +101,7 @@ namespace obamadb {
      * @param delta Sparse vector of changes.
      * @param e Scaling constant
      */
-    inline void scaleAndAdd(float_t* theta, const se_vector<float_t>& delta, const float_t e) {
+    inline void scaleAndAdd(float_t* theta, const svector<float_t>& delta, const float_t e) {
       float_t * const __restrict__ tptr = theta;
       float_t const * __restrict__ const vptr = delta.values_;
       int const * __restrict__ const iptr = delta.index_;
@@ -115,7 +116,7 @@ void SVMTask::execute(int threadId, void* svm_state) {
   (void) svm_state; // silence compiler warning.
 
   data_view_->reset();
-  se_vector<float_t> row(0, nullptr); // a readonly se_vector.
+  svector<float_t> row(0, nullptr); // a readonly se_vector.
   float_t * theta = shared_theta_->values_;
   const float_t mu = shared_params_->mu;
   const float_t step_size = shared_params_->step_size;

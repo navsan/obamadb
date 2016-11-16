@@ -1,16 +1,17 @@
 #ifndef OBAMADB_DATABLOCK_H_
 #define OBAMADB_DATABLOCK_H_
 
+#include "storage/exvector.h"
 #include "storage/StorageConstants.h"
 #include "storage/Utils.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <iomanip>
 #include <functional>
 
 #include <glog/logging.h>
-#include <iomanip>
 
 namespace obamadb {
 
@@ -59,7 +60,7 @@ namespace obamadb {
      * @param row
      * @param src
      */
-    virtual void getRowVector(int row, e_vector<T>* src) const = 0;
+    virtual void getRowVector(int row, exvector<T>* src) const = 0;
 
     virtual DataBlockType getDataBlockType() const = 0;
 
@@ -75,7 +76,6 @@ namespace obamadb {
     template<class A>
     friend std::ostream& operator<<(std::ostream& os, const DataBlock<A>& block);
 
-//  protected:
     std::uint32_t num_columns_;
     std::uint32_t num_rows_;
     std::uint32_t block_size_bytes_;
