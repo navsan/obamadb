@@ -6,6 +6,11 @@
 #include "glog/logging.h"
 
 namespace obamadb {
+  enum class exvectorType {
+    kSparse,
+    kDense
+  };
+
   /**
    * Virtual base class for a training example (ex)vector.
    * Each vector is a map of attribute index->attribute value and a slot for classification.
@@ -24,6 +29,8 @@ namespace obamadb {
     virtual int sizeBytes() const = 0;
 
     virtual void setMemory(int size, void *src) = 0;
+
+    virtual exvectorType getType() const = 0;
   };
 
   /**
@@ -37,8 +44,8 @@ namespace obamadb {
      * @param size Maximum number of non-null elements this can contain.
      */
     dvector(int size) :
-      values_(new T[size]),
-      class_(new T),
+      values_(new T[size + 1]),
+      class_(values_ + size),
       num_elements_(0),
       alloc_size_(size),
       owns_memory_(true) {}
@@ -93,6 +100,10 @@ namespace obamadb {
       num_elements_ = 0;
     }
 
+    bool ownsMemory() const {
+      return owns_memory_;
+    }
+
     void push_back(const T &value) {
       if (num_elements_ == alloc_size_) {
         doubleAllocation();
@@ -120,13 +131,18 @@ namespace obamadb {
       return sizeof(T) * (num_elements_ + 1);
     }
 
+    exvectorType getType() const {
+      return exvectorType::kDense;
+    }
+
     T *values_;
     T *class_;
+    int num_elements_;
 
   private:
     void doubleAllocation() {
-      T *tempValues = new T[alloc_size_ * 2];
-      memcpy(tempValues, values_, sizeof(T) * alloc_size_);
+      T *tempValues = new T[(alloc_size_ * 2) + 1];
+      memcpy(tempValues, values_, (sizeof(T) * alloc_size_) + 1);
       delete[] values_;
       values_ = tempValues;
       alloc_size_ *= 2;
@@ -135,13 +151,11 @@ namespace obamadb {
     void release() {
       if (owns_memory_) {
         delete[] values_;
-        delete class_;
         owns_memory_ = false;
       }
     }
 
-    int num_elements_;
-    int alloc_size_;
+    int alloc_size_; // the real size of the storage array is alloc_size + 1 (to account for the classification)
     bool owns_memory_;
   };
 
@@ -322,6 +336,10 @@ namespace obamadb {
         }
       }
       return nullptr;
+    }
+
+    exvectorType getType() const {
+      return exvectorType::kSparse;
     }
 
     int *index_;

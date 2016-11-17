@@ -4,6 +4,9 @@ add_library(obamadb_storage_DataBlock
 add_library(obamadb_storage_DataView
         DataView.cpp
         DataView.h)
+add_library(obamadb_storage_DenseDataBlock
+        DenseDataBlock.cpp
+        DenseDataBlock.h)
 add_library(obamadb_storage_exvector
         exvector.cpp
         exvector.h)
@@ -42,6 +45,12 @@ target_link_libraries(obamadb_storage_DataView
         obamadb_storage_DataBlock
         obamadb_storage_exvector
         obamadb_storage_SparseDataBlock)
+target_link_libraries(obamadb_storage_DenseDataBlock
+        glog
+        obamadb_storage_DataBlock
+        obamadb_storage_exvector
+        obamadb_storage_StorageConstants
+        obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_exvector
         glog)
 target_link_libraries(obamadb_storage_IO
@@ -74,6 +83,20 @@ target_link_libraries(obamadb_storage_Utils
         glog)
 target_link_libraries(obamadb_storage_tests_StorageTestHelpers
         glog)
+
+
+add_executable(DenseDataBlock_unittest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/DenseDataBlock_unittest.cpp")
+target_link_libraries(DenseDataBlock_unittest
+        gtest
+        gtest_main
+        obamadb_storage_DenseDataBlock
+        obamadb_storage_exvector
+        obamadb_storage_IO
+        obamadb_storage_Utils
+        obamadb_storage_tests_StorageTestHelpers
+        ${LIBS})
+add_test(DenseDataBlock_unittest DenseDataBlock_unittest)
 
 add_executable(IO_unittest
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/IO_unittest.cpp")

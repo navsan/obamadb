@@ -54,13 +54,10 @@ namespace obamadb {
         numRows_(0),
         blocks_() {}
 
-    Matrix(const Matrix& other) = delete;
-
-    Matrix& operator=(const Matrix& other) = delete;
-
     ~Matrix() {
-      for(auto block : blocks_)
+      for(auto block : blocks_) {
         delete block;
+      }
     }
 
     /**
@@ -246,6 +243,8 @@ namespace obamadb {
     int numColumns_;
     int numRows_;
     std::vector<SparseDataBlock<float_t>*> blocks_;
+
+    DISABLE_COPY_AND_ASSIGN(Matrix);
   };
 
 }

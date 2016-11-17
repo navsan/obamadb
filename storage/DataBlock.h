@@ -16,6 +16,7 @@
 namespace obamadb {
 
   enum class DataBlockType {
+    kDense,
     kSparse
   };
 
@@ -23,16 +24,18 @@ namespace obamadb {
   class DataBlock {
   public:
     DataBlock(unsigned numRows, unsigned numColumns) :
-      num_columns_(numRows),
-      num_rows_(numColumns),
-      block_size_bytes_(kStorageBlockSize),
-      store_(reinterpret_cast<T*>(new char[kStorageBlockSize])) {}
+      num_columns_(numColumns),
+      num_rows_(0),
+      block_size_bytes_(std::max(kStorageBlockSize, ((numColumns + 1) * numRows) * sizeof(T))),
+      store_(reinterpret_cast<T*>(new char[block_size_bytes_])),
+      initializing_(true) {}
 
     DataBlock(unsigned size_bytes) :
       num_columns_(0),
       num_rows_(0),
       block_size_bytes_(size_bytes),
-      store_(reinterpret_cast<T*>(new char[size_bytes])) {}
+      store_(reinterpret_cast<T*>(new char[size_bytes])),
+      initializing_(true) {}
 
     DataBlock() : DataBlock(kStorageBlockSize) {}
 
@@ -80,6 +83,7 @@ namespace obamadb {
     std::uint32_t num_rows_;
     std::uint32_t block_size_bytes_;
     T* store_;
+    bool initializing_;
 
     DISABLE_COPY_AND_ASSIGN(DataBlock);
   };

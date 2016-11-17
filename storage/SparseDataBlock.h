@@ -43,7 +43,6 @@ namespace obamadb {
      */
     SparseDataBlock(unsigned numRows, unsigned numColumns)
       : DataBlock<T>(numRows, numColumns),
-        initializing_(true),
         entries_(reinterpret_cast<SDBEntry *>(this->store_)),
         heap_offset_(0),
         end_of_block_(reinterpret_cast<char *>(this->store_) + this->block_size_bytes_) {}
@@ -55,7 +54,6 @@ namespace obamadb {
      */
     SparseDataBlock(int size_bytes)
       : DataBlock<T>(size_bytes),
-        initializing_(true),
         entries_(reinterpret_cast<SDBEntry *>(this->store_)),
         heap_offset_(0),
         end_of_block_(reinterpret_cast<char *>(this->store_) + size_bytes) {}
@@ -73,7 +71,7 @@ namespace obamadb {
      * Blocks which have been finalized no longer can have rows appended to them.
      */
     void finalize() {
-      initializing_ = false;
+      this->initializing_ = false;
     }
 
     DataBlockType getDataBlockType() const override {
@@ -84,7 +82,6 @@ namespace obamadb {
 
     inline void getRowVectorFast(const int row, svector<T> *vec) const {
       DCHECK_LT(row, this->num_rows_) << "Row index out of range.";
-//      DCHECK(dynamic_cast<se_vector<float_t> *>(vec) != nullptr);
       DCHECK_EQ(false, vec->owns_memory());
 
       SDBEntry const &entry = entries_[row];
@@ -110,8 +107,6 @@ namespace obamadb {
      */
     inline unsigned remainingSpaceBytes() const;
 
-
-    bool initializing_;
     SDBEntry *entries_;
     unsigned heap_offset_; // the heap grows backwards from the end of the block.
     // The end of last entry offset_ bytes from the end of the structure.
@@ -135,7 +130,7 @@ namespace obamadb {
 
   template<class T>
   bool SparseDataBlock<T>::appendRow(const svector<T> &row) {
-    DCHECK(initializing_);
+    DCHECK(this->initializing_);
 
     if (remainingSpaceBytes() < (sizeof(SDBEntry) + row.sizeBytes())) {
       return false;
