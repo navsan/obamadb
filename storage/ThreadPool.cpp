@@ -2,9 +2,14 @@
 
 namespace obamadb {
 
+  namespace threading {
+    int NumCoresAffinitized = 0;
+  }
+
   void *WorkerLoop(void *worker_params) {
     ThreadMeta *meta = reinterpret_cast<ThreadMeta*>(worker_params);
-    threading::setCoreAffinity(meta->thread_id);
+    int assigned_core = threading::getCoreAffinity(meta->thread_id);
+    threading::setCoreAffinity(assigned_core);
     int epoch = 0;
     while (true) {
       threading::barrier_wait(meta->barrier1);

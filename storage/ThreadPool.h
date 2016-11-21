@@ -108,6 +108,24 @@ typedef pthread_barrier_t barrier_t;
 #endif
    }
 
+    static int NumThreadsAffinitized;
+
+    /**
+     * Choose the optimal core. This is experimental. In the future we should get this automatically from
+     * lib numa like in
+     * https://github.com/apache/incubator-quickstep/pull/126/commits/248cec27341fa8f19658d0705c1dca3fec0ff550
+     * @param thread_id The Obamadb thread id.
+     * @return The core to bind to.
+     */
+    inline int getCoreAffinity(int core_id) {
+      // uncomment the first one if it's on a 4 core machine.
+      //int threads_order[4] = {0,1,2,3};
+      // this is the cloudlab machine.
+      int threads_order[20] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+      NumThreadsAffinitized++;
+      return threads_order[(NumThreadsAffinitized-1) % (sizeof(threads_order)/sizeof(int))];
+    }
+
     /**
      * TODO: APPLE variant?
      * @return Number of cores on this machine.
@@ -173,8 +191,12 @@ public:
    *      and the void* param will the the thread's thread local state.
    * @param shared_thread_state State to be shared amongst all threads
    */
-  ThreadPool(std::function<void(int, void*)> thread_fn, void* shared_thread_state, int num_threads)
-    : meta_info_(), threads_(num_threads), num_workers_(num_threads) {
+  ThreadPool(std::function<void(int, void*)> thread_fn,
+             void* shared_thread_state,
+             int num_threads)
+    : meta_info_(),
+      threads_(num_threads),
+      num_workers_(num_threads) {
     threading::barrier_init(&b1_, NULL, num_workers_ + 1);
     threading::barrier_init(&b2_, NULL, num_workers_ + 1);
 

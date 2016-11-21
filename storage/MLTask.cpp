@@ -107,7 +107,7 @@ namespace obamadb {
       int const * __restrict__ const iptr = delta.index_;
       for (int i = 0; i < delta.num_elements_; i++) {
         const int idx = iptr[i];
-        theta[idx] = theta[idx] + (vptr[i] * e);
+        tptr[idx] = tptr[idx] + (vptr[i] * e);
       }
     }
   } // namespace ml

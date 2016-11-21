@@ -78,13 +78,13 @@ namespace obamadb {
      * @param col
      * @return  The value stored at a particular index.
      */
-    T* get(unsigned row, unsigned col) const {
+    T* get(unsigned row, unsigned col) const override {
       DCHECK_GT(this->num_rows_, row);
       DCHECK_GT(this->num_columns_, col);
       return this->store_ + (row * (this->num_columns_ + 1) + col);
     }
 
-    T* operator()(unsigned row, unsigned col) {
+    T* operator()(unsigned row, unsigned col) override {
       return get(row, col);
     }
 

@@ -18,8 +18,8 @@
 
 namespace obamadb {
 
-  f_vector getTheta(int dim) {
-    f_vector shared_theta(dim);
+  fvector getTheta(int dim) {
+    fvector shared_theta(dim);
     // initialize to values [-1,1]
     for (unsigned i = 0; i < dim; ++i) {
         shared_theta[i] = static_cast<float_t>((1.0 - fmod((double)rand()/100.0, 2)) / 10.0);
@@ -59,8 +59,8 @@ namespace obamadb {
 
   void printSVMItrStats(Matrix const * matTrain,
                         Matrix const * matTest,
-                        f_vector const & theta,
-                        f_vector const & oldTheta,
+                        fvector const & theta,
+                        fvector const & oldTheta,
                         int itr,
                         float timeTrain) {
     float_t trainRmsLoss = ml::rmsErrorLoss(theta, matTrain->blocks_);
@@ -74,11 +74,10 @@ namespace obamadb {
     printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified, trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
   }
 
-
   void trainSVM(Matrix *mat_train, Matrix *mat_test, int num_threads) {
     SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
-    f_vector sharedTheta = getTheta(mat_train->numColumns_);
+    fvector sharedTheta = getTheta(mat_train->numColumns_);
 
     // Create the tasks for the Threadpool.
     // Roughly allocates work.
@@ -106,7 +105,7 @@ namespace obamadb {
     printSVMItrStats(mat_train, mat_test, sharedTheta, sharedTheta, -1, 0);
     float totalTrainTime = 0.0;
     for (int cycle = 0; cycle < totalCycles; cycle++) {
-      f_vector last_theta(sharedTheta);
+      fvector last_theta(sharedTheta);
 
       auto time_start = std::chrono::steady_clock::now();
       tp.cycle();
@@ -167,15 +166,20 @@ namespace obamadb {
 
     DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
 
-    // trainSVM(mat_train.get(), mat_test.get(), numThreads);
+    if (kCompressionConst == 0) {
+      printf("No compression will be applied\n");
+      trainSVM(mat_train.get(), mat_test.get(), numThreads);
+    } else {
+      printf("Compression will be applied\n");
+      std::unique_ptr<Matrix> ctrain;
+      std::unique_ptr<Matrix> ctest;
+      doCompression(mat_train.get(), mat_test.get(), ctrain, ctest, kCompressionConst);
+      printMatrixStats(ctrain.get());
+      printMatrixStats(ctest.get());
 
-    std::unique_ptr<Matrix> ctrain;
-    std::unique_ptr<Matrix> ctest;
-    doCompression(mat_train.get(), mat_test.get(), ctrain, ctest, kCompressionConst);
-    printMatrixStats(ctrain.get());
-    printMatrixStats(ctest.get());
+      trainSVM(ctrain.get(), ctest.get(), numThreads);
+    }
 
-    trainSVM(ctrain.get(), ctest.get(), numThreads);
     return 0;
   }
 } // namespace obamadb

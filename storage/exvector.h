@@ -55,9 +55,9 @@ namespace obamadb {
      */
     dvector(const dvector<T> &other)
       : num_elements_(other.num_elements_),
-        alloc_size_(other.alloc_size_),
         values_(other.values_),
         class_(other.class_),
+        alloc_size_(other.alloc_size_),
         owns_memory_(false) {}
 
     /**
@@ -68,9 +68,9 @@ namespace obamadb {
      */
     dvector(int size, void *valuesPtr) :
       num_elements_(size),
-      alloc_size_(size),
       values_(reinterpret_cast<T *>(valuesPtr)),
       class_(values_ + num_elements_),
+      alloc_size_(size),
       owns_memory_(false) {}
 
     /**
@@ -135,9 +135,9 @@ namespace obamadb {
       return exvectorType::kDense;
     }
 
+    int num_elements_;
     T *values_;
     T *class_;
-    int num_elements_;
 
   private:
     void doubleAllocation() {
