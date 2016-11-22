@@ -14,7 +14,9 @@ namespace obamadb {
   class DataView {
   public:
     DataView(std::vector<SparseDataBlock<float_t> const *> blocks)
-      : blocks_(blocks), current_block_(0),current_idx_(0) {}
+      : blocks_(blocks),
+        current_block_(0),
+        current_idx_(0) {}
 
     DataView() : blocks_(), current_block_(0), current_idx_(0) {}
 

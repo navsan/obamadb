@@ -115,38 +115,47 @@ namespace obamadb {
 void SVMTask::execute(int threadId, void* svm_state) {
   (void) svm_state; // silence compiler warning.
 
-  data_view_->reset();
-  svector<float_t> row(0, nullptr); // a readonly se_vector.
-  float_t * theta = shared_theta_->values_;
-  const float_t mu = shared_params_->mu;
-  const float_t step_size = shared_params_->step_size;
-
-  // perform update with all the data in its view,
-  while (data_view_->getNext(&row)) {
-    float_t const y = *row.getClassification();
-    float_t wxy = ml::dot(row, theta);
-    wxy = wxy * y; // {-1, 1}
-    // hinge active
-    if (wxy < 1) {
-      float_t const e = step_size * y;
-      // scale weights
-      ml::scaleAndAdd(theta, row, e);
-    }
-
-    float_t const scalar = step_size * mu;
-    // scale only the values which were updated.
-    for (int i = row.numElements(); i-- > 0;) {
-      const int idx_j = row.index_[i];
-      float_t const deg = shared_params_->degrees[idx_j];
-      theta[idx_j] *= 1 - scalar / deg;
-    }
+  // always do work for owned state
+  gradientOnView(data_view_);
+  // see if there's any unassigned work to take, execute
+  DataView *unassignedWork = nullptr;
+  while((unassignedWork = shared_params_->getWork()) != nullptr) {
+    gradientOnView(unassignedWork);
   }
 
   if (threadId == 0) {
-    // TODO: this is a small bug where the step size is updated before all the threads finish.
-    shared_params_->step_size = step_size * shared_params_->step_decay;
+    shared_params_->step_size = shared_params_->step_size * shared_params_->step_decay;
+  }
+}
+
+  void SVMTask::gradientOnView(DataView *dataView) {
+    dataView->reset();
+    svector<float_t> row(0, nullptr); // a readonly se_vector.
+    float_t * theta = shared_theta_->values_;
+    const float_t mu = shared_params_->mu;
+    const float_t step_size = shared_params_->step_size;
+
+    // perform update with all the data in its view,
+    while (dataView->getNext(&row)) {
+      float_t const y = *row.getClassification();
+      float_t wxy = ml::dot(row, theta);
+      wxy = wxy * y; // {-1, 1}
+      // hinge active
+      if (wxy < 1) {
+        float_t const e = step_size * y;
+        // scale weights
+        ml::scaleAndAdd(theta, row, e);
+      }
+
+      float_t const scalar = step_size * mu;
+      // scale only the values which were updated.
+      for (int i = row.numElements(); i-- > 0;) {
+        const int idx_j = row.index_[i];
+        float_t const deg = shared_params_->degrees[idx_j];
+        theta[idx_j] *= 1 - scalar / deg;
+      }
+    }
   }
 
-}
 
 } // namespace obamadb

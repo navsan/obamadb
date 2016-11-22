@@ -31,22 +31,37 @@ namespace obamadb {
    * Allocates Datablocks to DataViews. Dataviews will then be given to threads in the form of tasks.
    * @param num_threads How many dataviews to allocate and distrubute amongst.
    * @param data_blocks The set of training data.
+   * @param unallocatedRatio The ratio of the blocks which will be left unallocated. These blocks will be
+   *        grabbed by workers as soon as the worker runs out of its statically assigned work.
    * @return Vector of Dataviews.
    */
   template<class T>
   void allocateBlocks(
     const int num_threads,
     const std::vector<SparseDataBlock<T> *> &data_blocks,
-    std::vector<std::unique_ptr<DataView>>& views) {
+    std::vector<std::unique_ptr<DataView>>& views,
+    SVMParams* params,
+    float unallocatedRatio) {
     CHECK(views.size() == 0) << "Only accepts empty view vectors";
+    CHECK_GE(1.0, unallocatedRatio);
+    CHECK_LE(0.0, unallocatedRatio);
 
-    for (int i = 0; i < data_blocks.size(); i ++) {
+    int const staticAssignIdx = (1.0 - unallocatedRatio) * data_blocks.size();
+
+    for (int i = 0; i < staticAssignIdx; i ++) {
       if (i < num_threads) {
         views.push_back(std::unique_ptr<DataView>(new DataView()));
       }
       SparseDataBlock<T> const *dbptr = data_blocks[i];
       views[i % num_threads]->appendBlock(dbptr);
     }
+
+    for (int i = staticAssignIdx; i < data_blocks.size(); i++) {
+      DataView* dataView = new DataView();
+      dataView->appendBlock(data_blocks[i]);
+      params->addWork(dataView);
+    }
+    params->roundReset();
   }
 
   void printMatrixStats(Matrix const * mat) {
@@ -75,7 +90,7 @@ namespace obamadb {
   }
 
   void trainSVM(Matrix *mat_train, Matrix *mat_test, int num_threads) {
-    SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
+    std::unique_ptr<SVMParams> svm_params(DefaultSVMParams<float_t>(mat_train->blocks_));
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     fvector sharedTheta = getTheta(mat_train->numColumns_);
 
@@ -83,12 +98,12 @@ namespace obamadb {
     // Roughly allocates work.
     std::vector<std::unique_ptr<DataView>> data_views;
 
-    allocateBlocks(num_threads, mat_train->blocks_, data_views);
+    allocateBlocks(num_threads, mat_train->blocks_, data_views, svm_params.get(), 0.5);
     // Create tasks
     std::vector<std::unique_ptr<SVMTask>> tasks(num_threads);
     std::vector<void*> threadStates;
     for (int i = 0; i < tasks.size(); i++) {
-      tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
+      tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params.get()));
       threadStates.push_back(tasks[i].get());
     }
 
@@ -112,6 +127,9 @@ namespace obamadb {
       auto time_end = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
       double elapsedTimeSec = (time_ms.count())/ 1e3;
+      //TODO: this post-round cleanup should be added somewhere else, as an abstraction for a worker.
+      svm_params->roundReset();
+
       totalTrainTime += elapsedTimeSec;
       printSVMItrStats(mat_train, mat_test, sharedTheta, last_theta, cycle, elapsedTimeSec);
     }
@@ -147,7 +165,7 @@ namespace obamadb {
     std::string train_fp(argv[1]);
     std::string test_fp(argv[2]);
     const int kCompressionConst = std::stoi(argv[3]);
-    CHECK_LT(0, kCompressionConst);
+    CHECK_LE(0, kCompressionConst);
     const int numThreads = std::stoi(argv[4]);
 
     printf("Nthreads: %d, compressionConst: %d\n", numThreads, kCompressionConst);

@@ -2,6 +2,7 @@
 #define OBAMADB_MLTASK_H
 
 #include <cmath>
+#include <memory>
 #include <mutex>
 
 #include "storage/DataBlock.h"
@@ -83,12 +84,54 @@ namespace obamadb {
       : mu(mu),
         step_size(step_size),
         step_decay(step_decay),
-        degrees() {}
+        degrees(),
+    next_work_idx_(0),
+    unassigned_work_(),
+    work_mutex_(){}
 
     float_t mu;
     float_t step_size;
     float_t step_decay;
     std::vector<int> degrees;
+
+    DataView *getWork() {
+      // do a quick check without locking:
+      if (next_work_idx_ == -1) {
+        return nullptr;
+      }
+
+      int idx = -1;
+      work_mutex_.lock();
+      // someone may have grabbed the last bit of work
+      if (next_work_idx_ != -1) {
+        idx = next_work_idx_;
+        next_work_idx_--;
+      }
+      work_mutex_.unlock();
+      if (idx != -1) {
+        return unassigned_work_[idx].get();
+      } else {
+        return nullptr;
+      }
+    }
+
+    void roundReset() {
+      next_work_idx_ = unassigned_work_.size() - 1;
+    }
+
+    /**
+     * Takes ownership of the dataview.
+     * @param dataView
+     */
+    void addWork(DataView* dataView) {
+      unassigned_work_.emplace_back(std::unique_ptr<DataView>(dataView));
+    }
+
+  private:
+    int next_work_idx_;
+    std::vector<std::unique_ptr<DataView>> unassigned_work_;
+    std::mutex work_mutex_;
+
   };
 
   class SVMTask : MLTask {
@@ -104,6 +147,8 @@ namespace obamadb {
      * Calculates and applies the gradient of the SVM.
      */
     void execute(int thread_id, void* ml_state) override;
+
+    void gradientOnView(DataView* dataView);
 
     fvector* shared_theta_;
     SVMParams* shared_params_;
