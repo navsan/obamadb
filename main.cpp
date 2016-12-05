@@ -18,11 +18,11 @@
 
 namespace obamadb {
 
-  fvector getTheta(int dim) {
-    fvector shared_theta(dim);
+  fvector* getTheta(int dim) {
+    fvector* shared_theta = new fvector(dim);
     // initialize to values [-1,1]
     for (unsigned i = 0; i < dim; ++i) {
-        shared_theta[i] = static_cast<float_t>((1.0 - fmod((double)rand()/100.0, 2)) / 10.0);
+        (*shared_theta)[i] = static_cast<float_t>((1.0 - fmod((double)rand()/100.0, 2)) / 10.0);
     }
     return shared_theta;
   }
@@ -77,7 +77,7 @@ namespace obamadb {
   void trainSVM(Matrix *mat_train, Matrix *mat_test, int num_threads) {
     SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
-    std::vector<fvector> thetas;
+    std::vector<std::unique_ptr<fvector>> thetas;
 
     // Create the tasks for the Threadpool.
     // Roughly allocates work.
@@ -90,8 +90,8 @@ namespace obamadb {
     for (int i = 0; i < tasks.size(); i++) {
       // each thread is given it's own theta so that there will be no
       // cache conflicts.
-      thetas.emplace_back(getTheta(mat_train->numColumns_));
-      tasks[i].reset(new SVMTask(data_views[i].release(), &thetas.back(), svm_params));
+      thetas.push_back(std::unique_ptr<fvector>(getTheta(mat_train->numColumns_)));
+      tasks[i].reset(new SVMTask(data_views[i].release(), thetas[i].get(), svm_params));
       threadStates.push_back(tasks[i].get());
     }
 
@@ -105,10 +105,10 @@ namespace obamadb {
     ThreadPool tp(update_fn, threadStates);
     tp.begin();
     printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss, dtheta\n");
-    printSVMItrStats(mat_train, mat_test, thetas.front(),thetas.front(), -1, 0);
+    printSVMItrStats(mat_train, mat_test, *thetas[0],*thetas[0], -1, 0);
     float totalTrainTime = 0.0;
     for (int cycle = 0; cycle < totalCycles; cycle++) {
-      fvector last_theta(thetas.front());
+      fvector last_theta(*thetas[0]);
 
       auto time_start = std::chrono::steady_clock::now();
       tp.cycle();
@@ -116,12 +116,12 @@ namespace obamadb {
       std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
       double elapsedTimeSec = (time_ms.count())/ 1e3;
       totalTrainTime += elapsedTimeSec;
-      printSVMItrStats(mat_train, mat_test, thetas.front(), last_theta, cycle, elapsedTimeSec);
+      printSVMItrStats(mat_train, mat_test, *thetas[0], last_theta, cycle, elapsedTimeSec);
     }
     tp.stop();
 
     float avgTrainTime = totalTrainTime / totalCycles;
-    float finalFractionMispredicted = ml::fractionMisclassified(thetas.front(), mat_test->blocks_);
+    float finalFractionMispredicted = ml::fractionMisclassified(*thetas[0], mat_test->blocks_);
     printf(">%d,%d,%f,%f\n",mat_test->numColumns_, num_threads, avgTrainTime, finalFractionMispredicted);
   }
 
@@ -150,7 +150,7 @@ namespace obamadb {
     std::string train_fp(argv[1]);
     std::string test_fp(argv[2]);
     const int kCompressionConst = std::stoi(argv[3]);
-    CHECK_LT(0, kCompressionConst);
+    CHECK_LE(0, kCompressionConst);
     const int numThreads = std::stoi(argv[4]);
 
     printf("Nthreads: %d, compressionConst: %d\n", numThreads, kCompressionConst);
