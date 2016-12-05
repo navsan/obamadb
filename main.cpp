@@ -77,7 +77,7 @@ namespace obamadb {
   void trainSVM(Matrix *mat_train, Matrix *mat_test, int num_threads) {
     SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
-    fvector sharedTheta = getTheta(mat_train->numColumns_);
+    std::vector<fvector> thetas;
 
     // Create the tasks for the Threadpool.
     // Roughly allocates work.
@@ -88,7 +88,10 @@ namespace obamadb {
     std::vector<std::unique_ptr<SVMTask>> tasks(num_threads);
     std::vector<void*> threadStates;
     for (int i = 0; i < tasks.size(); i++) {
-      tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
+      // each thread is given it's own theta so that there will be no
+      // cache conflicts.
+      thetas.emplace_back(getTheta(mat_train->numColumns_));
+      tasks[i].reset(new SVMTask(data_views[i].release(), &thetas.back(), svm_params));
       threadStates.push_back(tasks[i].get());
     }
 
@@ -102,10 +105,10 @@ namespace obamadb {
     ThreadPool tp(update_fn, threadStates);
     tp.begin();
     printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss, dtheta\n");
-    printSVMItrStats(mat_train, mat_test, sharedTheta, sharedTheta, -1, 0);
+    printSVMItrStats(mat_train, mat_test, thetas.front(),thetas.front(), -1, 0);
     float totalTrainTime = 0.0;
     for (int cycle = 0; cycle < totalCycles; cycle++) {
-      fvector last_theta(sharedTheta);
+      fvector last_theta(thetas.front());
 
       auto time_start = std::chrono::steady_clock::now();
       tp.cycle();
@@ -113,12 +116,12 @@ namespace obamadb {
       std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
       double elapsedTimeSec = (time_ms.count())/ 1e3;
       totalTrainTime += elapsedTimeSec;
-      printSVMItrStats(mat_train, mat_test, sharedTheta, last_theta, cycle, elapsedTimeSec);
+      printSVMItrStats(mat_train, mat_test, thetas.front(), last_theta, cycle, elapsedTimeSec);
     }
     tp.stop();
 
     float avgTrainTime = totalTrainTime / totalCycles;
-    float finalFractionMispredicted = ml::fractionMisclassified(sharedTheta, mat_test->blocks_);
+    float finalFractionMispredicted = ml::fractionMisclassified(thetas.front(), mat_test->blocks_);
     printf(">%d,%d,%f,%f\n",mat_test->numColumns_, num_threads, avgTrainTime, finalFractionMispredicted);
   }
 
