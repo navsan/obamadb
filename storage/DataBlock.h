@@ -26,9 +26,15 @@ namespace obamadb {
     DataBlock(unsigned numRows, unsigned numColumns) :
       num_columns_(numColumns),
       num_rows_(0),
-      block_size_bytes_(std::max(kStorageBlockSize, ((numColumns + 1) * numRows) * sizeof(T))),
-      store_(reinterpret_cast<T*>(new char[block_size_bytes_])),
-      initializing_(true) {}
+      block_size_bytes_(kStorageBlockSize),
+      store_(nullptr),
+      initializing_(true) {
+        std::uint64_t requested_size = ((numColumns + 1) * numRows) * sizeof(T);
+        if(requested_size > block_size_bytes_) {
+            block_size_bytes_ = requested_size;
+        }
+        reinterpret_cast<T*>(new char[block_size_bytes_]);
+    }
 
     DataBlock(unsigned size_bytes) :
       num_columns_(0),

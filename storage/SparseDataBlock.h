@@ -7,13 +7,14 @@
 #include "storage/Utils.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <functional>
 
 #include <glog/logging.h>
-#include <iomanip>
 
 namespace obamadb {
 
