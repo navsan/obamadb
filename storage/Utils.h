@@ -102,6 +102,13 @@ namespace obamadb {
       }
     }
 
+    inline float nextFloat() {
+      std::uint32_t randi = nextInt32();
+      randi &= 0x807FFFFF; // mask out the exponent.
+      float randf = *reinterpret_cast<float*>(&randi);
+      return randf;
+    }
+
     inline unsigned char nextChar() {
       if (char_index >= 8) {
         nextInt64();

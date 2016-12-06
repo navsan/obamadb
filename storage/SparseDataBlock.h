@@ -250,6 +250,43 @@ namespace obamadb {
     DCHECK_EQ(dimension, pdb->num_columns_);
     return pdb;
   }
+
+    /**
+     * Generates a sparse matrix full of random data with an even distribution of sparsity.
+     *
+     * Sparsity is the number of non-zero elements in a row.
+     *
+     * @return a caller-owned sparse datablock.
+     */
+    static SparseDataBlock<float_t>* GetRandomSparseDataBlock(int blockSizeBytes, int numColumns, double sparsity) {
+      SparseDataBlock<float_t>* dataBlock = new SparseDataBlock<float_t>(blockSizeBytes);
+      svector<float_t> row_vector;
+      QuickRandom qr;
+      double avgElementsPerRow = (1.0 - sparsity) * numColumns;
+      int elementWindowSize = ((double)numColumns) / avgElementsPerRow;
+      int elementWindows = std::ceil(avgElementsPerRow);
+      float_t positive = 1.0;
+      float_t negative = -1.0;
+      do {
+        row_vector.clear();
+        bool isPositive = qr.nextFloat() > 0;
+        row_vector.setClassification(isPositive ? &positive : &negative);
+        for (int i = 0; i < elementWindows; i++) {
+          int randi = qr.nextInt32() % elementWindowSize;
+          int index = (i * elementWindowSize) + randi;
+          if (index < numColumns) {
+            float_t randf = std::abs(qr.nextFloat());
+            // The data should end up being perfectly seperable.
+            if ((isPositive && index % 2 == 1 )
+                || (!isPositive && index % 2 == 0)) {
+              randf *= -1;
+            }
+            row_vector.push_back(index, randf);
+          }
+        }
+      } while(dataBlock->appendRow(row_vector));
+      return dataBlock;
+    }
 }
 
 #endif //OBAMADB_SPARSEDATABLOCK_H

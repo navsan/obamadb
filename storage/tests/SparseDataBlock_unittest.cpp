@@ -12,7 +12,7 @@
 
 namespace obamadb {
 
-  TEST(IOTest, TestLoadSparse) {
+  TEST(SparseDataBlockTest, TestLoadSparse) {
     std::vector<SparseDataBlock<float_t>*> blocks = IO::load_blocks<float_t>("sparse.dat");
     ASSERT_EQ(1, blocks.size());
     std::unique_ptr<SparseDataBlock<float_t>> block(dynamic_cast<SparseDataBlock<float_t>*>(blocks[0]));
@@ -24,7 +24,7 @@ namespace obamadb {
     EXPECT_EQ(10, r1.index_[0]);
   }
 
-  TEST(IOTest, TestCreateSparseProjection) {
+  TEST(SparseDataBlockTest, TestCreateSparseProjection) {
     double m = 47000, n = 20; // m corresponds to the dimension of the original matrix.
     std::unique_ptr<SparseDataBlock<signed char>> pdb(GetRandomProjectionMatrix(m,n));
     ASSERT_EQ(n, pdb->getNumRows());
@@ -46,5 +46,50 @@ namespace obamadb {
     EXPECT_TRUE(counts[2] > freq_ones * (1.0 - tolerance) && counts[2] < freq_ones * (1.0 + tolerance));
     EXPECT_TRUE(counts[1] > freq_zero * (1.0 - tolerance) && counts[1] < freq_zero * (1.0 + tolerance));
     // TODO could also test for variance in the distribution.
+  }
+
+  TEST(SparseDataBlockTest, TestRandomSparseDataBlock) {
+    int ncolumns = 1000;
+    int blockSizeMb = 10;
+    double sparsity = 0.999;
+    std::unique_ptr<SparseDataBlock<float_t>> sparseBlock(GetRandomSparseDataBlock(blockSizeMb * 1e6, ncolumns, sparsity));
+    EXPECT_LT(ncolumns * 0.9, sparseBlock->num_columns_);
+    EXPECT_EQ(blockSizeMb * 1e6, sparseBlock->block_size_bytes_);
+    // the low bound is calculated by (totalSizeBytes / (floats per column + size of header + size of classification) * 0.9
+    double blockRowsLowBound = (((double)blockSizeMb * 1e6) / ((1.0 - sparsity) * ncolumns * sizeof(float_t) + (sizeof(float_t)*4) )) * 0.9;
+    EXPECT_LT(blockRowsLowBound, sparseBlock->num_rows_);
+    std::vector<int> columnCounts(sparseBlock->num_columns_);
+    svector<float_t> rowView(0, nullptr);
+    int numPositive = 0;
+    for (int row = 0; row < sparseBlock->num_rows_; row++) {
+      sparseBlock->getRowVectorFast(row, &rowView);
+      ASSERT_GT((1.0 - sparsity) * ncolumns + 1, rowView.num_elements_);
+      for (int i = 0; i < rowView.num_elements_; i++) {
+        columnCounts[rowView.index_[i]] += 1;
+        if (*rowView.class_ == -1) {
+          if (rowView.index_[i] % 2 == 1) {
+            EXPECT_LE(0, rowView.values_[i]);
+          } else {
+            EXPECT_GE(0, rowView.values_[i]);
+          }
+        } else {
+          numPositive++;
+          ASSERT_EQ(1, *rowView.class_);
+          if (rowView.index_[i] % 2 == 0) {
+            EXPECT_LE(0, rowView.values_[i]);
+          } else {
+            EXPECT_GE(0, rowView.values_[i]);
+          }
+        }
+      }
+    }
+
+    // TODO: check that the distribution of chosen indices weren't overly skewed.
+    // The verification I did was to put this in octave and make sure stdev was low, no outliers
+    // for (int i = 0; i < columnCounts.size(); i++) {
+    //   printf("%d\n", columnCounts[i]);
+    // }
+
+    EXPECT_GE(sparseBlock->num_rows_ * 0.1, std::abs( (int)(sparseBlock->num_rows_ / 2) - numPositive));
   }
 }

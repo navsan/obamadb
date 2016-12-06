@@ -213,7 +213,7 @@ namespace obamadb {
      * @return
      */
     Matrix* randomProjectionsCompress(SparseDataBlock<signed char>* projection_mat, int compressionConstant) const {
-      const float_t kNormalizingConstant = 1.0/sqrt(compressionConstant);
+      const float_t kNormalizingConstant = 1.0 / sqrt(compressionConstant);
       return matrixMultiplyRowWise(projection_mat, compressionConstant);
     }
 

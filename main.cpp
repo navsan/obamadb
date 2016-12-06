@@ -147,7 +147,7 @@ namespace obamadb {
     std::string train_fp(argv[1]);
     std::string test_fp(argv[2]);
     const int kCompressionConst = std::stoi(argv[3]);
-    CHECK_LT(0, kCompressionConst);
+    CHECK_LE(0, kCompressionConst);
     const int numThreads = std::stoi(argv[4]);
 
     printf("Nthreads: %d, compressionConst: %d\n", numThreads, kCompressionConst);
