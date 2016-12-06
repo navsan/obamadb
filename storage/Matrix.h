@@ -218,6 +218,26 @@ namespace obamadb {
     }
 
     /**
+     * Creates a random matrix which should be linearly seperable.
+     *
+     * @param matrixSizeBytes The approximate size of the resulting matrix.
+     * @param numColumns The number of columns for the matrix to have.
+     * @param sparsity The sparsity of the matrix.
+     * @return A caller-owned sparse matrix.
+     */
+    static Matrix* GetRandomMatrix(int matrixSizeBytes, int numColumns, double sparsity) {
+      Matrix* matrix = new Matrix();
+      int totalDataSizeBytes = 0;
+      while(totalDataSizeBytes < matrixSizeBytes) {
+        int sizeNextBlockBytes = std::min(matrixSizeBytes - totalDataSizeBytes, (int)kStorageBlockSize);
+        matrix->addBlock(
+          GetRandomSparseDataBlock(sizeNextBlockBytes, numColumns, sparsity));
+        totalDataSizeBytes += sizeNextBlockBytes;
+      }
+      return matrix;
+    }
+
+    /**
      * @return Fraction of elements which are zero.
      */
     double getSparsity() const {

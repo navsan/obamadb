@@ -66,11 +66,40 @@ namespace obamadb {
     IO::save("/tmp/matR.csv", *compressed_mat);
   }
 
+  // TODO: this method+test should be removed as it's obsolete.
   TEST(TestMatrix, TestRandomMatrix) {
     int m = 1000, n = 100;
     double sparsity = 0.9, tolerance = 0.03;
     std::unique_ptr<Matrix> mat(getRandomSparseMatrix(m,n, sparsity));
     double actual_sparsity = mat->getSparsity();
     DCHECK(actual_sparsity > sparsity - tolerance && actual_sparsity < sparsity + tolerance);
+  }
+
+  TEST(TestMatrix, TestRandomSparseMatrix) {
+    int ncolumns = 10000;
+    int matrixSizeBytes = 16e6;
+    double sparsity = 0.99;
+    double const tolerance = 0.03;
+    std::unique_ptr<Matrix> mat(Matrix::GetRandomMatrix(matrixSizeBytes, ncolumns, sparsity));
+    double actual_sparsity = mat->getSparsity();
+    ASSERT_TRUE(actual_sparsity > sparsity - tolerance && actual_sparsity < sparsity + tolerance);
+    EXPECT_LE(matrixSizeBytes * tolerance, mat->sizeBytes());
+    EXPECT_GE(matrixSizeBytes * (1 + tolerance), mat->sizeBytes());
+
+    int numPositive = 0;
+    svector<float_t> rowView(0,nullptr);
+    for(int i = 0; i < mat->blocks_.size(); i++) {
+      SparseDataBlock<float_t> const *block = mat->blocks_[i];
+      for (int j = 0; j < block->num_rows_; j++) {
+        block->getRowVectorFast(j, &rowView);
+        if (*rowView.class_ == 1) {
+          numPositive++;
+        } else {
+          ASSERT_EQ(-1, *rowView.class_);
+        }
+      }
+    }
+    EXPECT_GE(((int)mat->numRows_/2) * tolerance, (int)(mat->numRows_/2) - numPositive);
+    // TODO test for distributions and seperability
   }
 }
