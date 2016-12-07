@@ -74,7 +74,7 @@ namespace obamadb {
     printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified, trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
   }
 
-  void trainSVM(Matrix *mat_train, Matrix *mat_test, int num_threads) {
+  void trainSVM(Matrix *mat_train, Matrix *mat_test, int num_threads, float sparsity) {
     SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     fvector sharedTheta = getTheta(mat_train->numColumns_);
@@ -119,7 +119,8 @@ namespace obamadb {
 
     float avgTrainTime = totalTrainTime / totalCycles;
     float finalFractionMispredicted = ml::fractionMisclassified(sharedTheta, mat_test->blocks_);
-    printf(">%d,%d,%f,%f\n",mat_test->numColumns_, num_threads, avgTrainTime, finalFractionMispredicted);
+    printf("traintime, num columns, num threads, fraction mispredicted\n");
+    printf(">%f,%d,%d,%.4f,%.2f\n", sparsity, mat_test->numColumns_, num_threads, avgTrainTime, finalFractionMispredicted);
   }
 
   void doCompression(Matrix const * train,
@@ -142,43 +143,36 @@ namespace obamadb {
 
   int main(int argc, char** argv) {
     ::google::InitGoogleLogging(argv[0]);
-    CHECK_EQ(5, argc) << "usage: " << argv[0] << " [training data] [testing data] [compression constant] [num threads]";
+    CHECK_EQ(5, argc) << "usage: " << argv[0] << " [matrix size bytes] [sparsity] [num features] [num threads]";
 
-    std::string train_fp(argv[1]);
-    std::string test_fp(argv[2]);
-    const int kCompressionConst = std::stoi(argv[3]);
-    CHECK_LE(0, kCompressionConst);
+    int matSizeBytes = std::stoi(argv[1]);
+    CHECK_LE(1e6, matSizeBytes) << "Matrix should be at least 1 mb";
+
+    double sparsity = std::stof(argv[2]);
+    CHECK_GT(1.0, sparsity) << "Sparsity must be between 0.5 and 1";
+    CHECK_LE(0.5, sparsity) << "Sparsity must be between 0.5 and 1";
+
+    int numFeatures = std::stoi(argv[3]);
+    CHECK_LT(0, numFeatures);
+
     const int numThreads = std::stoi(argv[4]);
-
-    printf("Nthreads: %d, compressionConst: %d\n", numThreads, kCompressionConst);
+    printf("Number threads: %d\n", numThreads);
 
     std::unique_ptr<Matrix> mat_train;
     std::unique_ptr<Matrix> mat_test;
 
-    printf("Reading input files...\n");
-    printf("Loading: %s\n", train_fp.c_str());
-    PRINT_TIMING({mat_train.reset(IO::load(train_fp));});
+    printf("Generating data matrix...\n");
+    PRINT_TIMING({mat_train.reset(Matrix::GetRandomMatrix(matSizeBytes, numFeatures, sparsity));});
     printMatrixStats(mat_train.get());
 
-    printf("Loading: %s\n", test_fp.c_str());
-    PRINT_TIMING({mat_test.reset(IO::load(test_fp));});
+    printf("\nDone.\nGenerating test matrix...");
+    PRINT_TIMING({mat_test.reset(Matrix::GetRandomMatrix(matSizeBytes * 0.05, numFeatures, sparsity));});
     printMatrixStats(mat_test.get());
+    printf("\nDone.");
 
     DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
 
-    if (kCompressionConst == 0) {
-      printf("No compression will be applied\n");
-      trainSVM(mat_train.get(), mat_test.get(), numThreads);
-    } else {
-      printf("Compression will be applied\n");
-      std::unique_ptr<Matrix> ctrain;
-      std::unique_ptr<Matrix> ctest;
-      doCompression(mat_train.get(), mat_test.get(), ctrain, ctest, kCompressionConst);
-      printMatrixStats(ctrain.get());
-      printMatrixStats(ctest.get());
-
-      trainSVM(ctrain.get(), ctest.get(), numThreads);
-    }
+    trainSVM(mat_train.get(), mat_test.get(), numThreads, sparsity);
 
     return 0;
   }

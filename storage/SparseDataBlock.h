@@ -276,9 +276,16 @@ namespace obamadb {
           int index = (i * elementWindowSize) + randi;
           if (index < numColumns) {
             float_t randf = std::abs(qr.nextFloat());
+            // eh, sort of a hack.
+            if (randf < 0.3) {
+              randf += 0.3;
+            }
             // The data should end up being perfectly seperable.
             if ((isPositive && index % 2 == 1 )
                 || (!isPositive && index % 2 == 0)) {
+              randf *= -1;
+            }
+            if (!isPositive) {
               randf *= -1;
             }
             row_vector.push_back(index, randf);
