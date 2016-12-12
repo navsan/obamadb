@@ -50,10 +50,11 @@ namespace obamadb {
   }
 
   void printMatrixStats(Matrix const * mat) {
-    printf("Matrix: %lu training blocks for a total size of %ldmb with %d examples with %f sparsity\n",
+    printf("Matrix: %lu training blocks for a total size of %ldmb with %d examples (%d nnz elements) with %f sparsity\n",
            mat->blocks_.size(),
            (long) (mat->sizeBytes() / 1e6),
            mat->numRows_,
+           mat->getNNZ(),
            mat->getSparsity());
   }
 
@@ -119,7 +120,8 @@ namespace obamadb {
 
     float avgTrainTime = totalTrainTime / totalCycles;
     float finalFractionMispredicted = ml::fractionMisclassified(sharedTheta, mat_test->blocks_);
-    printf(">%d,%d,%f,%f\n",mat_test->numColumns_, num_threads, avgTrainTime, finalFractionMispredicted);
+    printf("num_cols, num_threads, avg_train_time, frac_mispredicted, nnz_train");
+    printf(">%d,%d,%f,%f,%d\n",mat_test->numColumns_, num_threads, avgTrainTime, finalFractionMispredicted, mat_train->getNNZ());
   }
 
   void doCompression(Matrix const * train,

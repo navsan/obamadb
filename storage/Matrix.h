@@ -250,6 +250,18 @@ namespace obamadb {
     }
 
     /**
+     * Number of non-zero elements
+     * @return
+     */
+    int getNNZ() const {
+      int nnz = 0;
+      for (auto block : blocks_) {
+        nnz += block->numNonZeroElements();
+      }
+      return nnz;
+    }
+
+    /**
      * @return The total size of the owned data.
      */
     std::uint64_t sizeBytes() const {
