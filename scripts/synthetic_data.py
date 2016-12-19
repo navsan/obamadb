@@ -5,6 +5,7 @@ Generate synthetic datasets with a variable number of examples, features, and sp
 import sys
 import csv
 import random as r
+import datetime as dt
 
 
 # Value used instead of a feature ID to signal that the label for the following
@@ -30,7 +31,7 @@ def random_dense_text_file(filename, num_examples, num_features, density,
 
 
 def random_sparse_text_file(filename, num_examples, num_features, density,
-                            delimiter='\t', lineterminator='\n'):
+                            interval=None, delimiter='\t', lineterminator='\n'):
 	"""Generate a CSV file containing examples with sparse random features."""
 	# For simplicity, all features have values between 0.0 and 1.0.
 	# Format follows that of RCV1.train.tsv
@@ -38,14 +39,21 @@ def random_sparse_text_file(filename, num_examples, num_features, density,
 	num_examples = int(num_examples)
 	num_features = int(num_features)
 	density = float(density)
+	interval = int(interval) if interval != None else interval
 	
 	with open(filename, 'w') as file_out:
-		writer = csv.writer(file_out, delimiter=delim)
+		# Considered using CSV writer, but it was slower
 		for example_id in xrange(num_examples):
-			writer.writerow([example_id, LABEL_SIGNAL, 1.0 if r.random() < 0.5 else -1.0])
+			if interval != None and example_id % interval == 0:
+				sys.stderr.write('%s wrote %s\n' % (dt.datetime.now(), example_id))
+			row = delimiter.join(map(str, [example_id, LABEL_SIGNAL, 1.0 if r.random() < 0.5 else -1.0]))
+			file_out.write(row)
+			file_out.write(lineterminator)
 			for feature_id in xrange(num_features):
 				if r.random() < density:
-					writer.writerow([example_id, feature_id, r.random()])
+					row = delimiter.join(map(str, [example_id, feature_id, r.random()]))
+					file_out.write(row)
+					file_out.write(lineterminator)
 
 
 def actual_density_dense_text_file(filename, num_features, delimiter='\t'):
