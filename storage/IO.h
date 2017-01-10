@@ -1,7 +1,8 @@
-#ifndef OBAMADB_STORAGE_LOADER_H_
-#define OBAMADB_STORAGE_LOADER_H_
+#ifndef OBAMADB_STORAGE_IO_H_
+#define OBAMADB_STORAGE_IO_H_
 
 #include "storage/exvector.h"
+#include "storage/Matrix.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/StorageConstants.h"
 
@@ -89,4 +90,4 @@ namespace obamadb {
   }  // namespace IO
 }
 
-#endif //  OBAMADB_STORAGE_LOADER_H_
+#endif //  OBAMADB_STORAGE_IO_H_

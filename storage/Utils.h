@@ -42,6 +42,13 @@ namespace obamadb {
       memcpy(values_, other.values_, sizeof(float_t) * dimension_);
     }
 
+    /**
+     * An fvector filled with values [-1,1]
+     * @param dim Number of elements in the new fvector.
+     * @return An fvector filled with random floats.
+     */
+    static fvector GetRandomFVector(int const dim);
+
     ~fvector() {
       delete[] values_;
     }

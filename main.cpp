@@ -1,30 +1,55 @@
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/IO.h"
-#include <storage/Matrix.h>
+#include "storage/Matrix.h"
 #include "storage/MLTask.h"
-#include "storage/SparseDataBlock.h"
-#include "storage/StorageConstants.h"
 #include "storage/tests/StorageTestHelpers.h"
-#include "storage/ThreadPool.h"
-
-#include <iostream>
-#include <string>
-#include <memory>
-#include <vector>
-
-#include <glog/logging.h>
 
 
 namespace obamadb {
 
-  fvector getTheta(int dim) {
-    fvector shared_theta(dim);
-    // initialize to values [-1,1]
-    for (unsigned i = 0; i < dim; ++i) {
-        shared_theta[i] = static_cast<float_t>((1.0 - fmod((double)rand()/100.0, 2)) / 10.0);
+  /**
+   * Parses and holds user's command line arguments.
+   */
+  struct TestParams {
+    TestParams(const std::string &train_fp,
+               const std::string &test_fp,
+               int compressionConst,
+               int numThreads,
+               int measureConvergence)
+      : train_fp(train_fp),
+        test_fp(test_fp),
+        compressionConst(compressionConst),
+        numThreads(numThreads),
+        measureConvergence(measureConvergence){}
+
+    TestParams(TestParams const & other) {
+      train_fp = other.train_fp;
+      test_fp = other.test_fp;
+      compressionConst = other.compressionConst;
+      numThreads = other.numThreads;
+      measureConvergence = other.measureConvergence;
     }
-    return shared_theta;
+
+    static TestParams ReadParams(int argc, char** argv);
+
+    std::string train_fp;
+    std::string test_fp;
+    int compressionConst;
+    int numThreads;
+    int measureConvergence;
+  };
+
+  TestParams TestParams::ReadParams(int argc, char** argv) {
+    CHECK_LE(5, argc) << "usage: " << argv[0]
+                      << " [training data][testing data][compression constant][num threads][(optional)measureConvergence]";
+
+    TestParams params(argv[1],argv[2],std::stoi(argv[3]),std::stoi(argv[4]),0);
+    if (argc == 6) {
+      params.measureConvergence = std::stoi(argv[5]);
+    }
+    CHECK_LE(0, params.compressionConst);
+    return params;
   }
 
   /**
@@ -49,15 +74,6 @@ namespace obamadb {
     }
   }
 
-  void printMatrixStats(Matrix const * mat) {
-    printf("Matrix: %lu training blocks for a total size of %ldmb with %d examples (%d nnz elements) with %f sparsity\n",
-           mat->blocks_.size(),
-           (long) (mat->sizeBytes() / 1e6),
-           mat->numRows_,
-           mat->getNNZ(),
-           mat->getSparsity());
-  }
-
   void printSVMItrStats(Matrix const * matTrain,
                         Matrix const * matTest,
                         fvector const & theta,
@@ -75,18 +91,18 @@ namespace obamadb {
     printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified, trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
   }
 
-  void trainSVM(Matrix *mat_train, Matrix *mat_test, int num_threads) {
+  void trainSVM(Matrix *mat_train, Matrix *mat_test, TestParams const & params) {
     SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
-    fvector sharedTheta = getTheta(mat_train->numColumns_);
+    fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
 
     // Create the tasks for the Threadpool.
     // Roughly allocates work.
     std::vector<std::unique_ptr<DataView>> data_views;
 
-    allocateBlocks(num_threads, mat_train->blocks_, data_views);
+    allocateBlocks(params.numThreads, mat_train->blocks_, data_views);
     // Create tasks
-    std::vector<std::unique_ptr<SVMTask>> tasks(num_threads);
+    std::vector<std::unique_ptr<SVMTask>> tasks(params.numThreads);
     std::vector<void*> threadStates;
     for (int i = 0; i < tasks.size(); i++) {
       tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
@@ -121,7 +137,7 @@ namespace obamadb {
     float avgTrainTime = totalTrainTime / totalCycles;
     float finalFractionMispredicted = ml::fractionMisclassified(sharedTheta, mat_test->blocks_);
     printf("num_cols, num_threads, avg_train_time, frac_mispredicted, nnz_train");
-    printf(">%d,%d,%f,%f,%d\n",mat_test->numColumns_, num_threads, avgTrainTime, finalFractionMispredicted, mat_train->getNNZ());
+    printf(">%d,%d,%f,%f,%d\n",mat_test->numColumns_, params.numThreads, avgTrainTime, finalFractionMispredicted, mat_train->getNNZ());
   }
 
   void doCompression(Matrix const * train,
@@ -129,11 +145,10 @@ namespace obamadb {
                      std::unique_ptr<Matrix>& compressedTrain,
                      std::unique_ptr<Matrix>& compressedTest,
                      int compressionConst) {
-
     std::pair<Matrix*, SparseDataBlock<signed char>*> compressResult;
     PRINT_TIMING_MSG("Compress Training Mat", { compressResult = train->randomProjectionsCompress(compressionConst);} );
     compressedTrain.reset(compressResult.first);
-    printMatrixStats(compressedTrain.get());
+    std::cout << *compressedTrain << std::endl;
     //PRINT_TIMING_MSG("Save Compress Training Mat", {IO::save("/tmp/matB_train.dat", *compressedTrain);});
     std::vector<SparseDataBlock<signed char>*> blocksR = { compressResult.second };
     //PRINT_TIMING_MSG("Save R Mat", {IO::save<signed char>("/tmp/matR.dat", blocksR, 1);});
@@ -144,42 +159,37 @@ namespace obamadb {
 
   int main(int argc, char** argv) {
     ::google::InitGoogleLogging(argv[0]);
-    CHECK_EQ(5, argc) << "usage: " << argv[0] << " [training data] [testing data] [compression constant] [num threads]";
+    TestParams params = TestParams::ReadParams(argc, argv);
 
-    std::string train_fp(argv[1]);
-    std::string test_fp(argv[2]);
-    const int kCompressionConst = std::stoi(argv[3]);
-    CHECK_LE(0, kCompressionConst);
-    const int numThreads = std::stoi(argv[4]);
-
-    printf("Nthreads: %d, compressionConst: %d\n", numThreads, kCompressionConst);
+    printf("NumThreads: %d, CompressionConst: %d\n", params.numThreads, params.compressionConst);
 
     std::unique_ptr<Matrix> mat_train;
     std::unique_ptr<Matrix> mat_test;
 
     printf("Reading input files...\n");
-    printf("Loading: %s\n", train_fp.c_str());
-    PRINT_TIMING({mat_train.reset(IO::load(train_fp));});
-    printMatrixStats(mat_train.get());
+    printf("Loading: %s\n", params.train_fp.c_str());
+    PRINT_TIMING({mat_train.reset(IO::load(params.train_fp));});
+    std::cout << *mat_train << std::endl;
 
-    printf("Loading: %s\n", test_fp.c_str());
-    PRINT_TIMING({mat_test.reset(IO::load(test_fp));});
-    printMatrixStats(mat_test.get());
+    printf("Loading: %s\n", params.test_fp.c_str());
+    PRINT_TIMING({mat_test.reset(IO::load(params.test_fp));});
+    std::cout << *mat_test.get() << std::endl;
 
-    DCHECK_EQ(mat_test->numColumns_, mat_train->numColumns_);
+    CHECK_EQ(mat_test->numColumns_, mat_train->numColumns_)
+      << "Train and Test matrices had differing number of features.";
 
-    if (kCompressionConst == 0) {
+    if (params.compressionConst == 0) {
       printf("No compression will be applied\n");
-      trainSVM(mat_train.get(), mat_test.get(), numThreads);
+      trainSVM(mat_train.get(), mat_test.get(), params);
     } else {
       printf("Compression will be applied\n");
       std::unique_ptr<Matrix> ctrain;
       std::unique_ptr<Matrix> ctest;
-      doCompression(mat_train.get(), mat_test.get(), ctrain, ctest, kCompressionConst);
-      printMatrixStats(ctrain.get());
-      printMatrixStats(ctest.get());
+      doCompression(mat_train.get(), mat_test.get(), ctrain, ctest, params.compressionConst);
+      std::cout << *ctrain.get() << std::endl;
+      std::cout << *ctest.get() << std::endl;
 
-      trainSVM(ctrain.get(), ctest.get(), numThreads);
+      trainSVM(ctrain.get(), ctest.get(), params);
     }
 
     return 0;

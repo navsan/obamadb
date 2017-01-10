@@ -1,5 +1,3 @@
-#include "storage/IO.h"
-
 #include "storage/exvector.h"
 #include "storage/DataBlock.h"
 #include "storage/Matrix.h"
@@ -11,6 +9,7 @@
 
 #include "glog/logging.h"
 
+#include "storage/IO.h"
 
 namespace obamadb {
 

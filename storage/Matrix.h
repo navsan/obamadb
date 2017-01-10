@@ -272,6 +272,8 @@ namespace obamadb {
       return size;
     }
 
+    friend std::ostream& operator<<(std::ostream& os, const Matrix& matrix);
+
     int numColumns_;
     int numRows_;
     std::vector<SparseDataBlock<float_t>*> blocks_;
