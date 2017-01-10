@@ -143,7 +143,6 @@ void SVMTask::execute(int threadId, void* svm_state) {
   }
 
   if (threadId == 0) {
-    // TODO: this is a small bug where the step size is updated before all the threads finish.
     shared_params_->step_size = step_size * shared_params_->step_decay;
   }
 

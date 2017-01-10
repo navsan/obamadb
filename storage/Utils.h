@@ -68,6 +68,40 @@ namespace obamadb {
 
   };
 
+  /**
+   * Simple vector for floating type numbers.
+   */
+  struct aligned_fvector {
+    aligned_fvector(unsigned dimension)
+      : dimension_(dimension) {
+      values_ = new float_t[dimension_];
+    }
+
+    aligned_fvector(const aligned_fvector &other) {
+      dimension_ = other.dimension_;
+      values_ = new float_t[dimension_];
+      memcpy(values_, other.values_, sizeof(aligned_float_t) * dimension_);
+    }
+
+    ~aligned_fvector() {
+      delete[] values_;
+    }
+
+    aligned_float_t &operator[](int idx) const {
+      DCHECK_GT(dimension_, idx);
+
+      return values_[idx];
+    }
+
+    void clear() {
+      memset(values_, 0, sizeof(aligned_float_t) * dimension_);
+    }
+
+    unsigned dimension_;
+    aligned_float_t *values_;
+
+  };
+
   class QuickRandom {
   public:
     QuickRandom() : x(15486719), y(19654991), z(16313527), char_index(0) {
