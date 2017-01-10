@@ -200,25 +200,27 @@ namespace obamadb {
       double elapsedTimeSec = (time_ms.count())/ 1e3;
       totalTrainTime += elapsedTimeSec;
       printSVMItrStats(mat_train, mat_test, sharedTheta, last_theta, cycle, elapsedTimeSec);
-
-      // Store the observer information:
-      if (observationCycles > 0) {
-        for (int obs_idx = 0; obs_idx < observer.size(); obs_idx++) {
-          std::uint64_t timeObs = observer.observedTimes_[obs_idx];
-          fvector const & thetaObs = observer.observedModels_[obs_idx];
-          float_t testLoss = ml::rmsErrorLoss(thetaObs, mat_test->blocks_);
-          float_t testFractionMisclassified = ml::fractionMisclassified(thetaObs, mat_test->blocks_);
-          printf("%llu,%.4f,%.4f\n", timeObs, testLoss, testFractionMisclassified);
-        }
-        observationCycles--;
-      }
     }
     tp.stop();
 
     float avgTrainTime = totalTrainTime / totalCycles;
     float finalFractionMispredicted = ml::fractionMisclassified(sharedTheta, mat_test->blocks_);
-    printf("num_cols, num_threads, avg_train_time, frac_mispredicted, nnz_train");
+    printf("num_cols, num_threads, avg_train_time, frac_mispredicted, nnz_train\n");
     printf(">%d,%d,%f,%f,%d\n",mat_test->numColumns_, params.numThreads, avgTrainTime, finalFractionMispredicted, mat_train->getNNZ());
+
+    // Store the observer information:
+    if (observationCycles > 0) {
+      printf("Convergence Info: (%d measures)\n", observer.size());
+
+      for (int obs_idx = 0; obs_idx < observer.size(); obs_idx++) {
+        std::uint64_t timeObs = observer.observedTimes_[obs_idx];
+        fvector const & thetaObs = observer.observedModels_[obs_idx];
+        float_t testLoss = ml::rmsErrorLoss(thetaObs, mat_test->blocks_);
+        float_t testFractionMisclassified = ml::fractionMisclassified(thetaObs, mat_test->blocks_);
+        printf("%llu,%.4f,%.4f\n", timeObs, testLoss, testFractionMisclassified);
+      }
+      observationCycles--;
+    }
   }
 
   void doCompression(Matrix const * train,
