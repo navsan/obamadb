@@ -61,7 +61,8 @@ namespace obamadb {
     ConvergenceObserver(fvector const * const sharedTheta) :
       model_ref_(sharedTheta),
       observedTimes_(),
-      observedModels_() {}
+      observedModels_(),
+      threadPool_(nullptr) {}
 
     void record() {
       auto current_time = std::chrono::steady_clock::now();
@@ -77,6 +78,7 @@ namespace obamadb {
     fvector const * const model_ref_;
     std::vector<std::uint64_t> observedTimes_;
     std::vector<fvector> observedModels_;
+    ThreadPool const * threadPool_;
   };
 
   /**
@@ -96,9 +98,10 @@ namespace obamadb {
     // we'll instead loop for some arbitrary number of times.
     // TODO: get access to barrier information to tell when all threads have completed their cycle.
     ConvergenceObserver* observer = statePair->second;
-    for (int i = 0; i < 50; i++) {
+    int const total_workers = observer->threadPool_->getNumWorkers() - 1;
+    while (total_workers > observer->threadPool_->getWaiterCount()) {
       observer->record();
-      usleep(5);
+      usleep(1000);
     }
     (*remaining_measurement_epochs)--;
   }
@@ -181,6 +184,7 @@ namespace obamadb {
     // Create ThreadPool + Workers
     const int totalCycles = 2;
     ThreadPool tp(threadFns, threadStates);
+    observer.threadPool_ = &tp;
     tp.begin();
     printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss, dtheta\n");
     printSVMItrStats(mat_train, mat_test, sharedTheta, sharedTheta, -1, 0);

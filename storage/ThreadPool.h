@@ -23,7 +23,6 @@ namespace obamadb {
   // Keep the threading mac-compadible.
   namespace threading {
 
-#if APPLE
     typedef int pthread_barrierattr_t;
     typedef struct {
       pthread_mutex_t mutex;
@@ -31,12 +30,10 @@ namespace obamadb {
       int count;
       int tripCount;
     } pthread_barrier_t;
-#endif
 
-typedef pthread_barrier_t barrier_t;
+    typedef pthread_barrier_t barrier_t;
 
     inline int barrier_init(pthread_barrier_t *barrier, const pthread_barrierattr_t *attr, unsigned int count) {
-#if APPLE
       if (count == 0) {
         errno = EINVAL;
         return -1;
@@ -51,23 +48,15 @@ typedef pthread_barrier_t barrier_t;
       barrier->tripCount = count;
       barrier->count = 0;
       return 0;
-#else
-      return pthread_barrier_init(barrier, attr, count);
-#endif
     }
 
     inline int barrier_destroy(pthread_barrier_t *barrier) {
-#if APPLE
       pthread_cond_destroy(&barrier->cond);
       pthread_mutex_destroy(&barrier->mutex);
       return 0;
-#else
-      return pthread_barrier_destroy(barrier);
-#endif
     }
 
     inline int barrier_wait(pthread_barrier_t *barrier) {
-#if APPLE
       pthread_mutex_lock(&barrier->mutex);
       ++(barrier->count);
       if (barrier->count >= barrier->tripCount) {
@@ -80,9 +69,6 @@ typedef pthread_barrier_t barrier_t;
         pthread_mutex_unlock(&barrier->mutex);
         return 0;
       }
-#else
-      return pthread_barrier_wait(barrier);
-#endif
     }
 
    /**
@@ -224,6 +210,14 @@ public:
     threading::barrier_wait(&b2_);
     // workers are finished with routine and waiting on 1.
     // Here is an opportunity to re-allocate work, and do an update to the model.
+  }
+
+  int getWaiterCount() const {
+    return b2_.count;
+  }
+
+  int getNumWorkers() const {
+    return num_workers_;
   }
 
   void stop() {
