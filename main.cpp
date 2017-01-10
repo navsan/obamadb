@@ -5,6 +5,7 @@
 #include "storage/MLTask.h"
 #include "storage/tests/StorageTestHelpers.h"
 
+#include <unistd.h>
 
 namespace obamadb {
 
@@ -53,6 +54,56 @@ namespace obamadb {
   }
 
   /**
+   * Used to snoop on the inter-epoch values of the model.
+   */
+  class ConvergenceObserver {
+  public:
+    ConvergenceObserver(fvector const * const sharedTheta) :
+      model_ref_(sharedTheta),
+      observedTimes_(),
+      observedModels_() {}
+
+    void record() {
+      auto current_time = std::chrono::steady_clock::now();
+      observedTimes_.push_back(current_time.time_since_epoch().count());
+      observedModels_.push_back(*model_ref_);
+    }
+
+    int size() {
+      CHECK_EQ(observedModels_.size(), observedTimes_.size());
+      return observedModels_.size();
+    }
+
+    fvector const * const model_ref_;
+    std::vector<std::uint64_t> observedTimes_;
+    std::vector<fvector> observedModels_;
+  };
+
+  /**
+   * The function which a thread will call once per epoch to record the
+   * model's state change over time.
+   * @param tid Thread id. Not used.
+   * @param observerState Pair<remaining epochs to observe, observer>.
+   */
+  void observerThreadFn(int tid, void* observerState) {
+    std::pair<int*, ConvergenceObserver*> *statePair =
+      reinterpret_cast<std::pair<int*, ConvergenceObserver*>*>(observerState);
+    int *remaining_measurement_epochs = statePair->first;
+    if (*remaining_measurement_epochs <= 0) {
+      return;
+    }
+    // loop until all of the other threads have completed. We don't know this exactly, so
+    // we'll instead loop for some arbitrary number of times.
+    // TODO: get access to barrier information to tell when all threads have completed their cycle.
+    ConvergenceObserver* observer = statePair->second;
+    for (int i = 0; i < 50; i++) {
+      observer->record();
+      usleep(5);
+    }
+    (*remaining_measurement_epochs)--;
+  }
+
+  /**
    * Allocates Datablocks to DataViews. Dataviews will then be given to threads in the form of tasks.
    * @param num_threads How many dataviews to allocate and distrubute amongst.
    * @param data_blocks The set of training data.
@@ -88,7 +139,8 @@ namespace obamadb {
     for (int i = 0; i < oldTheta.dimension_; i++) {
       dTheta += std::abs(oldTheta.values_[i] - theta.values_[i]);
     }
-    printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified, trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
+    printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified,
+           trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
   }
 
   void trainSVM(Matrix *mat_train, Matrix *mat_test, TestParams const & params) {
@@ -102,25 +154,38 @@ namespace obamadb {
 
     allocateBlocks(params.numThreads, mat_train->blocks_, data_views);
     // Create tasks
-    std::vector<std::unique_ptr<SVMTask>> tasks(params.numThreads);
-    std::vector<void*> threadStates;
-    for (int i = 0; i < tasks.size(); i++) {
-      tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
-      threadStates.push_back(tasks[i].get());
-    }
-
     auto update_fn = [](int tid, void* state) {
       SVMTask* task = reinterpret_cast<SVMTask*>(state);
       task->execute(tid, nullptr);
     };
+    std::vector<std::unique_ptr<SVMTask>> tasks(params.numThreads);
+    std::vector<void*> threadStates;
+    std::vector<std::function<void(int, void*)>> threadFns;
+    for (int i = 0; i < tasks.size(); i++) {
+      tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
+      threadStates.push_back(tasks[i].get());
+      threadFns.push_back(update_fn);
+    }
+
+    // create an observer thread, if the params specify it
+    int observationEpoch = params.measureConvergence;
+    ConvergenceObserver observer(&sharedTheta);
+    std::unique_ptr<std::pair<int*, ConvergenceObserver*>> observerInfo(
+      new std::pair<int*, ConvergenceObserver*>(&observationEpoch, &observer));
+    if (params.measureConvergence > 0) {
+      auto observer_fn = observerThreadFn;
+      threadFns.push_back(observer_fn);
+      threadStates.push_back(observerInfo.get());
+    }
 
     // Create ThreadPool + Workers
-    const int totalCycles = 20;
-    ThreadPool tp(update_fn, threadStates);
+    const int totalCycles = 2;
+    ThreadPool tp(threadFns, threadStates);
     tp.begin();
     printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss, dtheta\n");
     printSVMItrStats(mat_train, mat_test, sharedTheta, sharedTheta, -1, 0);
     float totalTrainTime = 0.0;
+    int observationCycles = params.measureConvergence;
     for (int cycle = 0; cycle < totalCycles; cycle++) {
       fvector last_theta(sharedTheta);
 
@@ -131,6 +196,18 @@ namespace obamadb {
       double elapsedTimeSec = (time_ms.count())/ 1e3;
       totalTrainTime += elapsedTimeSec;
       printSVMItrStats(mat_train, mat_test, sharedTheta, last_theta, cycle, elapsedTimeSec);
+
+      // Store the observer information:
+      if (observationCycles > 0) {
+        for (int obs_idx = 0; obs_idx < observer.size(); obs_idx++) {
+          std::uint64_t timeObs = observer.observedTimes_[obs_idx];
+          fvector const & thetaObs = observer.observedModels_[obs_idx];
+          float_t testLoss = ml::rmsErrorLoss(thetaObs, mat_test->blocks_);
+          float_t testFractionMisclassified = ml::fractionMisclassified(thetaObs, mat_test->blocks_);
+          printf("%llu,%.4f,%.4f\n", timeObs, testLoss, testFractionMisclassified);
+        }
+        observationCycles--;
+      }
     }
     tp.stop();
 

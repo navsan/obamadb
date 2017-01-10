@@ -169,14 +169,17 @@ void* WorkerLoop(void *worker_params);
  */
 class ThreadPool {
 public:
-  ThreadPool(std::function<void(int, void*)> thread_fn,
+  ThreadPool(std::vector<std::function<void(int, void*)>> const & thread_fns,
              const std::vector<void*> &thread_states)
-    : meta_info_(), threads_(thread_states.size()), num_workers_(thread_states.size()) {
+    : meta_info_(),
+      threads_(thread_states.size()),
+      num_workers_(thread_states.size())
+  {
     threading::barrier_init(&b1_, NULL, num_workers_ + 1);
     threading::barrier_init(&b2_, NULL, num_workers_ + 1);
 
     for (int i = 0; i < thread_states.size(); ++i) {
-      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, thread_fn, thread_states[i]));
+      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, thread_fns[i], thread_states[i]));
     }
   }
 
@@ -196,7 +199,8 @@ public:
              int num_threads)
     : meta_info_(),
       threads_(num_threads),
-      num_workers_(num_threads) {
+      num_workers_(num_threads)
+  {
     threading::barrier_init(&b1_, NULL, num_workers_ + 1);
     threading::barrier_init(&b2_, NULL, num_workers_ + 1);
 
