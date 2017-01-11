@@ -78,7 +78,7 @@ namespace obamadb {
     fvector const * const model_ref_;
     std::vector<std::uint64_t> observedTimes_;
     std::vector<fvector> observedModels_;
-    ThreadPool const * threadPool_;
+    ThreadPool * threadPool_;
   };
 
   /**
@@ -98,7 +98,7 @@ namespace obamadb {
     // we'll instead loop for some arbitrary number of times.
     // TODO: get access to barrier information to tell when all threads have completed their cycle.
     ConvergenceObserver* observer = statePair->second;
-    int const total_workers = observer->threadPool_->getNumWorkers() - 1;
+    int const total_workers = observer->threadPool_->getNumWorkers();
     while (total_workers > observer->threadPool_->getWaiterCount()) {
       observer->record();
       usleep(1000);
@@ -151,6 +151,21 @@ namespace obamadb {
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
 
+    // arguments to the threadpool.
+    std::vector<void*> threadStates;
+    std::vector<std::function<void(int, void*)>> threadFns;
+
+    // create an observer thread, if the params specify it
+    int observationEpoch = params.measureConvergence;
+    ConvergenceObserver observer(&sharedTheta);
+    std::unique_ptr<std::pair<int*, ConvergenceObserver*>> observerInfo(
+      new std::pair<int*, ConvergenceObserver*>(&observationEpoch, &observer));
+    if (params.measureConvergence > 0) {
+      auto observer_fn = observerThreadFn;
+      threadFns.push_back(observer_fn);
+      threadStates.push_back(observerInfo.get());
+    }
+
     // Create the tasks for the Threadpool.
     // Roughly allocates work.
     std::vector<std::unique_ptr<DataView>> data_views;
@@ -162,23 +177,10 @@ namespace obamadb {
       task->execute(tid, nullptr);
     };
     std::vector<std::unique_ptr<SVMTask>> tasks(params.numThreads);
-    std::vector<void*> threadStates;
-    std::vector<std::function<void(int, void*)>> threadFns;
     for (int i = 0; i < tasks.size(); i++) {
       tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
       threadStates.push_back(tasks[i].get());
       threadFns.push_back(update_fn);
-    }
-
-    // create an observer thread, if the params specify it
-    int observationEpoch = params.measureConvergence;
-    ConvergenceObserver observer(&sharedTheta);
-    std::unique_ptr<std::pair<int*, ConvergenceObserver*>> observerInfo(
-      new std::pair<int*, ConvergenceObserver*>(&observationEpoch, &observer));
-    if (params.measureConvergence > 0) {
-      auto observer_fn = observerThreadFn;
-      threadFns.push_back(observer_fn);
-      threadStates.push_back(observerInfo.get());
     }
 
     // Create ThreadPool + Workers
@@ -217,7 +219,7 @@ namespace obamadb {
         fvector const & thetaObs = observer.observedModels_[obs_idx];
         float_t testLoss = ml::rmsErrorLoss(thetaObs, mat_test->blocks_);
         float_t testFractionMisclassified = ml::fractionMisclassified(thetaObs, mat_test->blocks_);
-        printf("%llu,%.4f,%.4f\n", timeObs, testLoss, testFractionMisclassified);
+        printf("%d,%llu,%.4f,%.4f\n", params.numThreads, timeObs, testLoss, testFractionMisclassified);
       }
       observationCycles--;
     }
