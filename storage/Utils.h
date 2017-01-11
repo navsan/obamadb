@@ -27,19 +27,23 @@
 namespace obamadb {
 
 
+  struct alignas(64) cacheline_float {
+    float_t value;
+  };
+
   /**
    * Simple vector for floating type numbers.
    */
   struct fvector {
     fvector(unsigned dimension)
       : dimension_(dimension) {
-      values_ = new float_t[dimension_];
+      values_ = new cacheline_float[dimension_];
     }
 
     fvector(const fvector &other) {
       dimension_ = other.dimension_;
-      values_ = new float_t[dimension_];
-      memcpy(values_, other.values_, sizeof(float_t) * dimension_);
+      values_ = new cacheline_float[dimension_];
+      memcpy(values_, other.values_, sizeof(cacheline_float) * dimension_);
     }
 
     /**
@@ -56,49 +60,15 @@ namespace obamadb {
     float_t &operator[](int idx) const {
       DCHECK_GT(dimension_, idx);
 
-      return values_[idx];
+      return values_[idx].value;
     }
 
     void clear() {
-      memset(values_, 0, sizeof(float_t) * dimension_);
+      memset(values_, 0, sizeof(cacheline_float) * dimension_);
     }
 
     unsigned dimension_;
-    float_t *values_;
-
-  };
-
-  /**
-   * Simple vector for floating type numbers.
-   */
-  struct aligned_fvector {
-    aligned_fvector(unsigned dimension)
-      : dimension_(dimension) {
-      values_ = new float_t[dimension_];
-    }
-
-    aligned_fvector(const aligned_fvector &other) {
-      dimension_ = other.dimension_;
-      values_ = new float_t[dimension_];
-      memcpy(values_, other.values_, sizeof(aligned_float_t) * dimension_);
-    }
-
-    ~aligned_fvector() {
-      delete[] values_;
-    }
-
-    aligned_float_t &operator[](int idx) const {
-      DCHECK_GT(dimension_, idx);
-
-      return values_[idx];
-    }
-
-    void clear() {
-      memset(values_, 0, sizeof(aligned_float_t) * dimension_);
-    }
-
-    unsigned dimension_;
-    aligned_float_t *values_;
+    cacheline_float *values_;
 
   };
 

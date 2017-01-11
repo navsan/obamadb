@@ -37,6 +37,33 @@ namespace obamadb {
       return dotsum;
     }
 
+    /**
+     * Dot product
+     */
+    float_t dot(const dvector<float_t> &v1, cacheline_float *d2) {
+      float_t dotsum = 0;
+      float_t *__restrict__ pv1 = v1.values_;
+      cacheline_float *__restrict__ pv2 = d2;
+      for (int i = 0; i < v1.size(); ++i) {
+        dotsum += pv1[i] * pv2[i].value; // probably kills any vectorized optimization we had going.
+      }
+      return dotsum;
+    }
+
+    /**
+     * Dot product
+     */
+    float_t dot(const svector<float_t> &v1, cacheline_float *d2) {
+      float_t dotsum = 0;
+      float_t const *const __restrict__ pv1 = v1.values_;
+      int const *const __restrict__ pvi1 = v1.index_;
+      cacheline_float const *const __restrict__ pv2 = d2;
+      for (int i = 0; i < v1.numElements(); ++i) {
+        dotsum += pv1[i] * pv2[pvi1[i]].value;
+      }
+      return dotsum;
+    }
+
     int numMisclassified(const fvector &theta, const SparseDataBlock<float_t> &block) {
       svector<float_t> row(0, nullptr);
       int misclassified = 0;
@@ -85,16 +112,6 @@ namespace obamadb {
       return (float_t) std::sqrt(loss) / std::sqrt(total_examples);
     }
 
-    float_t L2Distance(const fvector &v1, const fvector &v2) {
-      DCHECK_EQ(v1.dimension_, v2.dimension_);
-
-      double dist_sum = 0;
-      for (int i = 0; i < v1.dimension_; i++) {
-        dist_sum += std::pow(v1.values_[i] - v2.values_[i], 2);
-      }
-      return (float_t) std::sqrt(dist_sum);
-    }
-
     /**
      * Applies delta to theta with a constant scaling parameter applied to delta.
      * @param theta Sparse vector of weights.
@@ -110,6 +127,22 @@ namespace obamadb {
         tptr[idx] = tptr[idx] + (vptr[i] * e);
       }
     }
+
+    /**
+     * Applies delta to theta with a constant scaling parameter applied to delta.
+     * @param theta Sparse vector of weights.
+     * @param delta Sparse vector of changes.
+     * @param e Scaling constant
+     */
+    inline void scaleAndAdd(cacheline_float* theta, const svector<float_t>& delta, const float_t e) {
+      cacheline_float * const __restrict__ tptr = theta;
+      float_t const * __restrict__ const vptr = delta.values_;
+      int const * __restrict__ const iptr = delta.index_;
+      for (int i = 0; i < delta.num_elements_; i++) {
+        const int idx = iptr[i];
+        tptr[idx].value = tptr[idx].value + (vptr[i] * e);
+      }
+    }
   } // namespace ml
 
 void SVMTask::execute(int threadId, void* svm_state) {
@@ -117,7 +150,7 @@ void SVMTask::execute(int threadId, void* svm_state) {
 
   data_view_->reset();
   svector<float_t> row(0, nullptr); // a readonly se_vector.
-  float_t * theta = shared_theta_->values_;
+  cacheline_float * theta = shared_theta_->values_;
   const float_t mu = shared_params_->mu;
   const float_t step_size = shared_params_->step_size;
 
@@ -138,7 +171,7 @@ void SVMTask::execute(int threadId, void* svm_state) {
     for (int i = row.numElements(); i-- > 0;) {
       const int idx_j = row.index_[i];
       float_t const deg = shared_params_->degrees[idx_j];
-      theta[idx_j] *= 1 - scalar / deg;
+      theta[idx_j].value = theta[idx_j].value * (1 - scalar / deg);
     }
   }
 

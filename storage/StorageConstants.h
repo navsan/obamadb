@@ -6,7 +6,6 @@
 namespace obamadb {
 
   typedef float float_t;
-  typedef float alignas(64) aligned_float_t;
 
   const std::uint64_t kStorageBlockSize = 2e6;  // 2 megabytes.
 

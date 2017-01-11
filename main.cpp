@@ -138,12 +138,8 @@ namespace obamadb {
     float_t testRmsLoss = ml::rmsErrorLoss(theta, matTest->blocks_);
     float_t trainFractionMisclassified = ml::fractionMisclassified(theta,matTrain->blocks_);
     float_t testFractionMisclassified = ml::fractionMisclassified(theta,matTest->blocks_);
-    float_t dTheta = 0;
-    for (int i = 0; i < oldTheta.dimension_; i++) {
-      dTheta += std::abs(oldTheta.values_[i] - theta.values_[i]);
-    }
-    printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified,
-           trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
+    printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f\n", itr, timeTrain, trainFractionMisclassified,
+           trainRmsLoss, testFractionMisclassified, testRmsLoss);
   }
 
   void trainSVM(Matrix *mat_train, Matrix *mat_test, TestParams const & params) {
