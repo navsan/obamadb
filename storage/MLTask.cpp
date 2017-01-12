@@ -107,7 +107,7 @@ namespace obamadb {
         }
         total_examples += block.getNumRows();
       }
-      return std::sqrt((double)loss/(double)kScaleFloats) / std::sqrt(total_examples);
+      return std::sqrt((double)loss) / std::sqrt(total_examples);
     }
 
     /**

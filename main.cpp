@@ -209,7 +209,7 @@ namespace obamadb {
     float avgTrainTime = totalTrainTime / totalCycles;
     float finalFractionMispredicted = ml::fractionMisclassified(sharedTheta, mat_test->blocks_);
     printf("num_cols, num_threads, avg_train_time, frac_mispredicted, nnz_train\n");
-    printf(">%d,%d,%f,%f,%d\n",mat_test->numColumns_, params.numThreads, avgTrainTime, finalFractionMispredicted, mat_train->getNNZ());
+    printf(">>>\ntrue,%d,%f,%f\n",params.numThreads, avgTrainTime, finalFractionMispredicted);
 
     // Store the observer information:
     if (observationCycles > 0) {

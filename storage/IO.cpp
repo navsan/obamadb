@@ -148,7 +148,7 @@ namespace obamadb {
           classification = 0;
           scanSparseRowData(line, &last_id, &idx, &classification);
           classification /= kScaleFloats;
-          CHECK(classification == -1 || classification == 1);
+          //CHECK(classification == -1 || classification == 1);
           new_line = false;
         } else {
           if(!std::getline(infile, line)) {
