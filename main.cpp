@@ -136,22 +136,21 @@ namespace obamadb {
                         fvector const & oldTheta,
                         int itr,
                         float timeTrain) {
-    float_t trainRmsLoss = ml::rmsErrorLoss(theta, matTrain->blocks_);
-    float_t testRmsLoss = ml::rmsErrorLoss(theta, matTest->blocks_);
-    float_t trainFractionMisclassified = ml::fractionMisclassified(theta,matTrain->blocks_);
-    float_t testFractionMisclassified = ml::fractionMisclassified(theta,matTest->blocks_);
-    float_t dTheta = 0;
-    for (int i = 0; i < oldTheta.dimension_; i++) {
-      dTheta += std::abs(oldTheta.values_[i] - theta.values_[i]);
-    }
-    printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f, %.4f\n", itr, timeTrain, trainFractionMisclassified,
-           trainRmsLoss, testFractionMisclassified, testRmsLoss, dTheta);
+    float trainRmsLoss = ml::rmsErrorLoss(theta, matTrain->blocks_);
+    float testRmsLoss = ml::rmsErrorLoss(theta, matTest->blocks_);
+    float trainFractionMisclassified = ml::fractionMisclassified(theta,matTrain->blocks_);
+    float testFractionMisclassified = ml::fractionMisclassified(theta,matTest->blocks_);
+
+    printf("%-3d: %.3f, %.4f, %.2f, %.4f, %.2f\n", itr, timeTrain, trainFractionMisclassified,
+           trainRmsLoss, testFractionMisclassified, testRmsLoss);
   }
 
   void trainSVM(Matrix *mat_train, Matrix *mat_test, TestParams const & params) {
-    SVMParams* svm_params = DefaultSVMParams<float_t>(mat_train->blocks_);
+    SVMParams* svm_params = DefaultSVMParams<int_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
+
+    std::cout << mat_train->blocks_[0]->getClassification(0) << std::endl;
 
     // arguments to the threadpool.
     std::vector<void*> threadStates;
@@ -186,7 +185,7 @@ namespace obamadb {
     }
 
     // Create ThreadPool + Workers
-    const int totalCycles = 2;
+    const int totalCycles = 10;
     ThreadPool tp(threadFns, threadStates);
     observer.threadPool_ = &tp;
     tp.begin();
@@ -219,8 +218,8 @@ namespace obamadb {
       for (int obs_idx = 0; obs_idx < observer.size(); obs_idx++) {
         std::uint64_t timeObs = observer.observedTimes_[obs_idx];
         fvector const & thetaObs = observer.observedModels_[obs_idx];
-        float_t testLoss = ml::rmsErrorLoss(thetaObs, mat_test->blocks_);
-        float_t testFractionMisclassified = ml::fractionMisclassified(thetaObs, mat_test->blocks_);
+        float testLoss = ml::rmsErrorLoss(thetaObs, mat_test->blocks_);
+        float testFractionMisclassified = ml::fractionMisclassified(thetaObs, mat_test->blocks_);
         printf("%d,%llu,%.4f,%.4f\n", params.numThreads, timeObs, testLoss, testFractionMisclassified);
       }
       observationCycles--;

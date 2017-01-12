@@ -13,12 +13,12 @@ namespace obamadb {
 
   class DataView {
   public:
-    DataView(std::vector<SparseDataBlock<float_t> const *> blocks)
+    DataView(std::vector<SparseDataBlock<int_t> const *> blocks)
       : blocks_(blocks), current_block_(0),current_idx_(0) {}
 
     DataView() : blocks_(), current_block_(0), current_idx_(0) {}
 
-    inline bool getNext(svector<float_t> * row) {
+    inline bool getNext(svector<int_t> * row) {
 //      if (blocks_.size() == 0) {
 //        return false;
 //      }
@@ -36,7 +36,7 @@ namespace obamadb {
       return false;
     }
 
-    void appendBlock(SparseDataBlock<float_t> const * block) {
+    void appendBlock(SparseDataBlock<int_t> const * block) {
       blocks_.push_back(block);
     }
 
@@ -52,7 +52,7 @@ namespace obamadb {
 
   protected:
 
-    std::vector<SparseDataBlock<float_t> const *> blocks_;
+    std::vector<SparseDataBlock<int_t> const *> blocks_;
     int current_block_;
     int current_idx_;
   };

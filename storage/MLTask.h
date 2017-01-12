@@ -18,7 +18,7 @@ namespace obamadb {
      * @param block The block.
      * @return Number misclassified.
      */
-    int numMisclassified(const fvector &theta, const SparseDataBlock<float_t> &block);
+    int numMisclassified(const fvector &theta, const SparseDataBlock<int_t> &block);
 
     /**
      * Gets the fraction of misclassified examples.
@@ -26,14 +26,14 @@ namespace obamadb {
      * @param block A sample of the data.
      * @return Fraction of misclassified examples.
      */
-    float_t fractionMisclassified(const fvector &theta, std::vector<SparseDataBlock<float_t>*> const & block);
+    float fractionMisclassified(const fvector &theta, std::vector<SparseDataBlock<int_t>*> const & block);
 
     /**
      * Root mean squared error.
      * @param theta The trained weights.
      * @param blocks All the data.
      */
-    float_t rmsError(const fvector &theta, std::vector<SparseDataBlock<float_t>*> const & block);
+    float rmsError(const fvector &theta, std::vector<SparseDataBlock<int_t>*> const & block);
 
     /**
      * TODO: this is really SVM loss.
@@ -41,12 +41,12 @@ namespace obamadb {
      * @param blocks
      * @return
      */
-    float_t rmsErrorLoss(const fvector &theta, std::vector<SparseDataBlock<float_t> *> const &blocks);
+    float rmsErrorLoss(const fvector &theta, std::vector<SparseDataBlock<int_t> *> const &blocks);
 
     /**
      * @return The L2 distance between two vectors.
      */
-    float_t L2Distance(const fvector &v1, const fvector &v2);
+    float L2Distance(const fvector &v1, const fvector &v2);
 
   } // end namespace ml
 
@@ -77,17 +77,17 @@ namespace obamadb {
   };
 
   struct SVMParams {
-    SVMParams(float_t mu,
-              float_t step_size,
-              float_t step_decay)
+    SVMParams(float mu,
+              float step_size,
+              float step_decay)
       : mu(mu),
         step_size(step_size),
         step_decay(step_decay),
         degrees() {}
 
-    float_t mu;
-    float_t step_size;
-    float_t step_decay;
+    float mu;
+    float step_size;
+    float step_decay;
     std::vector<int> degrees;
   };
 
@@ -117,7 +117,7 @@ namespace obamadb {
    */
   template<class T>
   SVMParams* DefaultSVMParams(std::vector<SparseDataBlock<T>*>& all_blocks) {
-    SVMParams * params = new SVMParams(1, 0.1, 0.99);
+    SVMParams * params = new SVMParams(1, 1, 0.99);
     int dim = 0;
     std::vector<int>& degrees = params->degrees;
 
@@ -127,7 +127,7 @@ namespace obamadb {
         dim = block.getNumColumns();
         degrees.resize(block.getNumColumns());
       }
-      svector<float_t> row;
+      svector<int_t> row;
       for (int i = 0; i < block.getNumRows(); i++) {
         block.getRowVector(i, &row);
         for (int j = 0; j < row.numElements(); j++) {

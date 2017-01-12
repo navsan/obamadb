@@ -15,9 +15,9 @@ namespace obamadb {
 
   namespace {
 
-    inline float_t sparseDot(const svector<float_t> & a, const svector<signed char> & b) {
+    inline int_t sparseDot(const svector<int_t> & a, const svector<signed char> & b) {
       int ai = 0, bi = 0;
-      float_t sum_prod = 0;
+      int_t sum_prod = 0;
       while(ai < a.num_elements_ && bi < b.num_elements_) {
         if(a.index_[ai] == b.index_[bi]) {
           sum_prod += a.values_[ai] * b.values_[bi];
@@ -37,7 +37,7 @@ namespace obamadb {
     /**
      * Takes ownership of the passed DataBlocks.
      */
-    Matrix(const std::vector<SparseDataBlock<float_t> *> &blocks)
+    Matrix(const std::vector<SparseDataBlock<int_t> *> &blocks)
       : numColumns_(0),
         numRows_(0),
         blocks_() {
@@ -64,7 +64,7 @@ namespace obamadb {
      * Takes ownership of an entire block and adds it to the matrix and increases the size if necessary.
      * @param block The sparse datablock to add.
      */
-    void addBlock(SparseDataBlock<float_t> *block) {
+    void addBlock(SparseDataBlock<int_t> *block) {
       if (block->getNumColumns() > numColumns_) {
         numColumns_ = block->getNumColumns();
         // each block should be the same dimension as the matrix.
@@ -81,9 +81,9 @@ namespace obamadb {
      * block will be created.
      * @param row Row to append
      */
-    void addRow(const svector<float_t> &row) {
+    void addRow(const svector<int_t> &row) {
       if(blocks_.size() == 0 || !blocks_.back()->appendRow(row)) {
-        blocks_.push_back(new SparseDataBlock<float_t>());
+        blocks_.push_back(new SparseDataBlock<int_t>());
         bool appended = blocks_.back()->appendRow(row);
         DCHECK(appended);
       }
@@ -101,7 +101,7 @@ namespace obamadb {
     struct PMultiState {
       PMultiState(const Matrix * matA,
                   const SparseDataBlock<signed char> *matB,
-                  float_t kNormalizingConstant,
+                  int_t kNormalizingConstant,
                   Matrix *result,
                   int total_threads)
         : matA_(matA),
@@ -113,7 +113,7 @@ namespace obamadb {
 
       const Matrix * matA_;
       const SparseDataBlock<signed char>* matB_;
-      float_t kNormalizingConstant_;
+      int_t kNormalizingConstant_;
       Matrix *result_;
       int total_threads_;
       std::mutex result_lock_;
@@ -126,19 +126,19 @@ namespace obamadb {
       int block_lower_lim = blocks_per_thread * thread_id;
       int block_upper_lim = std::min(blocks_per_thread * (thread_id + 1), numBlocks);
 
-      const std::vector<SparseDataBlock<float_t> *> &blocks_ = pstate->matA_->blocks_;
-      svector<float_t> row_a(0, nullptr);
+      const std::vector<SparseDataBlock<int_t> *> &blocks_ = pstate->matA_->blocks_;
+      svector<int_t> row_a(0, nullptr);
       svector<signed char> row_b(0, nullptr);
 
-      SparseDataBlock<float_t> *result_block = new SparseDataBlock<float_t>();
+      SparseDataBlock<int_t> *result_block = new SparseDataBlock<int_t>();
       for (int i = block_lower_lim; i < block_upper_lim; i++) {
-        const SparseDataBlock<float_t> *block = blocks_[i];
+        const SparseDataBlock<int_t> *block = blocks_[i];
         for (int j = 0; j < block->getNumRows(); j++) {
-          svector<float_t> row_c;
+          svector<int_t> row_c;
           block->getRowVectorFast(j, &row_a);
           for (int k = 0; k < pstate->matB_->getNumRows(); k++) {
             pstate->matB_->getRowVectorFast(k, &row_b);
-            float_t f = sparseDot(row_a, row_b);
+            int_t f = sparseDot(row_a, row_b);
             if (f != 0) {
               row_c.push_back(k, f * pstate->kNormalizingConstant_);
             }
@@ -148,7 +148,7 @@ namespace obamadb {
             pstate->result_lock_.lock();
             pstate->result_->addBlock(result_block);
             pstate->result_lock_.unlock();
-            result_block = new SparseDataBlock<float_t>();
+            result_block = new SparseDataBlock<int_t>();
           }
         }
       }
@@ -170,7 +170,7 @@ namespace obamadb {
      * @return Caller-owned matrix result of the multiplication.
      */
     Matrix* matrixMultiplyRowWise(const SparseDataBlock<signed char>* mat,
-                                  float_t kNormalizingConstant) const {
+                                  int_t kNormalizingConstant) const {
       Matrix *result = new Matrix();
       // Hack to make this parallel
       int numThreads = std::min((size_t)threading::numCores(), blocks_.size());
@@ -213,7 +213,7 @@ namespace obamadb {
      * @return
      */
     Matrix* randomProjectionsCompress(SparseDataBlock<signed char>* projection_mat, int compressionConstant) const {
-      const float_t kNormalizingConstant = 1.0 / sqrt(compressionConstant);
+      const int_t kNormalizingConstant = 1.0 / sqrt(compressionConstant);
       return matrixMultiplyRowWise(projection_mat, compressionConstant);
     }
 
@@ -276,7 +276,7 @@ namespace obamadb {
 
     int numColumns_;
     int numRows_;
-    std::vector<SparseDataBlock<float_t>*> blocks_;
+    std::vector<SparseDataBlock<int_t>*> blocks_;
 
     DISABLE_COPY_AND_ASSIGN(Matrix);
   };

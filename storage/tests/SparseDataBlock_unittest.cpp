@@ -13,11 +13,11 @@
 namespace obamadb {
 
   TEST(SparseDataBlockTest, TestLoadSparse) {
-    std::vector<SparseDataBlock<float_t>*> blocks = IO::load_blocks<float_t>("sparse.dat");
+    std::vector<SparseDataBlock<int_t>*> blocks = IO::load_blocks<int_t>("sparse.dat");
     ASSERT_EQ(1, blocks.size());
-    std::unique_ptr<SparseDataBlock<float_t>> block(dynamic_cast<SparseDataBlock<float_t>*>(blocks[0]));
+    std::unique_ptr<SparseDataBlock<int_t>> block(dynamic_cast<SparseDataBlock<int_t>*>(blocks[0]));
 
-    svector<float_t> r1;
+    svector<int_t> r1;
     block->getRowVector(0, &r1);
     EXPECT_EQ(-1, *r1.getClassification());
     EXPECT_EQ(3, r1.numElements());
@@ -52,14 +52,14 @@ namespace obamadb {
     int ncolumns = 1000;
     int blockSizeMb = 10;
     double sparsity = 0.999;
-    std::unique_ptr<SparseDataBlock<float_t>> sparseBlock(GetRandomSparseDataBlock(blockSizeMb * 1e6, ncolumns, sparsity));
+    std::unique_ptr<SparseDataBlock<int_t>> sparseBlock(GetRandomSparseDataBlock(blockSizeMb * 1e6, ncolumns, sparsity));
     EXPECT_LT(ncolumns * 0.9, sparseBlock->num_columns_);
     EXPECT_EQ(blockSizeMb * 1e6, sparseBlock->block_size_bytes_);
     // the low bound is calculated by (totalSizeBytes / (floats per column + size of header + size of classification) * 0.9
-    double blockRowsLowBound = (((double)blockSizeMb * 1e6) / ((1.0 - sparsity) * ncolumns * sizeof(float_t) + (sizeof(float_t)*4) )) * 0.9;
+    double blockRowsLowBound = (((double)blockSizeMb * 1e6) / ((1.0 - sparsity) * ncolumns * sizeof(int_t) + (sizeof(int_t)*4) )) * 0.9;
     EXPECT_LT(blockRowsLowBound, sparseBlock->num_rows_);
     std::vector<int> columnCounts(sparseBlock->num_columns_);
-    svector<float_t> rowView(0, nullptr);
+    svector<int_t> rowView(0, nullptr);
     int numPositive = 0;
     for (int row = 0; row < sparseBlock->num_rows_; row++) {
       sparseBlock->getRowVectorFast(row, &rowView);

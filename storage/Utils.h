@@ -33,13 +33,13 @@ namespace obamadb {
   struct fvector {
     fvector(unsigned dimension)
       : dimension_(dimension) {
-      values_ = new float_t[dimension_];
+      values_ = new int_t[dimension_];
     }
 
     fvector(const fvector &other) {
       dimension_ = other.dimension_;
-      values_ = new float_t[dimension_];
-      memcpy(values_, other.values_, sizeof(float_t) * dimension_);
+      values_ = new int_t[dimension_];
+      memcpy(values_, other.values_, sizeof(int_t) * dimension_);
     }
 
     /**
@@ -53,18 +53,18 @@ namespace obamadb {
       delete[] values_;
     }
 
-    float_t &operator[](int idx) const {
+    int_t &operator[](int idx) const {
       DCHECK_GT(dimension_, idx);
 
       return values_[idx];
     }
 
     void clear() {
-      memset(values_, 0, sizeof(float_t) * dimension_);
+      memset(values_, 0, sizeof(int_t) * dimension_);
     }
 
     unsigned dimension_;
-    float_t *values_;
+    int_t *values_;
 
   };
 

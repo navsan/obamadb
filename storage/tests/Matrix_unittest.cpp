@@ -21,7 +21,7 @@ namespace obamadb {
     sparsity_lim -= 1;
     sparsity_lim *= sparsity;
 
-    svector<float_t> row;
+    svector<int_t> row;
     for (int i = 0; i < m; i++) {
       for (int j = 0; j < n; j++) {
         if (qr.nextInt32() > sparsity_lim) {
@@ -35,16 +35,16 @@ namespace obamadb {
   }
 
   TEST(TestMatrix, TestLoad) {
-    std::vector<SparseDataBlock<float_t>*> blocks = IO::load_blocks<float_t>("sparse.dat");
+    std::vector<SparseDataBlock<int_t>*> blocks = IO::load_blocks<int_t>("sparse.dat");
     ASSERT_EQ(1, blocks.size());
     Matrix mat(blocks);
     EXPECT_EQ(blocks[0]->getNumColumns(), mat.numColumns_);
     EXPECT_EQ(blocks[0]->getNumRows(), mat.numRows_);
 
     // try another method of loading the matrix
-    std::unique_ptr<SparseDataBlock<float_t>> block(IO::load_blocks<float_t>("sparse.dat").front());
+    std::unique_ptr<SparseDataBlock<int_t>> block(IO::load_blocks<int_t>("sparse.dat").front());
     Matrix mat2;
-    svector<float_t> row;
+    svector<int_t> row;
     row.setMemory(0, nullptr);
     for(int i = 0; i < block->getNumRows(); i++) {
       block->getRowVectorFast(i, &row);
@@ -87,9 +87,9 @@ namespace obamadb {
     EXPECT_GE(matrixSizeBytes * (1 + tolerance), mat->sizeBytes());
 
     int numPositive = 0;
-    svector<float_t> rowView(0,nullptr);
+    svector<int_t> rowView(0,nullptr);
     for(int i = 0; i < mat->blocks_.size(); i++) {
-      SparseDataBlock<float_t> const *block = mat->blocks_[i];
+      SparseDataBlock<int_t> const *block = mat->blocks_[i];
       for (int j = 0; j < block->num_rows_; j++) {
         block->getRowVectorFast(j, &rowView);
         if (*rowView.class_ == 1) {
