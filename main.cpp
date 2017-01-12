@@ -118,6 +118,8 @@ namespace obamadb {
     const std::vector<SparseDataBlock<T> *> &data_blocks,
     std::vector<std::unique_ptr<DataView>>& views) {
     CHECK(views.size() == 0) << "Only accepts empty view vectors";
+    CHECK_GE(data_blocks.size(), views.size()) << "Partitioned data would not distribute to all threads."
+        << " Use fewer threads.";
 
     for (int i = 0; i < data_blocks.size(); i ++) {
       if (i < num_threads) {
