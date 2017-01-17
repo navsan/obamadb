@@ -43,11 +43,6 @@ namespace obamadb {
      */
     float rmsErrorLoss(const fvector &theta, std::vector<SparseDataBlock<int_t> *> const &blocks);
 
-    /**
-     * @return The L2 distance between two vectors.
-     */
-    float L2Distance(const fvector &v1, const fvector &v2);
-
   } // end namespace ml
 
   class MLTask {

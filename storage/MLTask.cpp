@@ -44,6 +44,7 @@ namespace obamadb {
         dotsum +=  pv1[i] * pv2[pvi1[i]];
 
         // uncomment to do overflow checks:
+        // overflow checks will not work in multithreaded scenerios.
         //
 //        int oldsum = dotsum;
 //
@@ -58,6 +59,7 @@ namespace obamadb {
 //
 //        // same sign or the product was a different sign than the old sum
 //        CHECK(sign(oldsum) * sign(dotsum) >= 0 || sign(prod) != sign(oldsum)) << "overflow @ addition";
+
       }
       return dotsum;
     }
@@ -107,6 +109,7 @@ namespace obamadb {
         }
         total_examples += block.getNumRows();
       }
+      loss /= kScaleFloats;
       return std::sqrt((double)loss) / std::sqrt(total_examples);
     }
 
@@ -123,7 +126,7 @@ namespace obamadb {
       int const numElements = delta.num_elements_;
       for (int i = 0; i < numElements; i++) {
         const int idx = iptr[i];
-        __sync_fetch_and_add(tptr + idx, (vptr[i] * e)); // now it's atomic?
+        __sync_fetch_and_add(tptr + idx, (vptr[i] * e));
         //tptr[idx] = tptr[idx] + (vptr[i] * e);
       }
     }
@@ -133,7 +136,7 @@ void SVMTask::execute(int threadId, void* svm_state) {
   (void) svm_state; // silence compiler warning.
 
   data_view_->reset();
-  svector<int_t> row(0, nullptr); // a readonly se_vector.
+  svector<int_t> row(0, nullptr);
   int_t * theta = shared_theta_->values_;
   const float mu = shared_params_->mu;
   const float step_size = shared_params_->step_size;
@@ -156,7 +159,8 @@ void SVMTask::execute(int threadId, void* svm_state) {
     // Without:
     // 0.209497 s/epoch
     // Both versions converge to a model with the same accuracy.
-/*
+
+    /*
     float const scalar = step_size * mu;
     // scale only the values which were updated.
     for (int i = row.num_elements_; i-- > 0;) {

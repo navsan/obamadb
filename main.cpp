@@ -189,7 +189,7 @@ namespace obamadb {
     ThreadPool tp(threadFns, threadStates);
     observer.threadPool_ = &tp;
     tp.begin();
-    printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss, dtheta\n");
+    printf("i : train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss\n");
     printSVMItrStats(mat_train, mat_test, sharedTheta, sharedTheta, -1, 0);
     float totalTrainTime = 0.0;
     int observationCycles = params.measureConvergence;
