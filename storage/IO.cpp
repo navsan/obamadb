@@ -15,7 +15,7 @@ namespace obamadb {
 
   namespace IO {
 
-    inline unsigned scanForInt(const char *str, unsigned int *cursor, float_t *value) {
+    inline unsigned scanForInt(const char *str, unsigned int *cursor, num_t *value) {
       unsigned count = 0;
 
       bool negate = '-' == str[*cursor];
@@ -25,7 +25,7 @@ namespace obamadb {
 
       while (isdigit(str[*cursor])) {
         *value = *value * 10;
-        *value = *value + static_cast<float_t>(str[*cursor] - 48);
+        *value = *value + static_cast<num_t>(str[*cursor] - 48);
         *cursor = *cursor + 1;
         count++;
       }
@@ -37,11 +37,11 @@ namespace obamadb {
       return count;
     }
 
-    inline void scanForDouble(const char *str, unsigned *cursor, float_t *value) {
+    inline void scanForDouble(const char *str, unsigned *cursor, float *value) {
       scanForInt(str, cursor, value);
       if (str[*cursor] == '.') {
         *cursor = *cursor + 1;
-        float_t decimal = 0;
+        float decimal = 0;
         unsigned count = scanForInt(str, cursor, &decimal);
         decimal = *value < 0 ? decimal * -1 : decimal;
         *value = *value + (decimal / pow(10, count));
@@ -60,7 +60,7 @@ namespace obamadb {
       return f.good();
     }
 
-    void scanSparseRowData(const std::string& line, float_t * row_id, float_t * attr_id, float_t * value) {
+    void scanSparseRowData(const std::string& line, num_t * row_id, num_t * attr_id, num_t * value) {
       // Assume it populates it here.
       char const *cstr = line.c_str();
       unsigned i = 0;
@@ -81,8 +81,8 @@ namespace obamadb {
     }
 
     template<>
-    std::vector<obamadb::SparseDataBlock<float_t>*> load_csv(const std::string &file_name) {
-      std::vector<obamadb::SparseDataBlock<float_t> *> blocks;
+    std::vector<obamadb::SparseDataBlock<num_t>*> load_csv(const std::string &file_name) {
+      std::vector<obamadb::SparseDataBlock<num_t> *> blocks;
       // TODO: load a normal, "dense" CSV
       return blocks;
     }
@@ -94,8 +94,8 @@ namespace obamadb {
     }
 
     template<>
-    std::vector<obamadb::SparseDataBlock<float_t>*> load_blocks(const std::string &file_name) {
-      std::vector<obamadb::SparseDataBlock<float_t>*> blocks;
+    std::vector<obamadb::SparseDataBlock<num_t>*> load_blocks(const std::string &file_name) {
+      std::vector<obamadb::SparseDataBlock<num_t>*> blocks;
 
       if (!checkFileExists(file_name)) {
         DCHECK(false) << "Could not open file for reading: " << file_name;
@@ -107,15 +107,15 @@ namespace obamadb {
       infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
       CHECK(infile.is_open());
 
-      obamadb::SparseDataBlock<float_t> *current_block = new SparseDataBlock<float_t>();
-      svector<float_t> temp_row;
+      obamadb::SparseDataBlock<num_t> *current_block = new SparseDataBlock<num_t>();
+      svector<num_t> temp_row;
       bool new_line = true;
 
-      float_t last_id = -1;
-      float_t id = -1;
-      float_t idx = -1;
-      float_t value = -1;
-      float_t classification = -1;
+      num_t last_id = -1;
+      num_t id = -1;
+      num_t idx = -1;
+      num_t value = -1;
+      num_t classification = -1;
 
       std::getline(infile, line);
       while (true) {
@@ -128,7 +128,7 @@ namespace obamadb {
             if (!appended) {
               current_block->finalize();
               blocks.push_back(current_block);
-              current_block = new SparseDataBlock<float_t>();
+              current_block = new SparseDataBlock<num_t>();
               current_block->appendRow(temp_row);
             }
             temp_row.clear();
@@ -146,7 +146,7 @@ namespace obamadb {
             if (!appended) {
               current_block->finalize();
               blocks.push_back(current_block);
-              current_block = new SparseDataBlock<float_t>();
+              current_block = new SparseDataBlock<num_t>();
               current_block->appendRow(temp_row);
             }
             break;
@@ -191,7 +191,7 @@ namespace obamadb {
     }
 
     Matrix *load(const std::string &filename) {
-      std::vector<obamadb::SparseDataBlock<float_t>*> blocks = load_blocks<float_t>(filename);
+      std::vector<obamadb::SparseDataBlock<num_t>*> blocks = load_blocks<num_t>(filename);
       Matrix *mat = new Matrix(blocks);
       return mat;
     }

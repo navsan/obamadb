@@ -23,7 +23,7 @@ namespace obamadb {
   template <typename T>
   std::ostream &operator<<(std::ostream &os, const SparseDataBlock<T> &block);
 
-  std::ostream &operator<<(std::ostream &os, const SparseDataBlock<float_t> &block);
+  std::ostream &operator<<(std::ostream &os, const SparseDataBlock<num_t> &block);
 
 
   /**
@@ -116,7 +116,7 @@ namespace obamadb {
     template<class A>
     friend std::ostream &operator<<(std::ostream &os, const SparseDataBlock<A> &block);
 
-    friend std::ostream &operator<<(std::ostream &os, const SparseDataBlock<float_t> &block);
+    friend std::ostream &operator<<(std::ostream &os, const SparseDataBlock<num_t> &block);
   };
 
   template<class T>
@@ -258,15 +258,15 @@ namespace obamadb {
      *
      * @return a caller-owned sparse datablock.
      */
-    static SparseDataBlock<float_t>* GetRandomSparseDataBlock(int blockSizeBytes, int numColumns, double sparsity) {
-      SparseDataBlock<float_t>* dataBlock = new SparseDataBlock<float_t>(blockSizeBytes);
-      svector<float_t> row_vector;
+    static SparseDataBlock<num_t>* GetRandomSparseDataBlock(int blockSizeBytes, int numColumns, double sparsity) {
+      SparseDataBlock<num_t>* dataBlock = new SparseDataBlock<num_t>(blockSizeBytes);
+      svector<num_t> row_vector;
       QuickRandom qr;
       double avgElementsPerRow = (1.0 - sparsity) * numColumns;
       int elementWindowSize = ((double)numColumns) / avgElementsPerRow;
       int elementWindows = std::ceil(avgElementsPerRow);
-      float_t positive = 1.0;
-      float_t negative = -1.0;
+      num_t positive = 1.0;
+      num_t negative = -1.0;
       do {
         row_vector.clear();
         bool isPositive = qr.nextFloat() > 0;
@@ -275,7 +275,7 @@ namespace obamadb {
           int randi = qr.nextInt32() % elementWindowSize;
           int index = (i * elementWindowSize) + randi;
           if (index < numColumns) {
-            float_t randf = std::abs(qr.nextFloat());
+            num_t randf = std::abs(qr.nextFloat());
             // The data should end up being perfectly seperable.
             if ((isPositive && index % 2 == 1 )
                 || (!isPositive && index % 2 == 0)) {

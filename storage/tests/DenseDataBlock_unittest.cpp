@@ -14,8 +14,8 @@ namespace obamadb {
   TEST(DenseDataBlockTest, TestLoadDense) {
     int m = 1000;
     int n = 10000;
-    std::unique_ptr<DenseDataBlock<float_t>> block(new DenseDataBlock<float_t>(m,n));
-    dvector<float_t> row(n);
+    std::unique_ptr<DenseDataBlock<num_t>> block(new DenseDataBlock<num_t>(m,n));
+    dvector<num_t> row(n);
     row.num_elements_ = n;
     for(int i = 0; i < m; i++) {
       for(int j = 0; j < n; j++) {
@@ -24,14 +24,14 @@ namespace obamadb {
       row.class_[0] = (i % 2) == 0;
       ASSERT_TRUE(block->appendRow(row));
     }
-    if (kStorageBlockSize > (m * (n+1) * sizeof(float_t))) {
+    if (kStorageBlockSize > (m * (n+1) * sizeof(num_t))) {
       EXPECT_TRUE(block->appendRow(row));
     } else {
       EXPECT_FALSE(block->appendRow(row));
     }
     block->finalize();
 
-    dvector<float_t> read_vec(0, nullptr);
+    dvector<num_t> read_vec(0, nullptr);
     for(int i = 0; i < m - 1; i++) {
       block->getRowVectorFast(i, &read_vec);
       ASSERT_EQ(read_vec.size(), n);

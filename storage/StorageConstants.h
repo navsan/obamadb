@@ -5,7 +5,9 @@
 
 namespace obamadb {
 
-  typedef float float_t;
+  // The basic machine learning number type. Since it can be either floating point or
+  // integer type, we call it num(ber) type.
+  typedef float num_t;
 
   const std::uint64_t kStorageBlockSize = 2e6;  // 2 megabytes.
 
