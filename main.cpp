@@ -5,8 +5,6 @@
 #include "storage/MLTask.h"
 #include "storage/tests/StorageTestHelpers.h"
 
-#include <unistd.h>
-
 namespace obamadb {
 
   /**
@@ -146,7 +144,7 @@ namespace obamadb {
   }
 
   void trainSVM(Matrix *mat_train, Matrix *mat_test, TestParams const & params) {
-    SVMParams* svm_params = DefaultSVMParams<int_t>(mat_train->blocks_);
+    SVMParams* svm_params = SVMParams::GetDefault<int_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
 
@@ -220,7 +218,7 @@ namespace obamadb {
         fvector const & thetaObs = observer.observedModels_[obs_idx];
         float testLoss = ml::rmsErrorLoss(thetaObs, mat_test->blocks_);
         float testFractionMisclassified = ml::fractionMisclassified(thetaObs, mat_test->blocks_);
-        printf("%d,%llu,%.4f,%.4f\n", params.numThreads, timeObs, testLoss, testFractionMisclassified);
+        printf("3,%d,%llu,%.4f,%.4f\n", params.numThreads, timeObs, testLoss, testFractionMisclassified);
       }
       observationCycles--;
     }

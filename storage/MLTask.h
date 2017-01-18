@@ -18,7 +18,7 @@ namespace obamadb {
      * @param block The block.
      * @return Number misclassified.
      */
-    int numMisclassified(const fvector &theta, const SparseDataBlock<int_t> &block);
+    int numMisclassified(const fvector &theta, const SparseDataBlock <int_t> &block);
 
     /**
      * Gets the fraction of misclassified examples.
@@ -26,14 +26,14 @@ namespace obamadb {
      * @param block A sample of the data.
      * @return Fraction of misclassified examples.
      */
-    float fractionMisclassified(const fvector &theta, std::vector<SparseDataBlock<int_t>*> const & block);
+    double fractionMisclassified(const fvector &theta, std::vector<SparseDataBlock < int_t> *> const & block);
 
     /**
      * Root mean squared error.
      * @param theta The trained weights.
      * @param blocks All the data.
      */
-    float rmsError(const fvector &theta, std::vector<SparseDataBlock<int_t>*> const & block);
+    double rmsError(const fvector &theta, std::vector<SparseDataBlock < int_t> *> const & block);
 
     /**
      * TODO: this is really SVM loss.
@@ -41,7 +41,7 @@ namespace obamadb {
      * @param blocks
      * @return
      */
-    float rmsErrorLoss(const fvector &theta, std::vector<SparseDataBlock<int_t> *> const &blocks);
+    double rmsErrorLoss(const fvector &theta, std::vector<SparseDataBlock < int_t> *> const &blocks);
 
   } // end namespace ml
 
@@ -63,7 +63,7 @@ namespace obamadb {
      * @param thread_id The ID of the thread which is executing the task.
      * @param ml_state  Some associated state relevent to the computation.
      */
-    virtual void execute(int thread_id, void* ml_state) = 0;
+    virtual void execute(int thread_id, void *ml_state) = 0;
 
   protected:
     DataView *data_view_;
@@ -80,6 +80,9 @@ namespace obamadb {
         step_decay(step_decay),
         degrees() {}
 
+    template<class T>
+    static SVMParams *GetDefault(std::vector<SparseDataBlock<T>*>& all_blocks);
+
     float mu;
     float step_size;
     float step_decay;
@@ -93,15 +96,15 @@ namespace obamadb {
             SVMParams *sharedParams)
       : MLTask(dataView),
         shared_theta_(sharedTheta),
-        shared_params_(sharedParams) { }
+        shared_params_(sharedParams) {}
 
     /**
      * Calculates and applies the gradient of the SVM.
      */
-    void execute(int thread_id, void* ml_state) override;
+    void execute(int thread_id, void *ml_state) override;
 
-    fvector* shared_theta_;
-    SVMParams* shared_params_;
+    fvector *shared_theta_;
+    SVMParams *shared_params_;
 
     DISABLE_COPY_AND_ASSIGN(SVMTask);
   };
@@ -110,9 +113,9 @@ namespace obamadb {
    * Constructs the SVM to the parameters used in the HW! paper.
    * @return Caller-owned SVM params.
    */
-  template<class T>
-  SVMParams* DefaultSVMParams(std::vector<SparseDataBlock<T>*>& all_blocks) {
-    SVMParams * params = new SVMParams(1, 10.0/kScaleFloats, 0.9);
+  template <class T>
+  SVMParams* SVMParams::GetDefault(std::vector<SparseDataBlock<T>*>& all_blocks) {
+    SVMParams* params = new SVMParams(1, 20.0 / kScaleFloats, 0.7);
     int dim = 0;
     std::vector<int>& degrees = params->degrees;
 
@@ -134,8 +137,7 @@ namespace obamadb {
     return params;
   };
 
-}
-
+} // namespace obamadb
 
 
 #endif //OBAMADB_MLTASK_H
