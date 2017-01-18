@@ -112,7 +112,7 @@ namespace obamadb {
    */
   template<class T>
   SVMParams* DefaultSVMParams(std::vector<SparseDataBlock<T>*>& all_blocks) {
-    SVMParams * params = new SVMParams(1, 1, 0.99);
+    SVMParams * params = new SVMParams(1, 10.0/kScaleFloats, 0.9);
     int dim = 0;
     std::vector<int>& degrees = params->degrees;
 
