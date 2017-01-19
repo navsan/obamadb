@@ -205,7 +205,6 @@ namespace obamadb {
         total_rows += blocks.back()->num_rows_;
       }
       blocks.back()->trimRows(total_rows - m);
-      save<num_t>("/tmp/lol.blk", blocks, 1);
       return blocks;
     }
 

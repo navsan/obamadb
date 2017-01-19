@@ -110,10 +110,8 @@ namespace obamadb {
     }
 
     inline float nextFloat() {
-      std::uint32_t randi = nextInt32();
-      randi &= 0x807FFFFF; // mask out the exponent.
-      float randf = *reinterpret_cast<float*>(&randi);
-      return randf;
+      // this operation is faster than trying to use a custom random() call.
+      return static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
     }
 
     inline unsigned char nextChar() {
