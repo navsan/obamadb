@@ -146,7 +146,7 @@ namespace obamadb {
       int_t wxy = ml::dot(row, theta);
       wxy = wxy * y; // {-1, 1}
       // hinge active
-      if (wxy < kScaleFloats) {
+      if (wxy < kScaleFloats * kScaleFloats) {
         float const e = step_size * y;
         // scale weights
         ml::scaleAndAdd(theta, row, e);
