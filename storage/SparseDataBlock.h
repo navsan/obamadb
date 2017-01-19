@@ -59,6 +59,39 @@ namespace obamadb {
         heap_offset_(0),
         end_of_block_(reinterpret_cast<char *>(this->store_) + size_bytes) {}
 
+    SparseDataBlock(int size_bytes, int numColumns, double sparsity)
+      : DataBlock<T>(size_bytes),
+        entries_(reinterpret_cast<SDBEntry *>(this->store_)),
+        heap_offset_(0),
+        end_of_block_(reinterpret_cast<char *>(this->store_) + size_bytes) {
+      svector<num_t> row_vector;
+      QuickRandom qr;
+      double avgElementsPerRow = (1.0 - sparsity) * numColumns;
+      int elementWindowSize = ((double) numColumns) / avgElementsPerRow;
+      int elementWindows = std::ceil(avgElementsPerRow);
+      num_t positive = 1.0;
+      num_t negative = -1.0;
+      do {
+        row_vector.clear();
+        bool isPositive = qr.nextFloat() > 0;
+        row_vector.setClassification(isPositive ? &positive : &negative);
+        for (int i = 0; i < elementWindows; i++) {
+          int randi = qr.nextInt32() % elementWindowSize;
+          int index = (i * elementWindowSize) + randi;
+          if (index < numColumns) {
+            num_t randf = std::abs(qr.nextFloat());
+            // The data should end up being perfectly seperable.
+            if ((isPositive && index % 2 == 1)
+                || (!isPositive && index % 2 == 0)) {
+              randf *= -1;
+            }
+            row_vector.push_back(index, randf);
+          }
+        }
+      } while (this->appendRow(row_vector));
+      this->finalize();
+    }
+
     SparseDataBlock() : SparseDataBlock(kStorageBlockSize) {}
 
     /**
@@ -80,6 +113,8 @@ namespace obamadb {
     }
 
     void getRowVector(int row, exvector<T> *vec) const override;
+
+    void trimRows(int numRows);
 
     inline void getRowVectorFast(const int row, svector<T> *vec) const {
       DCHECK_LT(row, this->num_rows_) << "Row index out of range.";
@@ -157,8 +192,6 @@ namespace obamadb {
     vec->setMemory(entry.size_, end_of_block_ - entry.offset_);
   }
 
-
-
   template<class T>
   T* SparseDataBlock<T>::get(unsigned row, unsigned col) const {
     DCHECK_LT(row, this->num_rows_) << "Row index out of range.";
@@ -172,6 +205,16 @@ namespace obamadb {
     } else {
       return value;
     }
+  }
+
+  template<class T>
+  void SparseDataBlock<T>::trimRows(int rows) {
+    DCHECK_LT(rows, this->num_rows_);
+    for (int row = this->num_rows_ - rows; row < this->num_rows_; row++) {
+      SDBEntry *entry = entries_ + this->num_rows_;
+      heap_offset_ -= entry->size_;
+    }
+    this->num_rows_ -= rows;
   }
 
   template<class T>
@@ -259,33 +302,7 @@ namespace obamadb {
      * @return a caller-owned sparse datablock.
      */
     static SparseDataBlock<num_t>* GetRandomSparseDataBlock(int blockSizeBytes, int numColumns, double sparsity) {
-      SparseDataBlock<num_t>* dataBlock = new SparseDataBlock<num_t>(blockSizeBytes);
-      svector<num_t> row_vector;
-      QuickRandom qr;
-      double avgElementsPerRow = (1.0 - sparsity) * numColumns;
-      int elementWindowSize = ((double)numColumns) / avgElementsPerRow;
-      int elementWindows = std::ceil(avgElementsPerRow);
-      num_t positive = 1.0;
-      num_t negative = -1.0;
-      do {
-        row_vector.clear();
-        bool isPositive = qr.nextFloat() > 0;
-        row_vector.setClassification(isPositive ? &positive : &negative);
-        for (int i = 0; i < elementWindows; i++) {
-          int randi = qr.nextInt32() % elementWindowSize;
-          int index = (i * elementWindowSize) + randi;
-          if (index < numColumns) {
-            num_t randf = std::abs(qr.nextFloat());
-            // The data should end up being perfectly seperable.
-            if ((isPositive && index % 2 == 1 )
-                || (!isPositive && index % 2 == 0)) {
-              randf *= -1;
-            }
-            row_vector.push_back(index, randf);
-          }
-        }
-      } while(dataBlock->appendRow(row_vector));
-      return dataBlock;
+      return new SparseDataBlock<num_t>(blockSizeBytes, numColumns, sparsity);
     }
 }
 

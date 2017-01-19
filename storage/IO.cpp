@@ -170,6 +170,45 @@ namespace obamadb {
       return blocks;
     }
 
+    std::vector<obamadb::SparseDataBlock<num_t> *> load_synthetic_blocks(std::string const & file_name) {
+      std::vector<obamadb::SparseDataBlock<num_t>*> blocks;
+
+      // extract params (m n sigma)
+      if (!checkFileExists(file_name)) {
+        DCHECK(false) << "Could not open file for reading: " << file_name;
+        return blocks;
+      }
+
+      std::ifstream infile;
+      std::string line;
+      infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
+      CHECK(infile.is_open());
+
+      unsigned cursor = 0;
+      std::getline(infile, line);
+      float m = 0;
+      float n = 0;
+      float sigma = 0;
+      scanForDouble(line.c_str(), &cursor, &m);
+      scanThroughWhitespace(line.c_str(), &cursor);
+      scanForDouble(line.c_str(), &cursor, &n);
+      scanThroughWhitespace(line.c_str(), &cursor);
+      scanForDouble(line.c_str(), &cursor, &sigma);
+      infile.close();
+
+      CHECK_GT(m, 0);
+      CHECK_GT(n, 0);
+      CHECK(sigma <= 1.0 && sigma > 0.0);
+      int total_rows = 0;
+      while (total_rows < m) {
+        blocks.push_back(obamadb::GetRandomSparseDataBlock(kStorageBlockSize, n, 1.0 - sigma));
+        total_rows += blocks.back()->num_rows_;
+      }
+      blocks.back()->trimRows(total_rows - m);
+      save<num_t>("/tmp/lol.blk", blocks, 1);
+      return blocks;
+    }
+
     template<class T>
     void save(const std::string &file_name, const obamadb::DataBlock<T>* datablock) {
       std::ofstream file;
@@ -191,8 +230,16 @@ namespace obamadb {
     }
 
     Matrix *load(const std::string &filename) {
-      std::vector<obamadb::SparseDataBlock<num_t>*> blocks = load_blocks<num_t>(filename);
-      Matrix *mat = new Matrix(blocks);
+      std::string const synth_str("_synthetic_");
+      Matrix *mat = nullptr;
+      if (filename.find(synth_str) != std::string::npos) {
+        // this file contains synthetic data params
+        std::vector<obamadb::SparseDataBlock<num_t> *> blocks = load_synthetic_blocks(filename);
+        mat = new Matrix(blocks);
+      } else {
+        std::vector<obamadb::SparseDataBlock<num_t> *> blocks = load_blocks<num_t>(filename);
+        mat = new Matrix(blocks);
+      }
       return mat;
     }
 

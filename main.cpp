@@ -186,7 +186,7 @@ namespace obamadb {
     }
 
     // Create ThreadPool + Workers
-    const int totalCycles = 2;
+    const int totalCycles = 10;
     ThreadPool tp(threadFns, threadStates);
     observer.threadPool_ = &tp;
     tp.begin();
