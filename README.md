@@ -1,15 +1,9 @@
 ObamaDB
 ----
+Async machine learning experiments.
 
-Machine learning and memory access pattern experiments.
-
-To test:
 ```
-git submodule init
-git submodule update
-
+./build.sh
 cd build
-cmake ..
-make
-ctest
+./obamadb_main ../data/_synthetic_s0.train.tsv ../data/_synthetic_s0.test.tsv 0 1 0
 ```

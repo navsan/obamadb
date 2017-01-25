@@ -39,6 +39,7 @@ add_subdirectory(storage)
 add_executable(obamadb_main main.cpp)
 target_link_libraries(obamadb_main
         glog
+        gflags
         obamadb_storage_DataBlock
         obamadb_storage_DataView
         obamadb_storage_IO

@@ -4,20 +4,20 @@
 #include <chrono>
 
 #include "glog/logging.h"
+#include "gflags/gflags.h"
 
-#define PRINT_TIMING(block) { auto time_start = std::chrono::steady_clock::now();\
-                              block\
-                              auto time_end = std::chrono::steady_clock::now();\
-                              std::chrono::duration<double, std::milli> time_ms = time_end - time_start;\
-                              printf("[TIMING][%s:%d] elapsed time %.2f\n",__FILE__, __LINE__, time_ms.count()); \
-                            }
+DECLARE_bool(verbose);
 
-#define PRINT_TIMING_MSG(msg, block) { \
-                              auto time_start = std::chrono::steady_clock::now();\
-                              block\
-                              auto time_end = std::chrono::steady_clock::now();\
-                              std::chrono::duration<double, std::milli> time_ms = time_end - time_start;\
-                              printf("[TIMING][%s:%d][%s] elapsed time %.2f\n",__FILE__, __LINE__, msg, time_ms.count()); \
+#define PRINT_TIMING(block) { \
+                              if (FLAGS_verbose) { \
+                                auto time_start = std::chrono::steady_clock::now();\
+                                {block}\
+                                auto time_end = std::chrono::steady_clock::now();\
+                                std::chrono::duration<double, std::milli> time_ms = time_end - time_start;\
+                                printf("[TIMING][%s:%d] elapsed time %.2f\n",__FILE__, __LINE__, time_ms.count()); \
+                              } else {\
+                                block \
+                              } \
                             }
 
 #define DISABLE_COPY_AND_ASSIGN(CLASS) \

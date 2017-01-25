@@ -81,7 +81,8 @@ target_link_libraries(obamadb_storage_SparseDataBlock
 target_link_libraries(obamadb_storage_ThreadPool
         glog)
 target_link_libraries(obamadb_storage_Utils
-        glog)
+        glog
+        gflags)
 target_link_libraries(obamadb_storage_tests_StorageTestHelpers
         glog)
 
