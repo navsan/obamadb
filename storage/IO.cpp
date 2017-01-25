@@ -229,7 +229,7 @@ namespace obamadb {
     }
 
     Matrix *load(const std::string &filename) {
-      std::string const synth_str("_synthetic_");
+      std::string const synth_str("_synth_svm_");
       Matrix *mat = nullptr;
       if (filename.find(synth_str) != std::string::npos) {
         // this file contains synthetic data params
