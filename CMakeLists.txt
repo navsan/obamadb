@@ -47,4 +47,5 @@ target_link_libraries(obamadb_main
         obamadb_storage_StorageConstants
         obamadb_storage_ThreadPool
         obamadb_storage_MLTask
+        obamadb_storage_SVMTask
         obamadb_storage_tests_StorageTestHelpers)

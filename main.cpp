@@ -3,6 +3,7 @@
 #include "storage/IO.h"
 #include "storage/Matrix.h"
 #include "storage/MLTask.h"
+#include "storage/SVMTask.h"
 #include "storage/tests/StorageTestHelpers.h"
 
 #include <algorithm>
@@ -137,19 +138,20 @@ namespace obamadb {
     }
   }
 
-  void printSVMItrStats(Matrix const * matTrain,
+  void printSVMEpochStats(Matrix const * matTrain,
                         Matrix const * matTest,
                         fvector const & theta,
                         int iteration,
                         float timeTrain) {
+
     if (!FLAGS_verbose) {
       return;
     }
 
-    double const trainRmsLoss = ml::rmsErrorLoss(theta, matTrain->blocks_);
-    double const testRmsLoss = ml::rmsErrorLoss(theta, matTest->blocks_);
-    double const trainFractionMisclassified = ml::fractionMisclassified(theta,matTrain->blocks_);
-    double const testFractionMisclassified = ml::fractionMisclassified(theta,matTest->blocks_);
+    double const trainRmsLoss = SVMTask::rmsErrorLoss(theta, matTrain->blocks_);
+    double const testRmsLoss = SVMTask::rmsErrorLoss(theta, matTest->blocks_);
+    double const trainFractionMisclassified = SVMTask::fractionMisclassified(theta,matTrain->blocks_);
+    double const testFractionMisclassified = SVMTask::fractionMisclassified(theta,matTest->blocks_);
 
     printf("%-3d, %.3f, %.4f, %.2f, %.4f, %.2f\n",
            iteration,
@@ -206,7 +208,7 @@ namespace obamadb {
     tp.begin();
 
     VPRINT("epoch, train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss\n");
-    printSVMItrStats(mat_train, mat_test, sharedTheta, -1, -1);
+    printSVMEpochStats(mat_train, mat_test, sharedTheta, -1, -1);
     double totalTrainTime = 0.0;
     for (int cycle = 0; cycle < FLAGS_num_epochs; cycle++) {
       auto time_start = std::chrono::steady_clock::now();
@@ -216,7 +218,7 @@ namespace obamadb {
       double elapsedTimeSec = (time_ms.count())/ 1e3;
       totalTrainTime += elapsedTimeSec;
 
-      printSVMItrStats(mat_train, mat_test, sharedTheta, cycle, elapsedTimeSec);
+      printSVMEpochStats(mat_train, mat_test, sharedTheta, cycle, elapsedTimeSec);
     }
     tp.stop();
 
@@ -224,7 +226,7 @@ namespace obamadb {
     printf(">>>\n%d,%f,%f\n",
            (int)FLAGS_threads,
            totalTrainTime / FLAGS_num_epochs,
-           ml::fractionMisclassified(sharedTheta, mat_test->blocks_));
+           SVMTask::fractionMisclassified(sharedTheta, mat_test->blocks_));
 
     if (FLAGS_measure_convergence) {
       printf("Convergence Info (%d measures)\n", (int)observer->observedModels_.size());
@@ -235,8 +237,8 @@ namespace obamadb {
         printf("%d,%llu,%.4f,%.4f\n",
                (int)FLAGS_threads,
                timeObs,
-               ml::rmsErrorLoss(thetaObs, mat_test->blocks_),
-               ml::fractionMisclassified(thetaObs, mat_test->blocks_));
+               SVMTask::rmsErrorLoss(thetaObs, mat_test->blocks_),
+               SVMTask::fractionMisclassified(thetaObs, mat_test->blocks_));
       }
     }
   }

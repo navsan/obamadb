@@ -25,6 +25,9 @@ add_library(obamadb_storage_SparseDataBlock
 add_library(obamadb_storage_StorageConstants
         StorageConstants.h
         StorageConstants.cpp)
+add_library(obamadb_storage_SVMTask
+        SVMTask.cpp
+        SVMTask.h)
 add_library(obamadb_storage_ThreadPool
         ThreadPool.cpp
         ThreadPool.h)
@@ -78,6 +81,13 @@ target_link_libraries(obamadb_storage_SparseDataBlock
         glog
         obamadb_storage_DataBlock
         obamadb_storage_exvector)
+target_link_libraries(obamadb_storage_SVMTask
+        glog
+        obamadb_storage_DataBlock
+        obamadb_storage_exvector
+        obamadb_storage_MLTask
+        obamadb_storage_SparseDataBlock
+        obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_ThreadPool
         glog)
 target_link_libraries(obamadb_storage_Utils
