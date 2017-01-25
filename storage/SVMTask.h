@@ -37,6 +37,10 @@ namespace obamadb {
         shared_theta_(sharedTheta),
         shared_params_(sharedParams) {}
 
+    MLAlgorithm getType() override {
+      return MLAlgorithm::kSVM;
+    }
+
     /**
      * Calculates and applies the gradient of the SVM.
      */
@@ -87,7 +91,7 @@ namespace obamadb {
     SVMParams *params = new SVMParams(1, 0.1, 0.99);
 
     int dim = 0;
-// count the number of members of each column
+    // count the number of members of each column
     std::vector<int> &degrees = params->degrees;
 
     for (int k = 0; k < all_blocks.size(); ++k) {

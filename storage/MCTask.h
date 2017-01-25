@@ -1,9 +1,19 @@
 #ifndef OBAMADB_MCTASK_H
 #define OBAMADB_MCTASK_H
 
+#include "storage/DataBlock.h"
+#include "storage/DataView.h"
+#include "storage/exvector.h"
+#include "storage/Matrix.h"
+#include "storage/MLTask.h"
+#include "storage/SparseDataBlock.h"
+#include "storage/Utils.h"
+
 namespace obamadb {
-/*
-  // Matrix Completion parameters
+
+  /**
+   * Matrix Completion parameters
+   */
   struct MCParams {
     MCParams(float mu,
              float step_size,
@@ -24,12 +34,17 @@ namespace obamadb {
   class MCTask : MLTask {
   public:
     MCTask(DataView *dataView,
-            fvector *sharedTheta,
-            SVMParams *sharedParams)
+           Matrix *lmatrix,
+           Matrix *rmatrix,
+           MCParams *sharedParams)
       : MLTask(dataView),
-        shared_theta_(sharedTheta),
+        mat_l(lmatrix),
+        mat_r(rmatrix),
         shared_params_(sharedParams) { }
 
+    MLAlgorithm getType() override {
+      return MLAlgorithm::kMC;
+    }
 
     void execute(int thread_id, void* ml_state) override;
 
@@ -37,9 +52,9 @@ namespace obamadb {
     Matrix * mat_r;
     MCParams* shared_params_;
 
-    DISABLE_COPY_AND_ASSIGN(SVMTask);
+    DISABLE_COPY_AND_ASSIGN(MCTask);
   };
-*/
+
 } // namespace obamadb
 
 #endif //OBAMADB_MCTASK_H

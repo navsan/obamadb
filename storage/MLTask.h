@@ -29,6 +29,8 @@ namespace obamadb {
       delete data_view_;
     };
 
+    virtual MLAlgorithm getType() = 0;
+
     /**
      * This method will be executed by a threadpool.
      *

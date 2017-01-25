@@ -27,10 +27,8 @@ DEFINE_bool(measure_convergence, false, "If true, an observer thread will collec
   " as the algorithm does its first iteration. Useful for the SVM.");
 
 static bool ValidateAlgorithm(const char* flagname, std::string const & value) {
-  std::string value_mutable = value;
-  std::transform(value_mutable.begin(), value_mutable.end(), value_mutable.begin(), ::tolower);
   std::vector<std::string> valid_algorithms = {"svm", "mc"};
-  if (std::find(valid_algorithms.begin(), valid_algorithms.end(), value_mutable) != valid_algorithms.end()) {
+  if (std::find(valid_algorithms.begin(), valid_algorithms.end(), value) != valid_algorithms.end()) {
     return true;
   } else {
     printf("Invalid algorithm choice. Choices are:\n");
@@ -243,6 +241,11 @@ namespace obamadb {
     }
   }
 
+  void trainMC(Matrix *mat_train,
+               Matrix *mat_test) {
+    printf("Training MC\n");
+  }
+
   int main(int argc, char** argv) {
     ::google::InitGoogleLogging(argv[0]);
     ::gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -264,6 +267,10 @@ namespace obamadb {
 
     if (FLAGS_algorithm.compare("svm") == 0) {
       trainSVM(mat_train.get(), mat_test.get());
+    } else if (FLAGS_algorithm.compare("mc") == 0) {
+      LOG_IF(WARNING, FLAGS_measure_convergence)
+        << "Measure convergence not implemented for MC";
+      trainMC(mat_train.get(), mat_test.get());
     } else {
       LOG(FATAL) << "unknown training algorithm";
     }

@@ -1,10 +1,10 @@
-#include "storage/SVMTask.h"
-
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/exvector.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
+
+#include "storage/SVMTask.h"
 
 namespace obamadb {
   namespace ml {
@@ -53,8 +53,6 @@ namespace obamadb {
     }
   } // namespace ml
 
-
-
   void SVMTask::execute(int threadId, void *svm_state) {
     (void) svm_state; // silence compiler warning.
 
@@ -87,7 +85,6 @@ namespace obamadb {
     }
 
     if (threadId == 0) {
-      // TODO: this is a small bug where the step size is updated before all the threads finish.
       shared_params_->step_size = step_size * shared_params_->step_decay;
     }
   }
