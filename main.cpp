@@ -248,7 +248,10 @@ namespace obamadb {
 
   int main(int argc, char** argv) {
     ::google::InitGoogleLogging(argv[0]);
+    ::gflags::SetUsageMessage(std::string(argv[0]) + " -help");
+    ::gflags::SetVersionString("0.0");
     ::gflags::ParseCommandLineFlags(&argc, &argv, true);
+
 
     std::unique_ptr<Matrix> mat_train;
     std::unique_ptr<Matrix> mat_test;

@@ -76,37 +76,39 @@ namespace obamadb {
     }
 
     template<class T>
-    std::vector<SparseDataBlock<T>*> load_csv(const std::string& file_name){
+    std::vector<obamadb::SparseDataBlock<T>*> loadBlocks(const std::string &file_name) {
       CHECK(false) << "Not implemented for the general case.";
     }
 
-    template<>
-    std::vector<obamadb::SparseDataBlock<num_t>*> load_csv(const std::string &file_name) {
-      std::vector<obamadb::SparseDataBlock<num_t> *> blocks;
-      // TODO: load a normal, "dense" CSV
-      return blocks;
-    }
-
-
-    template<class T>
-    std::vector<obamadb::SparseDataBlock<T>*> load_blocks(const std::string &file_name) {
-      CHECK(false) << "Not implemented for the general case.";
-    }
-
-    template<>
-    std::vector<obamadb::SparseDataBlock<num_t>*> load_blocks(const std::string &file_name) {
-      std::vector<obamadb::SparseDataBlock<num_t>*> blocks;
-
-      if (!checkFileExists(file_name)) {
-        DCHECK(false) << "Could not open file for reading: " << file_name;
-        return blocks;
-      }
-
-      std::ifstream infile;
+    /**
+     * Checks if the data looks like it is for the sparse SVM.
+     * @param infile
+     * @return true if for an SVM.
+     */
+    bool isSvmLike(std::ifstream& infile) {
+      bool svmLike = false;
       std::string line;
-      infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
-      CHECK(infile.is_open());
+      std::getline(infile, line);
+      unsigned cursor = 0;
+      float val = 0;
+      scanForDouble(line.c_str(), &cursor, &val);
+      scanThroughWhitespace(line.c_str(), &cursor);
+      val = 0;
+      scanForDouble(line.c_str(), &cursor, &val); // the second value will be -1, a class.
+      if (val < 0) {
+        svmLike = true;
+      }
+      infile.seekg(0);
+      return svmLike;
+    }
 
+    /**
+     * Helper parser function which expects classifications to be set for each row.
+     * @param infile The open file handle
+     * @param blocks Vector to dump finished blocks into.
+     */
+    void loadSvmBlocks(std::ifstream& infile, std::vector<obamadb::SparseDataBlock<num_t>*> &blocks) {
+      std::string line;
       obamadb::SparseDataBlock<num_t> *current_block = new SparseDataBlock<num_t>();
       svector<num_t> temp_row;
       bool new_line = true;
@@ -162,11 +164,84 @@ namespace obamadb {
           }
         }
       }
-
-      infile.close();
-
       blocks.push_back(current_block);
       current_block->finalize();
+    }
+
+    /**
+     * Helper parser function which expects classifications to be set for each row.
+     * @param infile The open file handle
+     * @param blocks Vector to dump finished blocks into.
+     */
+    void loadMcBlocks(std::ifstream& infile, std::vector<obamadb::SparseDataBlock<num_t>*> &blocks) {
+      // helper function to add a row.
+      auto addRow = [&blocks](obamadb::SparseDataBlock<num_t>** currentBlock, svector<num_t>& row) -> void {
+        if (!(*currentBlock)->appendRow(row)) {
+          blocks.push_back(*currentBlock);
+          *currentBlock = new SparseDataBlock<num_t>();
+          CHECK((*currentBlock)->appendRow(row));
+        }
+      };
+
+      auto scanForRow = [](std::ifstream& is, svector<num_t>& row) -> bool {
+        std::string line;
+        int currentColumn = -1;
+        bool eof = true;
+        while(std::getline(is, line)) {
+          num_t row = 0;
+          num_t column = 0;
+          num_t val = 0;
+          unsigned c = 0;
+          char const * cstr = line.c_str();
+          scanForInt(cstr, &c, &row);
+          scanThroughWhitespace(cstr, &c);
+          scanForInt(cstr, &c, &column);
+          scanThroughWhitespace(cstr, &c);
+          scanForInt(cstr, &c, &val);
+
+          if (currentColumn == -1) {
+            currentColumn = column;
+          } else if (currentColumn != column) {
+            is.seekg(-1 * (int)c, is.cur);
+            eof = false;
+            break;
+          }
+        }
+        return eof;
+      };
+/*
+      svector<num_t> temp_row;
+      while(scanForRow(infile, temp_row)) {
+        temp_row.p
+      }
+*/
+      obamadb::SparseDataBlock<num_t> *current_block = new obamadb::SparseDataBlock<num_t>();
+
+      current_block->finalize();
+    }
+
+    template<>
+    std::vector<obamadb::SparseDataBlock<num_t>*> loadBlocks(const std::string &file_name) {
+      std::vector<obamadb::SparseDataBlock<num_t>*> blocks;
+
+      if (!checkFileExists(file_name)) {
+        CHECK(false) << "Could not open file for reading: " << file_name;
+        return blocks;
+      }
+
+      std::ifstream infile;
+      infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
+      CHECK(infile.is_open());
+
+      if (isSvmLike(infile)) {
+        DLOG(INFO) << "Loading file as SVM-like matrix";
+        loadSvmBlocks(infile, blocks);
+      } else {
+        DLOG(INFO) << "Loading file as Matrix Completion-like matrix";
+        loadMcBlocks(infile, blocks);
+      }
+
+      infile.close();
       return blocks;
     }
 
@@ -208,6 +283,20 @@ namespace obamadb {
       return blocks;
     }
 
+    Matrix *load(const std::string &filename) {
+      std::string const synth_str("_synth_svm_");
+      Matrix *mat = nullptr;
+      if (filename.find(synth_str) != std::string::npos) {
+        // this file contains synthetic data params
+        std::vector<obamadb::SparseDataBlock<num_t> *> blocks = load_synthetic_blocks(filename);
+        mat = new Matrix(blocks);
+      } else {
+        std::vector<obamadb::SparseDataBlock<num_t> *> blocks = loadBlocks<num_t>(filename);
+        mat = new Matrix(blocks);
+      }
+      return mat;
+    }
+
     template<class T>
     void save(const std::string &file_name, const obamadb::DataBlock<T>* datablock) {
       std::ofstream file;
@@ -224,22 +313,38 @@ namespace obamadb {
       file.close();
     }
 
-    void save(const std::string& file_name, const Matrix& mat) {
-      save(file_name, mat.blocks_, mat.blocks_.size());
+    template<class T>
+    void save(const std::string& file_name, std::vector<SparseDataBlock<T>*> blocks, int const numBlocks) {
+      std::ofstream file;
+      file.open(file_name, std::ios::out | std::ios::binary);
+      CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
+
+      int max_columns = maxColumns<T>(blocks);
+
+      DCHECK_LE(numBlocks, blocks.size());
+
+      for (int i = 0; i < numBlocks; ++i) {
+        const SparseDataBlock<T> &block = *blocks[i];
+        svector<T> row;
+        for (int j = 0; j < block.getNumRows(); j++) {
+          block.getRowVector(j, &row);
+          for (int k = 0; k < max_columns; k++) {
+            T * dptr = row.get(k);
+            if (dptr == nullptr) {
+              file << 0 << ",";
+            } else {
+              file << std::to_string(*dptr) << ",";
+            }
+          }
+          file << *row.getClassification() << "\n";
+        }
+      }
+
+      file.close();
     }
 
-    Matrix *load(const std::string &filename) {
-      std::string const synth_str("_synth_svm_");
-      Matrix *mat = nullptr;
-      if (filename.find(synth_str) != std::string::npos) {
-        // this file contains synthetic data params
-        std::vector<obamadb::SparseDataBlock<num_t> *> blocks = load_synthetic_blocks(filename);
-        mat = new Matrix(blocks);
-      } else {
-        std::vector<obamadb::SparseDataBlock<num_t> *> blocks = load_blocks<num_t>(filename);
-        mat = new Matrix(blocks);
-      }
-      return mat;
+    void save(const std::string& file_name, const Matrix& mat) {
+      save(file_name, mat.blocks_, mat.blocks_.size());
     }
 
   } // namespace IO
