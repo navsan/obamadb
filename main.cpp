@@ -48,6 +48,10 @@ DEFINE_bool(verbose, false, "Print out extra diagnostic information.");
 
 DEFINE_int64(num_epochs, 10, "The number of passes over the training data while training the model.");
 
+DEFINE_int64(num_trials, 1, "The number of trials to perform."
+  "This means the number of times we will train a model."
+  "This is useful for computing the variance/stddev between trials.");
+
 #define VPRINT(str) { if(FLAGS_verbose) { printf(str); } }
 #define VPRINTF(str, __VA_ARGS__) { if(FLAGS_verbose) { printf(str, __VA_ARGS__); } }
 #define VSTREAM(obj) {if(FLAGS_verbose){ std::cout << obj <<std::endl; }}
@@ -160,8 +164,11 @@ namespace obamadb {
            testRmsLoss);
   }
 
-  void trainSVM(Matrix *mat_train,
-                Matrix *mat_test) {
+  /**
+   * @return A vector of the epoch times.
+   */
+  std::vector<double> trainSVM(Matrix *mat_train,
+                               Matrix *mat_test) {
     SVMParams* svm_params = DefaultSVMParams<num_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
@@ -208,6 +215,7 @@ namespace obamadb {
     VPRINT("epoch, train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss\n");
     printSVMEpochStats(mat_train, mat_test, sharedTheta, -1, -1);
     double totalTrainTime = 0.0;
+    std::vector<double> epoch_times;
     for (int cycle = 0; cycle < FLAGS_num_epochs; cycle++) {
       auto time_start = std::chrono::steady_clock::now();
       tp.cycle();
@@ -217,6 +225,7 @@ namespace obamadb {
       totalTrainTime += elapsedTimeSec;
 
       printSVMEpochStats(mat_train, mat_test, sharedTheta, cycle, elapsedTimeSec);
+      epoch_times.push_back(elapsedTimeSec);
     }
     tp.stop();
 
@@ -239,20 +248,10 @@ namespace obamadb {
                SVMTask::fractionMisclassified(thetaObs, mat_test->blocks_));
       }
     }
+    return epoch_times;
   }
 
-  void trainMC(Matrix *mat_train,
-               Matrix *mat_test) {
-    printf("Training MC\n");
-  }
-
-  int main(int argc, char** argv) {
-    ::google::InitGoogleLogging(argv[0]);
-    ::gflags::SetUsageMessage(std::string(argv[0]) + " -help");
-    ::gflags::SetVersionString("0.0");
-    ::gflags::ParseCommandLineFlags(&argc, &argv, true);
-
-
+  void runSvmExperiment() {
     std::unique_ptr<Matrix> mat_train;
     std::unique_ptr<Matrix> mat_test;
 
@@ -268,12 +267,45 @@ namespace obamadb {
     CHECK_EQ(mat_test->numColumns_, mat_train->numColumns_)
       << "Train and Test matrices had differing number of features.";
 
+    std::vector<double> all_epoch_times;
+    for (int i = 0; i < FLAGS_num_trials; i++) {
+      std::vector<double> times = trainSVM(mat_train.get(), mat_test.get());
+      all_epoch_times.insert(all_epoch_times.end(), times.begin(), times.end());
+
+      usleep(1e7);
+    }
+
+    // calculate variance, etc.
+    if (FLAGS_verbose) {
+      printf("epoch runtimes:\n");
+      for (double time : all_epoch_times) {
+        printf("%f\n", time);
+      }
+    }
+
+    printf("epoch runtime summary:\nmean,variance,stddev,stderr\n%f,%f,%f,%f\n",
+           stats::mean<double>(all_epoch_times),
+           stats::variance<double>(all_epoch_times),
+           stats::stddev<double>(all_epoch_times),
+           stats::stderr<double>(all_epoch_times));
+  }
+
+  void trainMC() {
+    printf("Training MC\n");
+  }
+
+  int main(int argc, char** argv) {
+    ::google::InitGoogleLogging(argv[0]);
+    ::gflags::SetUsageMessage(std::string(argv[0]) + " -help");
+    ::gflags::SetVersionString("0.0");
+    ::gflags::ParseCommandLineFlags(&argc, &argv, true);
+
     if (FLAGS_algorithm.compare("svm") == 0) {
-      trainSVM(mat_train.get(), mat_test.get());
+      runSvmExperiment();
     } else if (FLAGS_algorithm.compare("mc") == 0) {
       LOG_IF(WARNING, FLAGS_measure_convergence)
         << "Measure convergence not implemented for MC";
-      trainMC(mat_train.get(), mat_test.get());
+      trainMC();
     } else {
       LOG(FATAL) << "unknown training algorithm";
     }

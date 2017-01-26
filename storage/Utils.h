@@ -2,6 +2,7 @@
 #define OBAMADB_UTILS_H
 
 #include <chrono>
+#include <cmath>
 
 #include "glog/logging.h"
 #include "gflags/gflags.h"
@@ -125,6 +126,40 @@ namespace obamadb {
     std::uint64_t x, y, z;
     int char_index;
   };
+
+  namespace stats {
+    template<class T>
+    double mean(std::vector<T> values) {
+      double sum = 0;
+      for (T& t : values) {
+        sum += t;
+      }
+      return sum / values.size();
+    }
+
+    template<class T>
+    double variance(std::vector<T> values) {
+      double m = mean<T>(values);
+      double sq_res = 0;
+      for (T& t : values) {
+        double diff = m - t;
+        sq_res += diff * diff;
+      }
+      return sq_res/values.size();
+    }
+
+    template<class T>
+    double stddev(std::vector<T> values) {
+      double var = variance<T>(values);
+      return sqrt(var);
+    }
+
+    template<class T>
+    double stderr(std::vector<T> values) {
+      double stdv = stddev<T>(values);
+      return stdv/sqrt(values.size()); // stderr grows smaller as the number of samples increases
+    }
+  }
 
 }  // namespace obamadb
 
