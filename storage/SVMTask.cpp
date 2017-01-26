@@ -6,6 +6,10 @@
 
 #include "storage/SVMTask.h"
 
+// comment this out depending on the test you are doing:
+// #define USE_HINGE 0
+// #define USE_SCALING 0
+
 namespace obamadb {
   namespace ml {
 
@@ -57,7 +61,7 @@ namespace obamadb {
     (void) svm_state; // silence compiler warning.
 
     data_view_->reset();
-    svector<num_t> row(0, nullptr); // a readonly se_vector.
+    svector<num_t> row(0, nullptr);
     num_t *theta = shared_theta_->values_;
     const num_t mu = shared_params_->mu;
     const num_t step_size = shared_params_->step_size;
@@ -67,13 +71,28 @@ namespace obamadb {
       num_t const y = *row.getClassification();
       num_t wxy = ml::dot(row, theta);
       wxy = wxy * y; // {-1, 1}
-      // hinge active
+
+#ifdef USE_HINGE
+      // apply the hinge function like in a normal SVM
       if (wxy < 1) {
         num_t const e = step_size * y;
         // scale weights
         ml::scaleAndAdd(theta, row, e);
       }
-      /*
+#else
+      // always apply the hinge loss, for memory-access
+      if (wxy < 1) {
+        num_t const e = step_size * y;
+        // scale weights
+        ml::scaleAndAdd(theta, row, e);
+      } else {
+        num_t const e = step_size * y * -1 * 1e-3;
+        // scale weights
+        ml::scaleAndAdd(theta, row, e);
+      }
+#endif
+
+#ifdef USE_SCALING
       num_t const scalar = step_size * mu;
       // scale only the values which were updated.
       for (int i = row.numElements(); i-- > 0;) {
@@ -81,7 +100,7 @@ namespace obamadb {
         num_t const deg = shared_params_->degrees[idx_j];
         theta[idx_j] *= 1 - scalar / deg;
       }
-      */
+#endif
     }
 
     if (threadId == 0) {
