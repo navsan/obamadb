@@ -107,7 +107,6 @@ target_link_libraries(obamadb_storage_Utils
 target_link_libraries(obamadb_storage_tests_StorageTestHelpers
         glog)
 
-
 add_executable(DenseDataBlock_unittest
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/DenseDataBlock_unittest.cpp")
 target_link_libraries(DenseDataBlock_unittest

@@ -173,7 +173,7 @@ namespace obamadb {
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
 
-    // Arguments to the threadpool.
+    // Arguments to the thread pool.
     std::vector<void*> threadStates;
     std::vector<std::function<void(int, void*)>> threadFns;
 
@@ -186,7 +186,7 @@ namespace obamadb {
       threadStates.push_back(observer.get());
     }
 
-    // Create the tasks for the Threadpool.
+    // Create the tasks for the thread pool.
     // Roughly allocates work.
     std::vector<std::unique_ptr<DataView>> data_views;
 
@@ -272,7 +272,9 @@ namespace obamadb {
       std::vector<double> times = trainSVM(mat_train.get(), mat_test.get());
       all_epoch_times.insert(all_epoch_times.end(), times.begin(), times.end());
 
-      usleep(1e7);
+      if (FLAGS_num_trials != i -1) {
+        usleep(1e7);
+      }
     }
 
     // calculate variance, etc.
@@ -291,6 +293,7 @@ namespace obamadb {
   }
 
   void trainMC() {
+    
     printf("Training MC\n");
   }
 

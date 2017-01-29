@@ -21,8 +21,11 @@ namespace obamadb {
   public:
     DenseDataBlock(unsigned numRows,
                    unsigned numColumns) :
-      DataBlock<T>(numRows, numColumns),
-      maxElements(numRows * (numColumns + 1)) {}
+      DataBlock<T>(sizeof(T) * numRows * this->sizeRow()),
+      maxElements(numRows * (numColumns + 1)) {
+      this->num_rows_ = 0;
+      this->num_columns_ = numColumns;
+    }
 
     DenseDataBlock(unsigned size_bytes) :
       DataBlock<T>(size_bytes),
@@ -37,8 +40,8 @@ namespace obamadb {
      */
     bool appendRow(const dvector<T> &row) {
       DCHECK_EQ(row.size(), this->num_columns_);
-      if (0 <= ((int)this->maxElements - (int)numElements()) - (int)(this->num_columns_ + 1)) {
-        memcpy(this->store_ + ((this->num_columns_ + 1) * this->num_rows_), row.values_, sizeof(T) * (this->num_columns_ + 1));
+      if (0 <= (this->maxElements - numElements()) - this->sizeRow()) {
+        memcpy(this->store_ + (this->sizeRow() * this->num_rows_), row.values_, sizeof(T) * this->sizeRow());
         this->num_rows_++;
         return true;
       }
@@ -59,12 +62,12 @@ namespace obamadb {
     */
     void getRowVector(int row, exvector<T>* src) const override {
       DCHECK(src->getType() == exvectorType::kDense);
-      src->setMemory(this->num_columns_, this->store_ + ((this->num_columns_ + 1) * row));
+      src->setMemory(this->num_columns_, this->store_ + (this->sizeRow() * row));
     }
 
     inline void getRowVectorFast(int row, dvector<T>* src) const {
       DCHECK(!src->ownsMemory());
-      src->values_ = this->store_ + ((this->num_columns_ + 1) * row);
+      src->values_ = this->store_ + (this->sizeRow() * row);
       src->class_ = src->values_ + this->num_columns_;
       src->num_elements_ = this->num_columns_;
     }
@@ -81,7 +84,7 @@ namespace obamadb {
     T* get(unsigned row, unsigned col) const override {
       DCHECK_GT(this->num_rows_, row);
       DCHECK_GT(this->num_columns_, col);
-      return this->store_ + (row * (this->num_columns_ + 1) + col);
+      return this->store_ + (row * this->sizeRow() + col);
     }
 
     T* operator()(unsigned row, unsigned col) override {
@@ -89,7 +92,14 @@ namespace obamadb {
     }
 
     inline int numElements() const {
-      return this->num_rows_ * (this->num_columns_ + 1);
+      return this->num_rows_ * this->sizeRow();
+    }
+
+    /**
+     * Rows are the number of attribute columns plus a classification.
+     */
+    inline int sizeRow() const {
+      return this->num_columns_ + 1;
     }
 
     int maxElements; // includes classifications

@@ -37,6 +37,8 @@ namespace obamadb {
      */
     Matrix* load(const std::string &filename);
 
+    void save(const std::string& file_name, const Matrix& mat);
+
     /**
      * Saves a datablock to the specified filename.
      *
@@ -46,6 +48,22 @@ namespace obamadb {
     template<class T>
     void save(const std::string& file_name, const DataBlock<T>* datablock);
 
+    template<class T>
+    void save(const std::string &file_name, const obamadb::DataBlock<T>* datablock) {
+      std::ofstream file;
+      file.open(file_name, std::ios::out | std::ios::binary);
+
+      CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
+
+      if (datablock->getDataBlockType == obamadb::DataBlockType::kSparse) {
+        CHECK(false) << "Not implemented";
+      } else {
+        CHECK(false) << "Unknown block type";
+      }
+
+      file.close();
+    }
+
     /**
      * Save some number of blocks from a set of SparseBlocks.
      * @param file_name The file to save to.
@@ -53,9 +71,34 @@ namespace obamadb {
      * @param nblocks The number of blocks which you would like to save.
      */
     template<class T>
-    void save(const std::string& file_name, std::vector<SparseDataBlock<T>*> blocks, int const numBlocks);
+    void save(const std::string& file_name, std::vector<SparseDataBlock<T>*> blocks, int const numBlocks) {
+      std::ofstream file;
+      file.open(file_name, std::ios::out | std::ios::binary);
+      CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
 
-    void save(const std::string& file_name, const Matrix& mat);
+      int max_columns = maxColumns<T>(blocks);
+
+      DCHECK_LE(numBlocks, blocks.size());
+
+      for (int i = 0; i < numBlocks; ++i) {
+        const SparseDataBlock<T> &block = *blocks[i];
+        svector<T> row;
+        for (int j = 0; j < block.getNumRows(); j++) {
+          block.getRowVector(j, &row);
+          for (int k = 0; k < max_columns; k++) {
+            T * dptr = row.get(k);
+            if (dptr == nullptr) {
+              file << 0 << ",";
+            } else {
+              file << std::to_string(*dptr) << ",";
+            }
+          }
+          file << *row.getClassification() << "\n";
+        }
+      }
+
+      file.close();
+    }
 
   }  // namespace IO
 }

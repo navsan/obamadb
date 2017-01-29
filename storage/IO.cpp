@@ -169,6 +169,7 @@ namespace obamadb {
     }
 
     /**
+     * Load Matrix Completion blocks.
      * Helper parser function which expects classifications to be set for each row.
      * @param infile The open file handle
      * @param blocks Vector to dump finished blocks into.
@@ -183,9 +184,10 @@ namespace obamadb {
         }
       };
 
-      auto scanForRow = [](std::ifstream& is, svector<num_t>& row) -> bool {
+      // returns if we have reached the end of the file.
+      auto scanForRow = [](std::ifstream& is, svector<num_t>& row_vector, int* row_id) -> bool {
         std::string line;
-        int currentColumn = -1;
+        int currentRow = -1;
         bool eof = true;
         while(std::getline(is, line)) {
           num_t row = 0;
@@ -199,9 +201,13 @@ namespace obamadb {
           scanThroughWhitespace(cstr, &c);
           scanForInt(cstr, &c, &val);
 
-          if (currentColumn == -1) {
-            currentColumn = column;
-          } else if (currentColumn != column) {
+          row_vector.push_back(column, val);
+
+          if (currentRow == -1) {
+            currentRow = row;
+            *row_id = currentRow;
+            row_vector.setClassification((num_t*)&currentRow);
+          } else if (row != currentRow) {
             is.seekg(-1 * (int)c, is.cur);
             eof = false;
             break;
@@ -209,15 +215,14 @@ namespace obamadb {
         }
         return eof;
       };
-/*
-      svector<num_t> temp_row;
-      while(scanForRow(infile, temp_row)) {
-        temp_row.p
-      }
-*/
-      obamadb::SparseDataBlock<num_t> *current_block = new obamadb::SparseDataBlock<num_t>();
 
-      current_block->finalize();
+//      obamadb::SparseDataBlock<num_t> *current_block = new obamadb::SparseDataBlock<num_t>();
+//      svector<num_t> temp_row;
+//      int row_id = 0;
+//      while(scanForRow(infile, temp_row, &row_id)) {
+//        while(current_block.)
+//      }
+//      current_block->finalize();
     }
 
     template<>
@@ -295,52 +300,6 @@ namespace obamadb {
         mat = new Matrix(blocks);
       }
       return mat;
-    }
-
-    template<class T>
-    void save(const std::string &file_name, const obamadb::DataBlock<T>* datablock) {
-      std::ofstream file;
-      file.open(file_name, std::ios::out | std::ios::binary);
-
-      CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
-
-      if (datablock->getDataBlockType == obamadb::DataBlockType::kSparse) {
-        CHECK(false) << "Not implemented";
-      } else {
-        CHECK(false) << "Unknown block type";
-      }
-
-      file.close();
-    }
-
-    template<class T>
-    void save(const std::string& file_name, std::vector<SparseDataBlock<T>*> blocks, int const numBlocks) {
-      std::ofstream file;
-      file.open(file_name, std::ios::out | std::ios::binary);
-      CHECK(file.is_open()) << "Unable to open " << file_name << " for output.";
-
-      int max_columns = maxColumns<T>(blocks);
-
-      DCHECK_LE(numBlocks, blocks.size());
-
-      for (int i = 0; i < numBlocks; ++i) {
-        const SparseDataBlock<T> &block = *blocks[i];
-        svector<T> row;
-        for (int j = 0; j < block.getNumRows(); j++) {
-          block.getRowVector(j, &row);
-          for (int k = 0; k < max_columns; k++) {
-            T * dptr = row.get(k);
-            if (dptr == nullptr) {
-              file << 0 << ",";
-            } else {
-              file << std::to_string(*dptr) << ",";
-            }
-          }
-          file << *row.getClassification() << "\n";
-        }
-      }
-
-      file.close();
     }
 
     void save(const std::string& file_name, const Matrix& mat) {
