@@ -21,8 +21,9 @@ namespace obamadb {
   public:
     DenseDataBlock(unsigned numRows,
                    unsigned numColumns) :
-      DataBlock<T>(sizeof(T) * numRows * this->sizeRow()),
-      maxElements(numRows * (numColumns + 1)) {
+      DataBlock<T>(sizeof(T) * numRows * (numColumns + 1)),
+      maxElements(numRows * (numColumns + 1)),
+      maxRows(numRows){
       this->num_rows_ = 0;
       this->num_columns_ = numColumns;
     }
@@ -102,7 +103,19 @@ namespace obamadb {
       return this->num_columns_ + 1;
     }
 
+    void randomize() {
+      dvector<T> row_vector(0, nullptr);
+      this->num_rows_ = this->maxRows;
+      for (int row = 0; row < this->num_rows_; row++) {
+        this->getRowVectorFast(row, &row_vector);
+        for (int column = 0; column < this->num_columns_; column++) {
+          row_vector.values_[column] = fmod((((T) rand()) / 1e6), 1.0);
+        }
+      }
+    }
+
     int maxElements; // includes classifications
+    int maxRows;
   };
 
 }

@@ -124,6 +124,17 @@ namespace obamadb {
       return num_elements_;
     }
 
+    void copy(dvector const & other) {
+      if (other.num_elements_ > this->num_elements_) {
+        delete[] values_;
+        values_ = new T[other.num_elements_ + 1];
+        this->alloc_size_ = other.num_elements_;
+      }
+      memcpy(values_, other.values_, other.num_elements_ * sizeof(T));
+      this->num_elements_ = other.num_elements_;
+
+    }
+
     /**
      * @return Minimum number of bytes needed to store this object.
      */

@@ -34,6 +34,9 @@ add_library(obamadb_storage_SVMTask
 add_library(obamadb_storage_ThreadPool
         ThreadPool.cpp
         ThreadPool.h)
+add_library(obamadb_storage_UnorderedMatrix
+        UnorderedMatrix.cpp
+        UnorderedMatrix.h)
 add_library(obamadb_storage_Utils
         Utils.cpp
         Utils.h)
@@ -65,7 +68,8 @@ target_link_libraries(obamadb_storage_IO
         obamadb_storage_exvector
         obamadb_storage_Matrix
         obamadb_storage_SparseDataBlock
-        obamadb_storage_StorageConstants)
+        obamadb_storage_StorageConstants
+        obamadb_storage_UnorderedMatrix)
 target_link_libraries(obamadb_storage_Matrix
         glog
         obamadb_storage_DataBlock
@@ -76,11 +80,10 @@ target_link_libraries(obamadb_storage_Matrix
         obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_MCTask
         glog
-        obamadb_storage_DataBlock
+        obamadb_storage_DenseDataBlock
         obamadb_storage_exvector
-        obamadb_storage_Matrix
         obamadb_storage_MLTask
-        obamadb_storage_SparseDataBlock
+        obamadb_storage_UnorderedMatrix
         obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_MLTask
         glog
@@ -101,6 +104,9 @@ target_link_libraries(obamadb_storage_SVMTask
         obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_ThreadPool
         glog)
+target_link_libraries(obamadb_storage_UnorderedMatrix
+        glog
+        obamadb_storage_StorageConstants)
 target_link_libraries(obamadb_storage_Utils
         glog
         gflags)

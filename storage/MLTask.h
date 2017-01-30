@@ -26,7 +26,9 @@ namespace obamadb {
       : data_view_(dataView) {}
 
     ~MLTask() {
-      delete data_view_;
+      if (data_view_ != nullptr) {
+        delete data_view_;
+      }
     };
 
     virtual MLAlgorithm getType() = 0;

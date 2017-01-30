@@ -5,6 +5,7 @@
 #include "storage/Matrix.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/StorageConstants.h"
+#include "storage/UnorderedMatrix.h"
 
 #include <cctype>
 #include <fstream>
@@ -99,6 +100,8 @@ namespace obamadb {
 
       file.close();
     }
+
+    UnorderedMatrix* loadUnorderedMatrix(const std::string& file_name);
 
   }  // namespace IO
 }

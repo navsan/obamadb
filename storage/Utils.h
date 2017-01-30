@@ -15,7 +15,7 @@ DECLARE_bool(verbose);
                                 {block}\
                                 auto time_end = std::chrono::steady_clock::now();\
                                 std::chrono::duration<double, std::milli> time_ms = time_end - time_start;\
-                                printf("[TIMING][%s:%d] elapsed time %.2f\n",__FILE__, __LINE__, time_ms.count()); \
+                                printf("[TIMING][%s:%d] elapsed time %.2f ms\n",__FILE__, __LINE__, time_ms.count()); \
                               } else {\
                                 block \
                               } \

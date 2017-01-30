@@ -6,10 +6,13 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <fcntl.h>
 
 #include "glog/logging.h"
 
 #include "storage/IO.h"
+
+#define USE_READ 1
 
 namespace obamadb {
 
@@ -81,28 +84,6 @@ namespace obamadb {
     }
 
     /**
-     * Checks if the data looks like it is for the sparse SVM.
-     * @param infile
-     * @return true if for an SVM.
-     */
-    bool isSvmLike(std::ifstream& infile) {
-      bool svmLike = false;
-      std::string line;
-      std::getline(infile, line);
-      unsigned cursor = 0;
-      float val = 0;
-      scanForDouble(line.c_str(), &cursor, &val);
-      scanThroughWhitespace(line.c_str(), &cursor);
-      val = 0;
-      scanForDouble(line.c_str(), &cursor, &val); // the second value will be -1, a class.
-      if (val < 0) {
-        svmLike = true;
-      }
-      infile.seekg(0);
-      return svmLike;
-    }
-
-    /**
      * Helper parser function which expects classifications to be set for each row.
      * @param infile The open file handle
      * @param blocks Vector to dump finished blocks into.
@@ -169,60 +150,115 @@ namespace obamadb {
     }
 
     /**
-     * Load Matrix Completion blocks.
-     * Helper parser function which expects classifications to be set for each row.
-     * @param infile The open file handle
-     * @param blocks Vector to dump finished blocks into.
+     * Scans a TSV file of the format
+     * int1\tint2\tint3\n
+     * where int1 specifies a row
+     * int2 specifies a column
+     * int3 specifies a value
+     * @param fname
+     * @return Caller owned Unordered Matrix.
      */
-    void loadMcBlocks(std::ifstream& infile, std::vector<obamadb::SparseDataBlock<num_t>*> &blocks) {
-      // helper function to add a row.
-      auto addRow = [&blocks](obamadb::SparseDataBlock<num_t>** currentBlock, svector<num_t>& row) -> void {
-        if (!(*currentBlock)->appendRow(row)) {
-          blocks.push_back(*currentBlock);
-          *currentBlock = new SparseDataBlock<num_t>();
-          CHECK((*currentBlock)->appendRow(row));
+    UnorderedMatrix* scanUnorderedMatrix(char const *fname) {
+      UnorderedMatrix* mat = new UnorderedMatrix();
+
+      static const auto BUFFER_SIZE = 16 * 1024;
+      int fd = open(fname, O_RDONLY);
+      CHECK_NE(fd, -1) << "Error opening file: " << fname;
+
+#ifndef __APPLE__
+      // Advise the kernel of our access pattern.
+      posix_fadvise(fd, 0, 0, 1);  // FDADVICE_SEQUENTIAL
+#endif
+
+      char buf[BUFFER_SIZE + 1];
+      int offset = 0;
+
+      while (size_t bytes_read = read(fd, buf + offset, BUFFER_SIZE - offset)) {
+        CHECK_NE(bytes_read, (size_t) -1) << "Error reading file " << fname;
+
+        if (!bytes_read) {
+          break;
         }
-      };
 
-      // returns if we have reached the end of the file.
-      auto scanForRow = [](std::ifstream& is, svector<num_t>& row_vector, int* row_id) -> bool {
-        std::string line;
-        int currentRow = -1;
-        bool eof = true;
-        while(std::getline(is, line)) {
-          num_t row = 0;
-          num_t column = 0;
-          num_t val = 0;
-          unsigned c = 0;
-          char const * cstr = line.c_str();
-          scanForInt(cstr, &c, &row);
-          scanThroughWhitespace(cstr, &c);
-          scanForInt(cstr, &c, &column);
-          scanThroughWhitespace(cstr, &c);
-          scanForInt(cstr, &c, &val);
+        char *p = buf;
+        char *nl = p;
+        while (true) {
+          int i0 = 0;
+          int i1 = 0;
+          int i2 = 0;
 
-          row_vector.push_back(column, val);
-
-          if (currentRow == -1) {
-            currentRow = row;
-            *row_id = currentRow;
-            row_vector.setClassification((num_t*)&currentRow);
-          } else if (row != currentRow) {
-            is.seekg(-1 * (int)c, is.cur);
-            eof = false;
-            break;
+          nl = p;
+          while(p != (buf + BUFFER_SIZE) && *p != '\t') {
+            i0 *= 10;
+            i0 += *p - 48;
+            p++;
           }
+          if (p == (buf + BUFFER_SIZE)) {
+            break;
+          } else {
+            p++;
+          }
+          while(p != (buf + BUFFER_SIZE) && *p != '\t') {
+            i1 *= 10;
+            i1 += *p - 48;
+            p++;
+          }
+          if (p == (buf + BUFFER_SIZE)) {
+            break;
+          } else {
+            p++;
+          }
+          while(p != (buf + BUFFER_SIZE) && *p != '\n') {
+            i2 *= 10;
+            i2 += *p - 48;
+            p++;
+          }
+          if (p == (buf + BUFFER_SIZE)) {
+            break;
+          } else {
+            p++;
+          }
+          mat->append(i0,i1,i2);
         }
-        return eof;
-      };
+        offset = (buf + BUFFER_SIZE) - nl;
+        memcpy(buf, nl, offset);
+      }
 
-//      obamadb::SparseDataBlock<num_t> *current_block = new obamadb::SparseDataBlock<num_t>();
-//      svector<num_t> temp_row;
-//      int row_id = 0;
-//      while(scanForRow(infile, temp_row, &row_id)) {
-//        while(current_block.)
-//      }
-//      current_block->finalize();
+      return mat;
+    }
+
+    /**
+     * Load examples as an unordered matrix.
+     * Helper parser function which expects classifications to be set for each row.
+     */
+    UnorderedMatrix* loadUnorderedMatrix(const std::string& file_name) {
+
+#ifdef USE_READ
+      return scanUnorderedMatrix(file_name.c_str());
+#else
+      std::ifstream infile;
+      infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
+      CHECK(infile.is_open());
+
+      UnorderedMatrix* matrix = new UnorderedMatrix();
+
+      std::string line;
+      while(std::getline(infile, line)) {
+        num_t row = 0;
+        num_t column = 0;
+        num_t val = 0;
+        unsigned c = 0;
+        char const *cstr = line.c_str();
+        scanForInt(cstr, &c, &row);
+        scanThroughWhitespace(cstr, &c);
+        scanForInt(cstr, &c, &column);
+        scanThroughWhitespace(cstr, &c);
+        scanForInt(cstr, &c, &val);
+        matrix->append((int) row, (int) column, val);
+      }
+
+      return matrix;
+#endif
     }
 
     template<>
@@ -238,13 +274,8 @@ namespace obamadb {
       infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
       CHECK(infile.is_open());
 
-      if (isSvmLike(infile)) {
-        DLOG(INFO) << "Loading file as SVM-like matrix";
-        loadSvmBlocks(infile, blocks);
-      } else {
-        DLOG(INFO) << "Loading file as Matrix Completion-like matrix";
-        loadMcBlocks(infile, blocks);
-      }
+      DLOG(INFO) << "Loading file as SVM-like matrix";
+      loadSvmBlocks(infile, blocks);
 
       infile.close();
       return blocks;
