@@ -37,30 +37,17 @@ namespace obamadb {
     }
   }
 
-  MCParams* DefaultMCParams(UnorderedMatrix const * training_matrix) {
-    MCParams* params = new MCParams(-1, 0.05, 0.9);
-    params->degrees_l.reset(new int[training_matrix->numRows()]);
-    params->degrees_r.reset(new int[training_matrix->numColumns()]);
-    double sum = 0;
-    for (int i = 0; i < training_matrix->numElements(); i++) {
-      MatrixEntry const & entry = training_matrix->get(i);
-      params->degrees_l.get()[entry.row]++;
-      params->degrees_r.get()[entry.column]++;
-      sum += entry.value;
-    }
-    params->mean = sum / training_matrix->numElements();
-    return params;
-  }
-
   void MCTask::execute(int threadId, void *state) {
     int allocSize = examples_->numElements()/total_threads_;
     int start_index = allocSize * threadId;
     int end_index = std::min(allocSize * (threadId + 1), examples_->numElements());
-    double mean = shared_params_->mean;
-    double step_size = shared_params_->step_size;
-    double mu = shared_params_->mu;
-    int* degrees_l = shared_params_->degrees_l.get();
-    int* degrees_r = shared_params_->degrees_r.get();
+    double mean = shared_state_->mean;
+    double step_size = shared_state_->step_size;
+    double mu = shared_state_->mu;
+    int* degrees_l = shared_state_->degrees_l.get();
+    int* degrees_r = shared_state_->degrees_r.get();
+    DenseDataBlock<num_t>* mat_l = shared_state_->mat_l;
+    DenseDataBlock<num_t>* mat_r = shared_state_->mat_r;
 
     dvector<num_t> lrow(0, nullptr);
     dvector<num_t> rrow(0, nullptr);
@@ -78,8 +65,8 @@ namespace obamadb {
       int col_index = entry.column;
       num_t value = entry.value;
 
-      mat_l_->getRowVectorFast(row_index, &lrow);
-      mat_r_->getRowVectorFast(col_index, &rrow);
+      mat_l->getRowVectorFast(row_index, &lrow);
+      mat_r->getRowVectorFast(col_index, &rrow);
 
       double err = ml::dot(lrow, rrow.values_) + mean - value;
       double e = -(step_size * err);
@@ -112,11 +99,11 @@ namespace obamadb {
 //      }
     }
     if (threadId == 0) {
-      shared_params_->step_size *= shared_params_->step_decay;
+      shared_state_->step_size *= shared_state_->step_decay;
     }
   }
 
-  double MCTask::rmse(MCState const* state, UnorderedMatrix const * probe, double mean) {
+  double MCTask::rmse(MCState const* state, UnorderedMatrix const * probe) {
     double sq_err = 0.0;
     dvector<num_t> lvec(0, nullptr);
     dvector<num_t> rvec(0, nullptr);
@@ -124,7 +111,7 @@ namespace obamadb {
       MatrixEntry const & entry = probe->get(i);
       state->mat_l->getRowVectorFast(entry.row, &lvec);
       state->mat_r->getRowVectorFast(entry.column, &rvec);
-      double loss = ml::dot(lvec, rvec.values_) + mean - entry.value;
+      double loss = ml::dot(lvec, rvec.values_) + state->mean - entry.value;
       sq_err += loss * loss;
     }
     return sqrt(sq_err);
