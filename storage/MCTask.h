@@ -26,8 +26,8 @@ namespace obamadb {
         rank(rank),
         mat_l(nullptr),
         mat_r(nullptr){
-      mat_l = new DenseDataBlock<num_t>(training_matrix->numRows(), rank);
-      mat_r = new DenseDataBlock<num_t>(training_matrix->numColumns(), rank);
+      mat_l.reset(new DenseDataBlock<num_t>(training_matrix->numRows(), rank));
+      mat_r.reset(new DenseDataBlock<num_t>(training_matrix->numColumns(), rank));
       mat_l->randomize();
       mat_r->randomize();
 
@@ -43,11 +43,6 @@ namespace obamadb {
       mean = sum / training_matrix->numElements();
     }
 
-    ~MCState() {
-      delete mat_l;
-      delete mat_r;
-    }
-
     float mu;
     float step_size;
     float step_decay;
@@ -56,8 +51,8 @@ namespace obamadb {
     double mean;
 
     int rank;
-    DenseDataBlock<num_t>* mat_l;
-    DenseDataBlock<num_t>* mat_r;
+    std::unique_ptr<DenseDataBlock<num_t>> mat_l;
+    std::unique_ptr<DenseDataBlock<num_t>> mat_r;
   };
 
   class MCTask : MLTask {
@@ -67,7 +62,8 @@ namespace obamadb {
            MCState *sharedState)
       : MLTask(nullptr),
         total_threads_(total_threads),
-        examples_(examples) { }
+        examples_(examples),
+        shared_state_(sharedState){ }
 
     MLAlgorithm getType() override {
       return MLAlgorithm::kMC;

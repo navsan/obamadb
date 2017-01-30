@@ -46,8 +46,8 @@ namespace obamadb {
     double mu = shared_state_->mu;
     int* degrees_l = shared_state_->degrees_l.get();
     int* degrees_r = shared_state_->degrees_r.get();
-    DenseDataBlock<num_t>* mat_l = shared_state_->mat_l;
-    DenseDataBlock<num_t>* mat_r = shared_state_->mat_r;
+    DenseDataBlock<num_t>* mat_l = shared_state_->mat_l.get();
+    DenseDataBlock<num_t>* mat_r = shared_state_->mat_r.get();
 
     dvector<num_t> lrow(0, nullptr);
     dvector<num_t> rrow(0, nullptr);
