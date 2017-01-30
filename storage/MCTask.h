@@ -31,15 +31,18 @@ namespace obamadb {
       mat_l->randomize();
       mat_r->randomize();
 
-      degrees_l.reset(new int[training_matrix->numRows()]);
-      degrees_r.reset(new int[training_matrix->numColumns()]);
+      int *dl = new int[training_matrix->numRows()];
+      int *dr = new int[training_matrix->numColumns()];
+
       double sum = 0;
       for (int i = 0; i < training_matrix->numElements(); i++) {
         MatrixEntry const & entry = training_matrix->get(i);
-        degrees_l.get()[entry.row]++;
-        degrees_r.get()[entry.column]++;
+        dl[entry.row]++;
+        dr[entry.column]++;
         sum += entry.value;
       }
+      degrees_l.reset(dl);
+      degrees_r.reset(dr);
       mean = sum / training_matrix->numElements();
     }
 
