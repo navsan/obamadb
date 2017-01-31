@@ -11,6 +11,8 @@
 #include <cstdlib>
 #include <memory>
 
+DEFINE_string(core_affinities, "-1", "");
+
 namespace obamadb {
 
   // 0.7 sparsity says 70% elements are zero

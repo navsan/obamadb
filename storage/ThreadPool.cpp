@@ -1,4 +1,9 @@
+#include "glog/logging.h"
+#include <gflags/gflags.h>
+
 #include "ThreadPool.h"
+
+DECLARE_string(core_affinities);
 
 namespace obamadb {
 

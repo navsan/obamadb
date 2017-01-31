@@ -136,7 +136,7 @@ public:
   ThreadPool(std::vector<std::function<void(int, void*)>> const & thread_fns,
              const std::vector<void*> &thread_states)
     : meta_info_(),
-      threads_(thread_states.size()),
+      threads_(),
       num_workers_(thread_states.size()),
       b1_(new threading::barrier_t(num_workers_ + 1)),
       b2_(new threading::barrier_t(num_workers_ + 1))
@@ -161,7 +161,7 @@ public:
              void* shared_thread_state,
              int num_threads)
     : meta_info_(),
-      threads_(num_threads),
+      threads_(),
       num_workers_(num_threads),
       b1_(new threading::barrier_t(num_workers_ + 1)),
       b2_(new threading::barrier_t(num_workers_ + 1))
@@ -174,6 +174,9 @@ public:
   ~ThreadPool() {
     delete b1_;
     delete b2_;
+    for (int i = 0; i < threads_.size(); i++){
+      delete threads_[i];
+    }
   }
 
   /**
@@ -181,7 +184,7 @@ public:
    */
   void begin() {
     for (unsigned i = 0; i < num_workers_; i++) {
-      threads_.push_back(std::thread(WorkerLoop, static_cast<void*>(&meta_info_[i])));
+      threads_.push_back(new std::thread(WorkerLoop, static_cast<void*>(&meta_info_[i])));
     }
   }
 
@@ -206,14 +209,14 @@ public:
       meta_info_[i].stop = true;
     }
     b1_->wait();
-//    for (unsigned i = 0; i < threads_.size(); i++) {
-//      threads_[i].join();
-//    }
+    for (unsigned i = 0; i < threads_.size(); i++) {
+      threads_[i]->join();
+    }
   }
 
 private:
   std::vector<ThreadMeta> meta_info_;
-  std::vector<std::thread> threads_;
+  std::vector<std::thread*> threads_;
   int num_workers_;
 
   threading::barrier_t *b1_;
