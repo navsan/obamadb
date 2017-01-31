@@ -57,7 +57,7 @@ DEFINE_string(core_affinities, "-1", "A comma separated list of cores to have th
   " -core_affinities 0,1,2,3 -threads 2 is valid");
 
 #define VPRINT(str) { if(FLAGS_verbose) { printf(str); } }
-#define VPRINTF(str, __VA_ARGS__) { if(FLAGS_verbose) { printf(str, __VA_ARGS__); } }
+#define VPRINTF(str, ...) { if(FLAGS_verbose) { printf(str, __VA_ARGS__); } }
 #define VSTREAM(obj) {if(FLAGS_verbose){ std::cout << obj <<std::endl; }}
 
 namespace obamadb {
@@ -303,7 +303,7 @@ namespace obamadb {
 
   void trainMC() {
     std::unique_ptr<UnorderedMatrix> train_matrix;
-    std::unique_ptr<UnorderedMatrix> probe_matrix(IO::loadUnorderedMatrix(FLAGS_test_file));
+    std::unique_ptr<UnorderedMatrix> probe_matrix;
 
     VPRINT("Reading input files...\n");
     VPRINTF("Loading: %s\n", FLAGS_train_file.c_str());
