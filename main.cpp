@@ -303,7 +303,7 @@ namespace obamadb {
 
   void trainMC() {
     std::unique_ptr<UnorderedMatrix> train_matrix;
-    std::unique_ptr<UnorderedMatrix> probe_matrix(IO::loadUnorderedMatrix(FLAGS_test_file));
+    std::unique_ptr<UnorderedMatrix> probe_matrix;
 
     VPRINT("Reading input files...\n");
     VPRINTF("Loading: %s\n", FLAGS_train_file.c_str());

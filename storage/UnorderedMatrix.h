@@ -5,10 +5,16 @@
 #include "glog/logging.h"
 
 #include <iostream>
+#include <cstdio>
 
 namespace obamadb {
 
   struct MatrixEntry {
+    MatrixEntry() :
+    row(0),
+    column(0),
+    value(0) {} ;
+
     MatrixEntry(int row, int col, num_t val)
       : row(row),
         column(col),
@@ -29,9 +35,19 @@ namespace obamadb {
  */
   class UnorderedMatrix {
   public:
+    UnorderedMatrix() : rows_(0),
+                        columns_(0),
+                        entries_(nullptr) {
+      entries_ = new MatrixEntry[100480507 + 300];
+    }
+
+    ~UnorderedMatrix() {
+      delete [] entries_;
+    }
 
     void append(int row, int col, num_t val) {
-      entries_.push_back(MatrixEntry(row,col,val));
+      entries_[size_] = MatrixEntry(row,col,val);
+      size_++;
       if (row > rows_) {
         rows_ = row;
       }
@@ -41,12 +57,12 @@ namespace obamadb {
     }
 
     MatrixEntry const & get(int index) const {
-      DCHECK_LT(index, entries_.size());
+      DCHECK_LT(index, size_);
       return entries_[index];
     }
 
     MatrixEntry const * get(int row, int column) const {
-      for (int i = 0; i < entries_.size(); i++) {
+      for (int i = 0; i < size_; i++) {
         if (entries_[i].row == row && entries_[i].column == column) {
           return &entries_[i];
         }
@@ -55,7 +71,7 @@ namespace obamadb {
     }
 
     int numElements() const {
-      return entries_.size();
+      return size_;
     }
 
     int numRows() const {
@@ -71,7 +87,8 @@ namespace obamadb {
   private:
     int rows_;
     int columns_;
-    std::vector<MatrixEntry> entries_;
+    int size_;
+    MatrixEntry * entries_;
 
   };
 }
