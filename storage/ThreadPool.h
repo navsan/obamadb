@@ -7,17 +7,18 @@
 #define APPLE 0
 #endif
 
-#include <iostream>
+#include <condition_variable>
 #include <functional>
+#include <iostream>
 #include <printf.h>
+#include <mutex>
+#include <thread>
 #include <unistd.h>
 #include <vector>
-#ifndef __APPLE__
-#include <pthread.h>
-#endif
 
 #include "glog/logging.h"
 #include <gflags/gflags.h>
+
 DECLARE_string(core_affinities);
 
 namespace obamadb {
@@ -25,53 +26,39 @@ namespace obamadb {
   // Keep the threading mac-compadible.
   namespace threading {
 
-    typedef int pthread_barrierattr_t;
-    typedef struct {
-      pthread_mutex_t mutex;
-      pthread_cond_t cond;
-      int count;
-      int tripCount;
-    } pthread_barrier_t;
+    class barrier_t {
+    public:
+      barrier_t(int totalWaiters)
+        : mutex_(),
+          cond_(),
+          count_(totalWaiters),
+          epoch_(0),
+          threshold_(totalWaiters) {}
 
-    typedef pthread_barrier_t barrier_t;
+      void wait() {
+        int epoch_stackvar = epoch_;
+        std::unique_lock<std::mutex> lock{mutex_};
+        if (!--count_) {
+          epoch_++;
+          count_ = threshold_;
+          cond_.notify_all();
+        } else {
+          cond_.wait(lock, [this, epoch_stackvar] { return epoch_stackvar != epoch_; });
+        }
+      }
 
-    inline int barrier_init(pthread_barrier_t *barrier, const pthread_barrierattr_t *attr, unsigned int count) {
-      if (count == 0) {
-        errno = EINVAL;
-        return -1;
+      int count() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return count_;
       }
-      if (pthread_mutex_init(&barrier->mutex, 0) < 0) {
-        return -1;
-      }
-      if (pthread_cond_init(&barrier->cond, 0) < 0) {
-        pthread_mutex_destroy(&barrier->mutex);
-        return -1;
-      }
-      barrier->tripCount = count;
-      barrier->count = 0;
-      return 0;
-    }
 
-    inline int barrier_destroy(pthread_barrier_t *barrier) {
-      pthread_cond_destroy(&barrier->cond);
-      pthread_mutex_destroy(&barrier->mutex);
-      return 0;
-    }
-
-    inline int barrier_wait(pthread_barrier_t *barrier) {
-      pthread_mutex_lock(&barrier->mutex);
-      ++(barrier->count);
-      if (barrier->count >= barrier->tripCount) {
-        barrier->count = 0;
-        pthread_cond_broadcast(&barrier->cond);
-        pthread_mutex_unlock(&barrier->mutex);
-        return 1;
-      } else {
-        pthread_cond_wait(&barrier->cond, &(barrier->mutex));
-        pthread_mutex_unlock(&barrier->mutex);
-        return 0;
-      }
-    }
+    private:
+      std::mutex mutex_;
+      std::condition_variable cond_;
+      int count_;
+      int epoch_; // # times broken.
+      int const threshold_;
+    };
 
    /**
     * Sets the current thread's core affinity. If the given core id is greater than the
@@ -150,13 +137,12 @@ public:
              const std::vector<void*> &thread_states)
     : meta_info_(),
       threads_(thread_states.size()),
-      num_workers_(thread_states.size())
+      num_workers_(thread_states.size()),
+      b1_(new threading::barrier_t(num_workers_ + 1)),
+      b2_(new threading::barrier_t(num_workers_ + 1))
   {
-    threading::barrier_init(&b1_, NULL, num_workers_ + 1);
-    threading::barrier_init(&b2_, NULL, num_workers_ + 1);
-
     for (int i = 0; i < thread_states.size(); ++i) {
-      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, thread_fns[i], thread_states[i]));
+      meta_info_.push_back(ThreadMeta(i, b1_, b2_, thread_fns[i], thread_states[i]));
     }
   }
 
@@ -176,35 +162,39 @@ public:
              int num_threads)
     : meta_info_(),
       threads_(num_threads),
-      num_workers_(num_threads)
+      num_workers_(num_threads),
+      b1_(new threading::barrier_t(num_workers_ + 1)),
+      b2_(new threading::barrier_t(num_workers_ + 1))
   {
-    threading::barrier_init(&b1_, NULL, num_workers_ + 1);
-    threading::barrier_init(&b2_, NULL, num_workers_ + 1);
-
     for (int i = 0; i < num_workers_; ++i) {
-      meta_info_.push_back(ThreadMeta(i, &b1_, &b2_, thread_fn, shared_thread_state));
+      meta_info_.push_back(ThreadMeta(i, b1_, b2_, thread_fn, shared_thread_state));
     }
   }
 
+  ~ThreadPool() {
+    delete b1_;
+    delete b2_;
+  }
+
   /**
-   * Creates pthreads. Only call this method once.
+   * Only call this method once.
    */
   void begin() {
     for (unsigned i = 0; i < num_workers_; i++) {
-      pthread_create(&threads_[i], NULL, WorkerLoop, static_cast<void*>(&meta_info_[i]));
+      threads_.push_back(std::thread(WorkerLoop, static_cast<void*>(&meta_info_[i])));
     }
   }
 
   void cycle() {
-    threading::barrier_wait(&b1_);
+    b1_->wait();
     // workers do the routine
-    threading::barrier_wait(&b2_);
+    b2_->wait();
     // workers are finished with routine and waiting on 1.
     // Here is an opportunity to re-allocate work, and do an update to the model.
   }
 
   int getWaiterCount() const {
-    return b2_.count;
+    return b2_->count();
   }
 
   int getNumWorkers() const {
@@ -215,19 +205,19 @@ public:
     for (unsigned i = 0; i < num_workers_; i++) {
       meta_info_[i].stop = true;
     }
-    threading::barrier_wait(&b1_);
-    for (unsigned i = 0; i < num_workers_; i++) {
-      pthread_join(threads_[i], NULL);
-    }
+    b1_->wait();
+//    for (unsigned i = 0; i < threads_.size(); i++) {
+//      threads_[i].join();
+//    }
   }
 
 private:
   std::vector<ThreadMeta> meta_info_;
-  std::vector<pthread_t> threads_;
+  std::vector<std::thread> threads_;
   int num_workers_;
 
-  threading::barrier_t b1_;
-  threading::barrier_t b2_;
+  threading::barrier_t *b1_;
+  threading::barrier_t *b2_;
 };
 
 } // namespace obamadb

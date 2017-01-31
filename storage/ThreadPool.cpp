@@ -35,13 +35,13 @@ namespace obamadb {
     threading::setCoreAffinity(assigned_core);
     int epoch = 0;
     while (true) {
-      threading::barrier_wait(meta->barrier1);
+      meta->barrier1->wait();
       if (meta->stop) {
         break;
       } else {
         meta->fn_execute_(meta->thread_id, meta->state_);
       }
-      threading::barrier_wait(meta->barrier2);
+      meta->barrier2->wait();
       epoch++;
     }
     return NULL;
