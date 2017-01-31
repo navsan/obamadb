@@ -3,12 +3,35 @@
 namespace obamadb {
 
   namespace threading {
-    int NumCoresAffinitized = 0;
+    int getCoreAffinity() {
+      if (FLAGS_core_affinities.compare("-1") == 0) {
+        return NumThreadsAffinitized++;
+      } else if (CoreAffinities.size() == 0) {
+        char const * raw = FLAGS_core_affinities.c_str();
+        int core = 0;
+        for (int i = 0; i < FLAGS_core_affinities.size(); i++) {
+          if (raw[i] == ',') {
+            CoreAffinities.push_back(core);
+            core = 0;
+          } else {
+            CHECK_LT(raw[i], 48 + 10) << "invalid core_affinity";
+            CHECK_GE(raw[i], 48) << "invalid core_affinity";
+            core *= 10;
+            core += raw[i] - 48;
+          }
+        }
+        CoreAffinities.push_back(core);
+      }
+      CHECK(CoreAffinities.size() > 0) << "invalid core_affinity flag";
+      int assigned = CoreAffinities[NumThreadsAffinitized % CoreAffinities.size()];
+      NumThreadsAffinitized++;
+      return assigned;
+    }
   }
 
   void *WorkerLoop(void *worker_params) {
     ThreadMeta *meta = reinterpret_cast<ThreadMeta*>(worker_params);
-    int assigned_core = threading::getCoreAffinity(meta->thread_id);
+    int assigned_core = threading::getCoreAffinity();
     threading::setCoreAffinity(assigned_core);
     int epoch = 0;
     while (true) {

@@ -17,6 +17,8 @@
 #endif
 
 #include "glog/logging.h"
+#include <gflags/gflags.h>
+DECLARE_string(core_affinities);
 
 namespace obamadb {
 
@@ -79,7 +81,7 @@ namespace obamadb {
     */
     inline int setCoreAffinity(int core_id) {
 #if APPLE
-     // TODO: Is there no way to bind threads in apple?
+     // Not part of the iOS interface.
      return 0;
 #else
      int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
@@ -95,27 +97,16 @@ namespace obamadb {
    }
 
     static int NumThreadsAffinitized;
+    static std::vector<int> CoreAffinities;
 
     /**
      * Choose the optimal core. This is experimental. In the future we should get this automatically from
      * lib numa like in
      * https://github.com/apache/incubator-quickstep/pull/126/commits/248cec27341fa8f19658d0705c1dca3fec0ff550
-     * @param thread_id The Obamadb thread id.
      * @return The core to bind to.
      */
-    inline int getCoreAffinity(int core_id) {
-      // uncomment the first one if it's on a 4 core machine.
-      //int threads_order[4] = {0,1,2,3};
-      // this is the cloudlab machine.
-      int threads_order[20] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-      NumThreadsAffinitized++;
-      return threads_order[(NumThreadsAffinitized-1) % (sizeof(threads_order)/sizeof(int))];
-    }
+    int getCoreAffinity();
 
-    /**
-     * TODO: APPLE variant?
-     * @return Number of cores on this machine.
-     */
     int numCores();
 
   } // end namespace threading

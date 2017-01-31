@@ -52,6 +52,9 @@ DEFINE_int64(num_epochs, 10, "The number of passes over the training data while 
 DEFINE_int64(num_trials, 1, "The number of trials to perform."
   "This means the number of times we will train a model."
   "This is useful for computing the variance/stddev between trials.");
+DEFINE_string(core_affinities, "-1", "A comma separated list of cores to have threads bind to."
+  " The program will greedily use core, so over specify if you like. Ex: "
+  " -core_affinities 0,1,2,3 -threads 2 is valid");
 
 #define VPRINT(str) { if(FLAGS_verbose) { printf(str); } }
 #define VPRINTF(str, __VA_ARGS__) { if(FLAGS_verbose) { printf(str, __VA_ARGS__); } }
