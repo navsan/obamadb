@@ -92,7 +92,7 @@ namespace obamadb {
     void doubleSize() {
       MatrixEntry * newEntries = new MatrixEntry[maxSize_ * 2];
       memcpy(newEntries, entries_, sizeof(MatrixEntry) * maxSize_);
-      delete entries_;
+      delete [] entries_;
       entries_ = newEntries;
       maxSize_ *= 2;
     }
