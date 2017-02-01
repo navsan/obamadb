@@ -301,6 +301,47 @@ namespace obamadb {
     printf("%d,%.6f,%.2f\n",epoch, time, rmse);
   }
 
+  std::vector<double> trainMC(const UnorderedMatrix* train_matrix,
+                                     const UnorderedMatrix* probe_matrix) {
+    int const rank = 30;
+    std::unique_ptr<MCState> mcstate(new MCState(train_matrix, rank));
+
+    // Arguments to the thread pool.
+    std::vector<std::function<void(int, void*)>> threadFns;
+    auto update_fn = [](int tid, void* state) {
+      MCTask* task = reinterpret_cast<MCTask*>(state);
+      task->execute(tid, nullptr);
+    };
+    std::vector<std::unique_ptr<MCTask>> tasks(FLAGS_threads);
+    std::vector<void*> tp_states;
+    for (int i = 0; i < tasks.size(); i++) {
+      tasks[i].reset(new MCTask(FLAGS_threads, train_matrix, mcstate.get()));
+      tp_states.push_back(tasks[i].get());
+      threadFns.push_back(update_fn);
+    }
+
+    ThreadPool tp(threadFns, tp_states);
+    tp.begin();
+
+    VPRINT("epoch, train_time, probe_RMS_loss\n");
+    printMCEpochStats(-1, -1, mcstate.get(), probe_matrix);
+    double totalTrainTime = 0.0;
+    std::vector<double> epoch_times;
+    for (int cycle = 0; cycle < FLAGS_num_epochs; cycle++) {
+      auto time_start = std::chrono::steady_clock::now();
+      tp.cycle();
+      auto time_end = std::chrono::steady_clock::now();
+      std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
+      double elapsedTimeSec = (time_ms.count())/ 1e3;
+      totalTrainTime += elapsedTimeSec;
+
+      printMCEpochStats(cycle, elapsedTimeSec, mcstate.get(), probe_matrix);
+      epoch_times.push_back(elapsedTimeSec);
+    }
+    tp.stop();
+    return epoch_times;
+  }
+
   void trainMC() {
     std::unique_ptr<UnorderedMatrix> train_matrix;
     std::unique_ptr<UnorderedMatrix> probe_matrix;
@@ -317,43 +358,29 @@ namespace obamadb {
     CHECK_LE(probe_matrix->numColumns(), train_matrix->numColumns());
     CHECK_LE(probe_matrix->numRows(), train_matrix->numRows());
 
-    int const rank = 30;
-    std::unique_ptr<MCState> mcstate(new MCState(train_matrix.get(), rank));
+    std::vector<double> all_epoch_times;
+    for (int i = 0; i < FLAGS_num_trials; i++) {
+      std::vector<double> times = trainMC(train_matrix.get(), probe_matrix.get());
+      all_epoch_times.insert(all_epoch_times.end(), times.begin(), times.end());
 
-    // Arguments to the thread pool.
-    std::vector<std::function<void(int, void*)>> threadFns;
-    auto update_fn = [](int tid, void* state) {
-      MCTask* task = reinterpret_cast<MCTask*>(state);
-      task->execute(tid, nullptr);
-    };
-    std::vector<std::unique_ptr<MCTask>> tasks(FLAGS_threads);
-    std::vector<void*> tp_states;
-    for (int i = 0; i < tasks.size(); i++) {
-      tasks[i].reset(new MCTask(FLAGS_threads, train_matrix.get(), mcstate.get()));
-      tp_states.push_back(tasks[i].get());
-      threadFns.push_back(update_fn);
+      if (FLAGS_num_trials != i - 1) {
+        usleep(1e7);
+      }
     }
 
-    ThreadPool tp(threadFns, tp_states);
-    tp.begin();
-
-    VPRINT("epoch, train_time, probe_RMS_loss\n");
-    printMCEpochStats(-1, -1, mcstate.get(), probe_matrix.get());
-    double totalTrainTime = 0.0;
-    std::vector<double> epoch_times;
-    for (int cycle = 0; cycle < FLAGS_num_epochs; cycle++) {
-      auto time_start = std::chrono::steady_clock::now();
-      tp.cycle();
-      auto time_end = std::chrono::steady_clock::now();
-      std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
-      double elapsedTimeSec = (time_ms.count())/ 1e3;
-      totalTrainTime += elapsedTimeSec;
-
-      printMCEpochStats(cycle, elapsedTimeSec, mcstate.get(), probe_matrix.get());
-      epoch_times.push_back(elapsedTimeSec);
+    // calculate variance, etc.
+    if (FLAGS_verbose) {
+      printf("epoch runtimes:\n");
+      for (double time : all_epoch_times) {
+        printf("%f\n", time);
+      }
     }
-    tp.stop();
 
+    printf("epoch runtime summary:\nmean,variance,stddev,stderr\n%f,%f,%f,%f\n",
+           stats::mean<double>(all_epoch_times),
+           stats::variance<double>(all_epoch_times),
+           stats::stddev<double>(all_epoch_times),
+           stats::stderr<double>(all_epoch_times));
   }
 
   int main(int argc, char** argv) {
