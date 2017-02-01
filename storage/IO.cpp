@@ -12,8 +12,6 @@
 
 #include "storage/IO.h"
 
-#define USE_READ 1
-
 namespace obamadb {
 
   namespace IO {
@@ -150,29 +148,43 @@ namespace obamadb {
     }
 
     /**
+     * Load examples as an unordered matrix.
      * Scans a TSV file of the format
      * int1\tint2\tint3\n
      * where int1 specifies a row
      * int2 specifies a column
      * int3 specifies a value
-     * @param fname
-     * @return Caller owned Unordered Matrix.
+     * Helper parser function which expects classifications to be set for each row.
      */
-    UnorderedMatrix* scanUnorderedMatrix(char const *fname) {
+    UnorderedMatrix* loadUnorderedMatrix(const std::string& file_name) {
+      char const * fname = file_name.c_str();
       UnorderedMatrix* mat = new UnorderedMatrix();
 
-      static const auto BUFFER_SIZE = 16 * 1024;
+      static const std::size_t BUFFER_SIZE = 16 * 1024;
       int fd = open(fname, O_RDONLY);
       CHECK_NE(fd, -1) << "Error opening file: " << fname;
-
 #ifndef __APPLE__
       // Advise the kernel of our access pattern.
       posix_fadvise(fd, 0, 0, 1);  // FDADVICE_SEQUENTIAL
 #endif
 
-      char buf[BUFFER_SIZE + 1];
-      int offset = 0;
+      auto scanInt = [](char* & cptr, char const * LIM, char const DELIM, int* val) -> bool {
+        while(cptr < LIM && *cptr != DELIM) {
+          *val *= 10;
+          *val += *cptr - 48;
+          cptr++;
+        }
+        if (cptr == LIM) {
+          return false;
+        } else {
+          cptr++;
+          return true;
+        }
+      };
 
+      char buf[BUFFER_SIZE + 1];
+      char * READ_LIM = buf + BUFFER_SIZE; // stopping point for new data was read in by the read call
+      int offset = 0;
       while (size_t bytes_read = read(fd, buf + offset, BUFFER_SIZE - offset)) {
         CHECK_NE(bytes_read, (size_t) -1) << "Error reading file " << fname;
 
@@ -180,85 +192,31 @@ namespace obamadb {
           break;
         }
 
-        char *p = buf;
-        char *nl = p;
+        READ_LIM = buf + bytes_read + offset;
+        char *p = buf; // pointer to current char
+        char *nl = p;  // pointer to start of last line
         while (true) {
           int i0 = 0;
           int i1 = 0;
           int i2 = 0;
-
           nl = p;
-          while(p != (buf + BUFFER_SIZE) && *p != '\t') {
-            i0 *= 10;
-            i0 += *p - 48;
-            p++;
-          }
-          if (p == (buf + BUFFER_SIZE)) {
+          if(!scanInt(p,READ_LIM,'\t', &i0))
             break;
-          } else {
-            p++;
-          }
-          while(p != (buf + BUFFER_SIZE) && *p != '\t') {
-            i1 *= 10;
-            i1 += *p - 48;
-            p++;
-          }
-          if (p == (buf + BUFFER_SIZE)) {
+
+          if(!scanInt(p,READ_LIM,'\t', &i1))
             break;
-          } else {
-            p++;
-          }
-          while(p != (buf + BUFFER_SIZE) && *p != '\n') {
-            i2 *= 10;
-            i2 += *p - 48;
-            p++;
-          }
-          if (p == (buf + BUFFER_SIZE)) {
+
+          if(!scanInt(p,READ_LIM,'\n', &i2))
             break;
-          } else {
-            p++;
-          }
+
           mat->append(i0,i1,i2);
         }
-        offset = (buf + BUFFER_SIZE) - nl;
+        offset = READ_LIM - nl;
         memcpy(buf, nl, offset);
       }
 
       return mat;
-    }
 
-    /**
-     * Load examples as an unordered matrix.
-     * Helper parser function which expects classifications to be set for each row.
-     */
-    UnorderedMatrix* loadUnorderedMatrix(const std::string& file_name) {
-
-#ifdef USE_READ
-      return scanUnorderedMatrix(file_name.c_str());
-#else
-      std::ifstream infile;
-      infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
-      CHECK(infile.is_open());
-
-      UnorderedMatrix* matrix = new UnorderedMatrix();
-
-      std::string line;
-      while(std::getline(infile, line)) {
-        num_t row = 0;
-        num_t column = 0;
-        num_t val = 0;
-        unsigned c = 0;
-        char const *cstr = line.c_str();
-        scanForInt(cstr, &c, &row);
-        scanThroughWhitespace(cstr, &c);
-        scanForInt(cstr, &c, &column);
-        scanThroughWhitespace(cstr, &c);
-        scanForInt(cstr, &c, &val);
-        matrix->append((int) row, (int) column, val);
-      }
-
-      return matrix;
-#endif
     }
 
     template<>
