@@ -154,6 +154,9 @@ namespace obamadb {
       return;
     }
 
+    if (iteration == -1)
+      VPRINT("epoch, train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss\n");
+
     double const trainRmsLoss = SVMTask::rmsErrorLoss(theta, matTrain->blocks_);
     double const testRmsLoss = SVMTask::rmsErrorLoss(theta, matTest->blocks_);
     double const trainFractionMisclassified = SVMTask::fractionMisclassified(theta,matTrain->blocks_);
@@ -172,7 +175,8 @@ namespace obamadb {
    * @return A vector of the epoch times.
    */
   std::vector<double> trainSVM(Matrix *mat_train,
-                               Matrix *mat_test) {
+                               Matrix *mat_test,
+                               const int trial_num = 0) {
     SVMParams* svm_params = DefaultSVMParams<num_t>(mat_train->blocks_);
     DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
     fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
@@ -216,7 +220,6 @@ namespace obamadb {
 
     tp.begin();
 
-    VPRINT("epoch, train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss\n");
     printSVMEpochStats(mat_train, mat_test, sharedTheta, -1, -1);
     double totalTrainTime = 0.0;
     std::vector<double> epoch_times;
@@ -233,11 +236,22 @@ namespace obamadb {
     }
     tp.stop();
 
-    printf("num_threads,avg_train_time,frac_mispredicted_test\n");
-    printf(">>>\n%d,%f,%f\n",
-           (int)FLAGS_threads,
-           totalTrainTime / FLAGS_num_epochs,
-           SVMTask::fractionMisclassified(sharedTheta, mat_test->blocks_));
+    if (!FLAGS_verbose){
+      if (trial_num == 0)
+        std::cout << "train_file, rows, features, sparsity, nnz, num_threads, trial, epoch, train_time\n";
+
+      for (int i = 0; i < epoch_times.size(); ++i) {
+        std::cout << FLAGS_train_file << ", "
+                  << mat_train->numRows_ << ", "
+                  << mat_train->numColumns_ << ", "
+                  << mat_train->getSparsity() << ", "
+                  << mat_train->getNNZ() << ", "
+                  << (int) FLAGS_threads << ", "
+                  << trial_num << ", "
+                  << i << ", "
+                  << epoch_times[i] << "\n";
+      }
+    }
 
     if (FLAGS_measure_convergence) {
       printf("Convergence Info (%d measures)\n", (int)observer->observedModels_.size());
@@ -273,7 +287,7 @@ namespace obamadb {
 
     std::vector<double> all_epoch_times;
     for (int i = 0; i < FLAGS_num_trials; i++) {
-      std::vector<double> times = trainSVM(mat_train.get(), mat_test.get());
+      std::vector<double> times = trainSVM(mat_train.get(), mat_test.get(), i);
       all_epoch_times.insert(all_epoch_times.end(), times.begin(), times.end());
 
       if (FLAGS_num_trials != i -1) {
@@ -289,11 +303,11 @@ namespace obamadb {
       }
     }
 
-    printf("epoch runtime summary:\nmean,variance,stddev,stderr\n%f,%f,%f,%f\n",
-           stats::mean<double>(all_epoch_times),
-           stats::variance<double>(all_epoch_times),
-           stats::stddev<double>(all_epoch_times),
-           stats::stderr<double>(all_epoch_times));
+    // printf("epoch runtime summary:\nmean,variance,stddev,stderr\n%f,%f,%f,%f\n",
+    //        stats::mean<double>(all_epoch_times),
+    //        stats::variance<double>(all_epoch_times),
+    //        stats::stddev<double>(all_epoch_times),
+    //        stats::stderr<double>(all_epoch_times));
   }
 
   void printMCEpochStats(int epoch, double time, MCState const * state, UnorderedMatrix const * probe_mat) {
@@ -384,6 +398,9 @@ namespace obamadb {
   }
 
   int main(int argc, char** argv) {
+    // Pin main thread to 1st socket, 1st core, for simplicity
+    threading::setCoreAffinity(1);
+
     ::google::InitGoogleLogging(argv[0]);
     ::gflags::SetUsageMessage(std::string(argv[0]) + " -help");
     ::gflags::SetVersionString("0.0");
