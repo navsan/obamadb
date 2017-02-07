@@ -1,6 +1,7 @@
 #include "storage/exvector.h"
 #include "storage/DataBlock.h"
 #include "storage/Matrix.h"
+#include "storage/MLTask.h"
 #include "storage/SparseDataBlock.h"
 
 #include <cmath>
@@ -11,6 +12,7 @@
 #include "glog/logging.h"
 
 #include "storage/IO.h"
+#include "DenseDataBlock.h"
 
 namespace obamadb {
 
@@ -148,6 +150,65 @@ namespace obamadb {
     }
 
     /**
+     * Creates a synthetic dataset for matrix completion testing.
+     * @param file_name
+     * @return a matrix completion matrix to the standards of
+     */
+    UnorderedMatrix* load_synth_MC(const std::string& file_name) {
+      std::ifstream infile;
+      std::string line;
+      infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
+      CHECK(infile.is_open());
+
+      unsigned cursor = 0;
+      std::getline(infile, line);
+      // m,n,nnz,rank,seed
+      int const num_params = 5;
+      float params[num_params];
+      for (int i = 0; i < num_params; i++) {
+        params[i] = 0;
+        scanForDouble(line.c_str(), &cursor, &params[i]);
+        scanThroughWhitespace(line.c_str(), &cursor);
+      }
+      infile.close();
+
+      CHECK_GT(params[0], 0);
+      CHECK_GT(params[1], 0);
+      CHECK_GT(params[2], 1);
+      CHECK((params[3] > 1 && params[3] < 1000) || params[3] == -1.0) << "The rank must be greater than 1.";
+
+      srand((int)params[4]);
+      int const rank = params[3];
+      int const rows = params[0];
+      int const cols = params[1];
+      obamadb::UnorderedMatrix *derived_mat = new obamadb::UnorderedMatrix();
+      if (rank != -1) {
+        DenseDataBlock<num_t> lmat(rows, rank);
+        DenseDataBlock<num_t> rmat(cols, rank);
+        lmat.randomize();
+        rmat.randomize();
+        dvector<num_t> lrow_vec(0, nullptr);
+        dvector<num_t> rrow_vec(0, nullptr);
+        int nnz = params[2];
+        while (nnz-- != 0) {
+          int rrow = rand() % rows;
+          int rcol = rand() % cols;
+          //dot, and add to derived mat.
+          lmat.getRowVectorFast(rrow, &lrow_vec);
+          rmat.getRowVectorFast(rcol, &rrow_vec);
+          // We could also opt to add some noise at this step.
+          derived_mat->append(rrow, rcol, obamadb::ml::dot(lrow_vec, rrow_vec.values_));
+        }
+      } else {
+        int nnz = params[2];
+        while (nnz-- != 0) {
+          derived_mat->append(rand() % rows, rand() % cols, std::fmod(rand() / 1e-6, 10.0));
+        }
+      }
+      return derived_mat;
+    }
+
+    /**
      * Load examples as an unordered matrix.
      * Scans a TSV file of the format
      * int1\tint2\tint3\n
@@ -157,6 +218,10 @@ namespace obamadb {
      * Helper parser function which expects classifications to be set for each row.
      */
     UnorderedMatrix* loadUnorderedMatrix(const std::string& file_name) {
+      if (file_name.find("_synth_mc_") != std::string::npos) {
+        LOG(INFO) << "Loading a synthetic dataset";
+        return load_synth_MC(file_name);
+      }
       char const * fname = file_name.c_str();
       UnorderedMatrix* mat = new UnorderedMatrix();
 
@@ -281,6 +346,7 @@ namespace obamadb {
       std::string const synth_str("_synth_svm_");
       Matrix *mat = nullptr;
       if (filename.find(synth_str) != std::string::npos) {
+        LOG(INFO) << "Loading a synthetic dataset";
         // this file contains synthetic data params
         std::vector<obamadb::SparseDataBlock<num_t> *> blocks = load_synthetic_blocks(filename);
         mat = new Matrix(blocks);

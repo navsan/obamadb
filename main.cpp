@@ -303,7 +303,7 @@ namespace obamadb {
 
   std::vector<double> trainMC(const UnorderedMatrix* train_matrix,
                                      const UnorderedMatrix* probe_matrix) {
-    int const rank = 30;
+    int const rank = 15;
     std::unique_ptr<MCState> mcstate(new MCState(train_matrix, rank));
 
     // Arguments to the thread pool.

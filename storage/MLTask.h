@@ -12,6 +12,31 @@
 
 namespace obamadb {
 
+  namespace ml {
+    /**
+     * Dot product
+     */
+    num_t dot(const dvector <num_t> &v1, num_t const *d2);
+
+    /**
+     * Sparse dot product
+     */
+    num_t dot(const svector <num_t> &v1, num_t *d2);
+
+    void scale(dvector <num_t> &v1, num_t e);
+
+    /**
+     * Dense scale and add
+     */
+    void scale_and_add(dvector <num_t> &v1, dvector <num_t> &v2, num_t e);
+
+    /**
+     * Sparse scale and add. Only updates indices present in delta.
+     */
+    void scale_and_add(num_t *theta, const svector <num_t> &delta, const num_t e);
+
+  }  // namespace ml
+
   enum class MLAlgorithm {
     kSVM,
     kMC

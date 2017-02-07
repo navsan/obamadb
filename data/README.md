@@ -19,4 +19,12 @@ Netflix prize set.
 user_id movie_id  rating
 ```
 
-This must be sorted on user_id, then movie_id. 
+### Synthetic MC data
+
+Generates random data using an LR factoring to generate the test data.
+
+```
+number_of_rows  number_of_columns number_of_elements rank random_seed
+```
+
+If `rank` equals to -1, then data will be generated completely at random, not using a backing model. 
