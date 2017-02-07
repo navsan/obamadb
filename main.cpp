@@ -389,6 +389,8 @@ namespace obamadb {
     ::gflags::SetVersionString("0.0");
     ::gflags::ParseCommandLineFlags(&argc, &argv, true);
 
+    threading::setCoreAffinity();
+
     if (FLAGS_algorithm.compare("svm") == 0) {
       runSvmExperiment();
     } else if (FLAGS_algorithm.compare("mc") == 0) {

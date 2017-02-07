@@ -38,26 +38,20 @@ namespace obamadb {
   }
 
   void MCTask::execute(int threadId, void *state) {
-    int allocSize = examples_->numElements()/total_threads_;
-    int start_index = allocSize * threadId;
-    int end_index = std::min(allocSize * (threadId + 1), examples_->numElements());
-    double mean = shared_state_->mean;
-    double step_size = shared_state_->step_size;
-    double mu = shared_state_->mu;
-    int* degrees_l = shared_state_->degrees_l.get();
-    int* degrees_r = shared_state_->degrees_r.get();
+    int const allocSize = examples_->numElements()/total_threads_;
+    int const start_index = allocSize * threadId;
+    int const end_index = std::min(allocSize * (threadId + 1), examples_->numElements());
+    double const mean = shared_state_->mean;
+    double const step_size = shared_state_->step_size;
+    double const mu = shared_state_->mu;
+    int const * degrees_l = shared_state_->degrees_l.get();
+    int const * degrees_r = shared_state_->degrees_r.get();
     DenseDataBlock<num_t>* mat_l = shared_state_->mat_l.get();
     DenseDataBlock<num_t>* mat_r = shared_state_->mat_r.get();
 
     dvector<num_t> lrow(0, nullptr);
     dvector<num_t> rrow(0, nullptr);
     dvector<num_t> lrow_temp;
-
-//    std::vector<int> indirect(allocSize);
-//    for (int i = start_index; i < end_index; i++) {
-//      indirect[i] = i;
-//    }
-//    std::random_shuffle ( indirect.begin(), indirect.end() );
 
     for (int i = start_index; i < end_index; i++) {
       MatrixEntry const &entry = examples_->get(i);
@@ -71,15 +65,6 @@ namespace obamadb {
       double err = ml::dot(lrow, rrow.values_) + mean - value;
       double e = -(step_size * err);
 
-//      for (int j = 0; j < lrow.num_elements_; j++) {
-//        if (lrow.values_[j] < -100 || lrow.values_[j] > 100) {
-//          printf("diverging1\n");
-//        }
-//        if (rrow.values_[j] < -100 || rrow.values_[j] > 100) {
-//          printf("diverging2\n");
-//        }
-//      }
-
       lrow_temp.copy(lrow);
       ml::scale(lrow_temp, (num_t) (1 - mu * step_size / ((double) degrees_l[row_index])));
       ml::scale_and_add(lrow_temp, rrow, e);
@@ -88,15 +73,6 @@ namespace obamadb {
       ml::scale_and_add(rrow, lrow, e);
 
       lrow.copy(lrow_temp);
-
-//      for (int j = 0; j < lrow.num_elements_; j++) {
-//        if (lrow.values_[j] < -100 || lrow.values_[j] > 100) {
-//          printf("diverging1\n");
-//        }
-//        if (rrow.values_[j] < -100 || rrow.values_[j] > 100) {
-//          printf("diverging2\n");
-//        }
-//      }
     }
     if (threadId == 0) {
       shared_state_->step_size *= shared_state_->step_decay;
@@ -114,7 +90,7 @@ namespace obamadb {
       double loss = ml::dot(lvec, rvec.values_) + state->mean - entry.value;
       sq_err += loss * loss;
     }
-    return sqrt(sq_err);
+    return sqrt(sq_err/probe->numElements());
   }
 
 

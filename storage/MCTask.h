@@ -18,8 +18,8 @@ namespace obamadb {
   struct MCState {
     MCState(UnorderedMatrix const * training_matrix, int rank)
       : mu(-1),
-        step_size(0.05),
-        step_decay(0.7),
+        step_size(0.001),
+        step_decay(0.9),
         degrees_l(nullptr),
         degrees_r(nullptr),
         mean(0),
