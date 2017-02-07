@@ -389,7 +389,13 @@ namespace obamadb {
     ::gflags::SetVersionString("0.0");
     ::gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-    threading::setCoreAffinity();
+    std::vector<int> affinities = GetIntList(FLAGS_core_affinities);
+    if (affinities[0] != -1) {
+      threading::setCoreAffinity(affinities[0]);
+    } else {
+      LOG(INFO) << "Main thread affinitized to core 0";
+      threading::setCoreAffinity(0);
+    }
 
     if (FLAGS_algorithm.compare("svm") == 0) {
       runSvmExperiment();

@@ -35,7 +35,12 @@ namespace obamadb {
    */
   class UnorderedMatrix {
   public:
-    UnorderedMatrix() : rows_(0), columns_(0), size_(0), maxSize_(1<<10), entries_(nullptr) {
+    UnorderedMatrix()
+      : rows_(0),
+        columns_(0),
+        size_(0),
+        maxSize_(1<<10),
+        entries_(nullptr) {
       entries_ = new MatrixEntry[maxSize_];
     }
 
