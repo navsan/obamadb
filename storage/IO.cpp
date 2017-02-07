@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <fcntl.h>
+#include <set>
 
 #include "glog/logging.h"
 
@@ -149,60 +150,99 @@ namespace obamadb {
       current_block->finalize();
     }
 
+    struct SynthMcParams {
+      SynthMcParams(const std::string& file_name)
+        : rows(0), cols(0), nnz(0), rank(0), seed(0) {
+        std::ifstream infile;
+        std::string line;
+        infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
+        CHECK(infile.is_open());
+
+        unsigned cursor = 0;
+        std::getline(infile, line);
+        // m,n,nnz,rank,seed
+        int const num_params = 5;
+        float params[num_params];
+        for (int i = 0; i < num_params; i++) {
+          params[i] = 0;
+          scanForDouble(line.c_str(), &cursor, &params[i]);
+          scanThroughWhitespace(line.c_str(), &cursor);
+        }
+        infile.close();
+
+        CHECK_GT(params[0], 0);
+        CHECK_GT(params[1], 0);
+        CHECK_GT(params[2], 1);
+        CHECK((params[3] > 1 && params[3] < 1000) || params[3] == -1.0) << "The rank must be greater than 1.";
+
+        rows = params[0];
+        cols = params[1];
+        nnz = params[2];
+        rank = params[3];
+        seed = params[4];
+      }
+
+      int rows;
+      int cols;
+      int nnz;
+      int rank;
+      int seed;
+    };
+
+    void create_synth_mc_matrix(SynthMcParams const & params, obamadb::UnorderedMatrix *derived_mat) {
+      int const rank = params.rank;
+      int const rows = params.rows;
+      int const cols = params.cols;
+      int nnz = params.nnz;
+
+      DenseDataBlock<num_t> lmat(rows, rank);
+      DenseDataBlock<num_t> rmat(cols, rank);
+      lmat.randomize();
+      rmat.randomize();
+      dvector<num_t> lrow_vec(0, nullptr);
+      dvector<num_t> rrow_vec(0, nullptr);
+      while (nnz-- != 0) {
+        int rrow = rand() % rows;
+        int rcol = rand() % cols;
+        //dot, and add to derived mat.
+        lmat.getRowVectorFast(rrow, &lrow_vec);
+        rmat.getRowVectorFast(rcol, &rrow_vec);
+        // We could also opt to add some noise at this step.
+        derived_mat->append(rrow, rcol, obamadb::ml::dot(lrow_vec, rrow_vec.values_));
+      }
+      lmat.getRowVectorFast(rows, &lrow_vec);
+      rmat.getRowVectorFast(cols, &rrow_vec);
+      if (derived_mat->numRows() < rows || derived_mat->numColumns() < cols) {
+        derived_mat->append(rows, cols, obamadb::ml::dot(lrow_vec, rrow_vec.values_));
+      }
+    }
+
     /**
      * Creates a synthetic dataset for matrix completion testing.
      * @param file_name
      * @return a matrix completion matrix to the standards of
      */
     UnorderedMatrix* load_synth_MC(const std::string& file_name) {
-      std::ifstream infile;
-      std::string line;
-      infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
-      CHECK(infile.is_open());
+      SynthMcParams params(file_name);
+      srand(params.seed);
+      int const rank = params.rank;
+      int const rows = params.rows;
+      int const cols = params.cols;
+      int nnz = params.nnz;
 
-      unsigned cursor = 0;
-      std::getline(infile, line);
-      // m,n,nnz,rank,seed
-      int const num_params = 5;
-      float params[num_params];
-      for (int i = 0; i < num_params; i++) {
-        params[i] = 0;
-        scanForDouble(line.c_str(), &cursor, &params[i]);
-        scanThroughWhitespace(line.c_str(), &cursor);
-      }
-      infile.close();
-
-      CHECK_GT(params[0], 0);
-      CHECK_GT(params[1], 0);
-      CHECK_GT(params[2], 1);
-      CHECK((params[3] > 1 && params[3] < 1000) || params[3] == -1.0) << "The rank must be greater than 1.";
-
-      srand((int)params[4]);
-      int const rank = params[3];
-      int const rows = params[0];
-      int const cols = params[1];
       obamadb::UnorderedMatrix *derived_mat = new obamadb::UnorderedMatrix();
       if (rank != -1) {
-        DenseDataBlock<num_t> lmat(rows, rank);
-        DenseDataBlock<num_t> rmat(cols, rank);
-        lmat.randomize();
-        rmat.randomize();
-        dvector<num_t> lrow_vec(0, nullptr);
-        dvector<num_t> rrow_vec(0, nullptr);
-        int nnz = params[2];
+        // creates a matrix with a particular rank
+        create_synth_mc_matrix(params, derived_mat);
+      } else {
         while (nnz-- != 0) {
           int rrow = rand() % rows;
           int rcol = rand() % cols;
-          //dot, and add to derived mat.
-          lmat.getRowVectorFast(rrow, &lrow_vec);
-          rmat.getRowVectorFast(rcol, &rrow_vec);
-          // We could also opt to add some noise at this step.
-          derived_mat->append(rrow, rcol, obamadb::ml::dot(lrow_vec, rrow_vec.values_));
+          derived_mat->append(rrow, rcol, std::fmod(rand() / 1e-6, 10.0));
         }
-      } else {
-        int nnz = params[2];
-        while (nnz-- != 0) {
-          derived_mat->append(rand() % rows, rand() % cols, std::fmod(rand() / 1e-6, 10.0));
+        // technically off by one, but who cares.
+        if (derived_mat->numRows() < rows || derived_mat->numColumns() < cols) {
+          derived_mat->append(rows, cols, std::fmod(rand() / 1e-6, 10.0));
         }
       }
       return derived_mat;

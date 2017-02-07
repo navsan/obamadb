@@ -56,6 +56,9 @@ DEFINE_string(core_affinities, "-1", "A comma separated list of cores to have th
   " The program will greedily use core, so over specify if you like. Ex: "
   " -core_affinities 0,1,2,3 -threads 2 is valid");
 
+DEFINE_int64(rank, 10, "The rank of the LR factoring matrices used in Matrix Completion");
+
+
 #define VPRINT(str) { if(FLAGS_verbose) { printf(str); } }
 #define VPRINTF(str, ...) { if(FLAGS_verbose) { printf(str, __VA_ARGS__); } }
 #define VSTREAM(obj) {if(FLAGS_verbose){ std::cout << obj <<std::endl; }}
@@ -297,14 +300,21 @@ namespace obamadb {
   }
 
   void printMCEpochStats(int epoch, double time, MCState const * state, UnorderedMatrix const * probe_mat) {
-    double rmse = MCTask::rmse(state, probe_mat);
-    printf("%d,%.6f,%.2f\n",epoch, time, rmse);
+    if (FLAGS_verbose) {
+      double rmse = MCTask::rmse(state, probe_mat);
+      printf("%d,%.6f,%.2f\n",epoch, time, rmse);
+    }
   }
 
   std::vector<double> trainMC(const UnorderedMatrix* train_matrix,
-                                     const UnorderedMatrix* probe_matrix) {
-    int const rank = 15;
+                              const UnorderedMatrix* probe_matrix) {
+    int const rank = FLAGS_rank;
     std::unique_ptr<MCState> mcstate(new MCState(train_matrix, rank));
+    if (FLAGS_verbose) {
+      printf("Model matrix properties (L,R):\n");
+      std::cout << *mcstate->mat_l << std::endl;
+      std::cout << *mcstate->mat_r << std::endl;
+    }
 
     // Arguments to the thread pool.
     std::vector<std::function<void(int, void*)>> threadFns;
