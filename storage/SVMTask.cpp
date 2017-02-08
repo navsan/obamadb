@@ -22,15 +22,20 @@ namespace obamadb {
       int const *const __restrict__ pvi1 = v1.index_;
       num_t const *const __restrict__ pv2 = d2;
       int index = pvi1[0];
+
+      // To simplify modulo operation, we'll just conceptually round dim down to the
+      // largest power of 2 less than it. Then we can use bit mask instead.
+      unsigned int dim_mask = ((unsigned) -1) >> (sizeof(unsigned) * 8 - 15);
+
       for (int i = 0; i < v1.numElements(); ++i) {
         // Using only the first feature "value" repeatedly to avoid loads
-        sum += pv1[0] * pv2[index];
+        sum += pv2[index];
         // Using a simple random number generator to generate indexes avoiding loads.
         // It's a linear congruential generator with a large prime (largest
         // below 2^32/phi) and int overflow used for modulo operation.
         // From http://theorangeduck.com/page/14-character-random-number-generator
         index *= 0x9e3779b1;
-        index %= dim;
+        index &= dim_mask;
       }
       return sum;
     }
@@ -46,15 +51,20 @@ namespace obamadb {
       num_t const *__restrict__ const vptr = delta.values_;
       int const *__restrict__ const iptr = delta.index_;
       int index = iptr[0];
+
+      // To simplify modulo operation, we'll just conceptually round dim down to the
+      // largest power of 2 less than it. Then we can use bit mask instead.
+      unsigned int dim_mask = ((unsigned) -1) >> (sizeof(unsigned) * 8 - 15);
+
       for (int i = 0; i < delta.num_elements_; i++) {
         // Using only the first feature "value" repeatedly to avoid loads
-        tptr[index] = tptr[index] + (vptr[0] * e);
+        tptr[index] = tptr[index] + e;
         // Using a simple random number generator to generate indexes avoiding loads.
         // It's a linear congruential generator with a large prime (largest
         // below 2^32/phi) and int overflow used for modulo operation.
         // From http://theorangeduck.com/page/14-character-random-number-generator
         index *= 0x9e3779b1;
-        index %= dim;
+        index &= dim;
       }
     }
   } // namespace ml
