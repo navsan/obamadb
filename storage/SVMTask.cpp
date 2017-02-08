@@ -16,13 +16,21 @@ namespace obamadb {
     /**
      * Dot product
      */
-    num_t dot(const svector<num_t> &v1, num_t *d2) {
+    num_t dot(const svector<num_t> &v1, num_t *d2, unsigned dim) {
       num_t sum = 0;
       num_t const *const __restrict__ pv1 = v1.values_;
       int const *const __restrict__ pvi1 = v1.index_;
       num_t const *const __restrict__ pv2 = d2;
+      int index = pvi1[0];
       for (int i = 0; i < v1.numElements(); ++i) {
-        sum += pv1[i] * pv2[pvi1[i]];
+        // Using only the first feature "value" repeatedly to avoid loads
+        sum += pv1[0] * pv2[index];
+        // Using a simple random number generator to generate indexes avoiding loads.
+        // It's a linear congruential generator with a large prime (largest
+        // below 2^32/phi) and int overflow used for modulo operation.
+        // From http://theorangeduck.com/page/14-character-random-number-generator
+        index *= 0x9e3779b1;
+        index %= dim;
       }
       return sum;
     }
@@ -33,13 +41,20 @@ namespace obamadb {
      * @param delta Sparse vector of changes.
      * @param e Scaling constant
      */
-    inline void scaleAndAdd(num_t *theta, const svector<num_t> &delta, const num_t e) {
+    inline void scaleAndAdd(num_t *theta, const svector<num_t> &delta, const num_t e, unsigned dim) {
       num_t *const __restrict__ tptr = theta;
       num_t const *__restrict__ const vptr = delta.values_;
       int const *__restrict__ const iptr = delta.index_;
+      int index = iptr[0];
       for (int i = 0; i < delta.num_elements_; i++) {
-        const int idx = iptr[i];
-        tptr[idx] = tptr[idx] + (vptr[i] * e);
+        // Using only the first feature "value" repeatedly to avoid loads
+        tptr[index] = tptr[index] + (vptr[0] * e);
+        // Using a simple random number generator to generate indexes avoiding loads.
+        // It's a linear congruential generator with a large prime (largest
+        // below 2^32/phi) and int overflow used for modulo operation.
+        // From http://theorangeduck.com/page/14-character-random-number-generator
+        index *= 0x9e3779b1;
+        index %= dim;
       }
     }
   } // namespace ml
@@ -56,7 +71,7 @@ namespace obamadb {
     // perform update with all the data in its view,
     while (data_view_->getNext(&row)) {
       num_t const y = *row.getClassification();
-      num_t wxy = ml::dot(row, theta);
+      num_t wxy = ml::dot(row, theta, shared_theta_->dimension_);
       wxy = wxy * y; // {-1, 1}
 
 #ifdef USE_HINGE
@@ -64,18 +79,18 @@ namespace obamadb {
       if (wxy < 1) {
         num_t const e = step_size * y;
         // scale weights
-        ml::scaleAndAdd(theta, row, e);
+        ml::scaleAndAdd(theta, row, e, shared_theta_->dimension_);
       }
 #else
       // always apply the hinge loss, for memory-access
       if (wxy < 1) {
         num_t const e = step_size * y;
         // scale weights
-        ml::scaleAndAdd(theta, row, e);
+        ml::scaleAndAdd(theta, row, e, shared_theta_->dimension_);
       } else {
         num_t const e = step_size * y * -1 * 1e-3;
         // scale weights
-        ml::scaleAndAdd(theta, row, e);
+        ml::scaleAndAdd(theta, row, e, shared_theta_->dimension_);
       }
 #endif
 
@@ -100,7 +115,7 @@ namespace obamadb {
     int misclassified = 0;
     for (int i = 0; i < block.getNumRows(); i++) {
       block.getRowVectorFast(i, &row);
-      const num_t dot_prod = ml::dot(row, theta.values_);
+      const num_t dot_prod = ml::dot(row, theta.values_, theta.dimension_);
       const num_t classification = *row.getClassification();
       DCHECK(classification == 1 || classification == -1) << "Expected binary classification.";
 
@@ -133,7 +148,7 @@ namespace obamadb {
 
       for (int i = 0; i < block.getNumRows(); i++) {
         block.getRowVector(i, &row);
-        const num_t dot_prod = ml::dot(row, theta.values_);
+        const num_t dot_prod = ml::dot(row, theta.values_, theta.dimension_);
         const num_t classification = *row.getClassification();
         DCHECK(classification == 1 || classification == -1);
         loss += std::max(1 - dot_prod * classification, static_cast<num_t >(0.0));
