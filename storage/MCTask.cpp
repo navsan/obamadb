@@ -15,8 +15,8 @@ namespace obamadb {
     double const mean = shared_state_->mean;
     double const step_size = shared_state_->step_size;
     double const mu = shared_state_->mu;
-    int const * degrees_l = shared_state_->degrees_l.get();
-    int const * degrees_r = shared_state_->degrees_r.get();
+    std::vector<int> const & degrees_l = shared_state_->degrees_l;
+    std::vector<int> const & degrees_r = shared_state_->degrees_r;
     DenseDataBlock<num_t>* mat_l = shared_state_->mat_l.get();
     DenseDataBlock<num_t>* mat_r = shared_state_->mat_r.get();
 
