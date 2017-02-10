@@ -39,7 +39,7 @@ namespace obamadb {
       : rows_(0),
         columns_(0),
         size_(0),
-        maxSize_(1<<10),
+        maxSize_(1<<28),
         entries_(nullptr) {
       entries_ = new MatrixEntry[maxSize_];
     }
