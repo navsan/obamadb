@@ -18,10 +18,10 @@ namespace obamadb {
   struct MCState {
     MCState(UnorderedMatrix const * training_matrix, int rank)
       : mu(-1),
-        step_size(0.05),
-        step_decay(0.7),
-        degrees_l(nullptr),
-        degrees_r(nullptr),
+        step_size(0.001),
+        step_decay(0.9),
+        degrees_l(training_matrix->numRows(), 0),
+        degrees_r(training_matrix->numColumns(), 0),
         mean(0),
         rank(rank),
         mat_l(nullptr),
@@ -31,26 +31,21 @@ namespace obamadb {
       mat_l->randomize();
       mat_r->randomize();
 
-      int *dl = new int[training_matrix->numRows()];
-      int *dr = new int[training_matrix->numColumns()];
-
       double sum = 0;
       for (int i = 0; i < training_matrix->numElements(); i++) {
         MatrixEntry const & entry = training_matrix->get(i);
-        dl[entry.row]++;
-        dr[entry.column]++;
+        degrees_l[entry.row]++;
+        degrees_r[entry.column]++;
         sum += entry.value;
       }
-      degrees_l.reset(dl);
-      degrees_r.reset(dr);
       mean = sum / training_matrix->numElements();
     }
 
     float mu;
     float step_size;
     float step_decay;
-    std::unique_ptr<int> degrees_l;
-    std::unique_ptr<int> degrees_r;
+    std::vector<int> degrees_l;
+    std::vector<int> degrees_r;
     double mean;
 
     int rank;

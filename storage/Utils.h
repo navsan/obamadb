@@ -1,6 +1,8 @@
 #ifndef OBAMADB_UTILS_H
 #define OBAMADB_UTILS_H
 
+#include "storage/StorageConstants.h"
+
 #include <chrono>
 #include <cmath>
 
@@ -160,6 +162,13 @@ namespace obamadb {
       return stdv/sqrt(values.size()); // stderr grows smaller as the number of samples increases
     }
   }
+
+  /**
+   * Takes a list like "1,2,3,42" and converts it into a vector of integers.
+   * @param list - Integers to convert.
+   * @return A vector of the represented ints.
+   */
+  std::vector<int> GetIntList(std::string const & list);
 
 }  // namespace obamadb
 

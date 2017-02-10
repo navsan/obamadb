@@ -1,3 +1,5 @@
+#include "storage/Utils.h"
+
 #include "glog/logging.h"
 #include <gflags/gflags.h>
 
@@ -12,20 +14,8 @@ namespace obamadb {
       if (FLAGS_core_affinities.compare("-1") == 0) {
         return NumThreadsAffinitized++;
       } else if (CoreAffinities.size() == 0) {
-        char const * raw = FLAGS_core_affinities.c_str();
-        int core = 0;
-        for (int i = 0; i < FLAGS_core_affinities.size(); i++) {
-          if (raw[i] == ',') {
-            CoreAffinities.push_back(core);
-            core = 0;
-          } else {
-            CHECK_LT(raw[i], 48 + 10) << "invalid core_affinity";
-            CHECK_GE(raw[i], 48) << "invalid core_affinity";
-            core *= 10;
-            core += raw[i] - 48;
-          }
-        }
-        CoreAffinities.push_back(core);
+        std::vector<int> parsedAffinities = GetIntList(FLAGS_core_affinities);
+        CoreAffinities.insert(CoreAffinities.begin(), parsedAffinities.begin(), parsedAffinities.end());
       }
       CHECK(CoreAffinities.size() > 0) << "invalid core_affinity flag";
       int assigned = CoreAffinities[NumThreadsAffinitized % CoreAffinities.size()];

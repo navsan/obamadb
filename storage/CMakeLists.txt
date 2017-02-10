@@ -67,6 +67,7 @@ target_link_libraries(obamadb_storage_IO
         obamadb_storage_DataBlock
         obamadb_storage_exvector
         obamadb_storage_Matrix
+        obamadb_storage_MLTask
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants
         obamadb_storage_UnorderedMatrix)

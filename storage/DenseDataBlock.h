@@ -114,11 +114,21 @@ namespace obamadb {
       }
     }
 
+    template<class TT>
+    friend std::ostream &operator<<(std::ostream &os, const DenseDataBlock<TT> &block);
+
     int maxElements; // includes classifications
     int maxRows;
   };
 
+
+template<class T>
+std::ostream &operator<<(std::ostream &os, const DenseDataBlock<T> &block) {
+  os << "DenseDataBlock[" << block.getNumRows() << ", " << block.getNumColumns()
+     << "] size mb: " << (block.block_size_bytes_ / 1e6);
+  return os;
 }
 
+}
 
 #endif //OBAMADB_DENSEDATABLOCK_H

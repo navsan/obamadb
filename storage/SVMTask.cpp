@@ -1,6 +1,7 @@
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/exvector.h"
+#include "storage/MLTask.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
 
@@ -11,38 +12,6 @@
 // #define USE_SCALING 0
 
 namespace obamadb {
-  namespace ml {
-
-    /**
-     * Dot product
-     */
-    num_t dot(const svector<num_t> &v1, num_t *d2) {
-      num_t sum = 0;
-      num_t const *const __restrict__ pv1 = v1.values_;
-      int const *const __restrict__ pvi1 = v1.index_;
-      num_t const *const __restrict__ pv2 = d2;
-      for (int i = 0; i < v1.numElements(); ++i) {
-        sum += pv1[i] * pv2[pvi1[i]];
-      }
-      return sum;
-    }
-
-    /**
-     * Applies delta to theta with a constant scaling parameter applied to delta.
-     * @param theta Sparse vector of weights.
-     * @param delta Sparse vector of changes.
-     * @param e Scaling constant
-     */
-    inline void scaleAndAdd(num_t *theta, const svector<num_t> &delta, const num_t e) {
-      num_t *const __restrict__ tptr = theta;
-      num_t const *__restrict__ const vptr = delta.values_;
-      int const *__restrict__ const iptr = delta.index_;
-      for (int i = 0; i < delta.num_elements_; i++) {
-        const int idx = iptr[i];
-        tptr[idx] = tptr[idx] + (vptr[i] * e);
-      }
-    }
-  } // namespace ml
 
   void SVMTask::execute(int threadId, void *svm_state) {
     (void) svm_state; // silence compiler warning.
@@ -71,11 +40,11 @@ namespace obamadb {
       if (wxy < 1) {
         num_t const e = step_size * y;
         // scale weights
-        ml::scaleAndAdd(theta, row, e);
+        ml::scale_and_add(theta, row, e);
       } else {
         num_t const e = step_size * y * -1 * 1e-3;
         // scale weights
-        ml::scaleAndAdd(theta, row, e);
+        ml::scale_and_add(theta, row, e);
       }
 #endif
 
