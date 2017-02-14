@@ -1,6 +1,7 @@
-#include <cmath>
-
 #include "storage/StorageConstants.h"
+
+#include <cmath>
+#include <climits>
 
 #include "storage/Utils.h"
 
