@@ -7,6 +7,7 @@
 #include "storage/Utils.h"
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
