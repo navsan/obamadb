@@ -65,21 +65,20 @@ namespace obamadb {
         heap_offset_(0),
         end_of_block_(reinterpret_cast<char *>(this->store_) + size_bytes) {
       svector<num_t> row_vector;
-      QuickRandom qr;
       double avgElementsPerRow = (1.0 - sparsity) * numColumns;
-      int elementWindowSize = ((double) numColumns) / avgElementsPerRow;
+      int elementWindowSize = std::ceil((double) numColumns / avgElementsPerRow);
       int elementWindows = std::ceil(avgElementsPerRow);
       num_t positive = 1.0;
       num_t negative = -1.0;
       do {
         row_vector.clear();
-        bool isPositive = qr.nextFloat() > 0;
+        bool isPositive = rand() > INT_MAX/2;
         row_vector.setClassification(isPositive ? &positive : &negative);
         for (int i = 0; i < elementWindows; i++) {
-          int randi = qr.nextInt32() % elementWindowSize;
+          int randi = rand() % elementWindowSize;
           int index = (i * elementWindowSize) + randi;
           if (index < numColumns) {
-            num_t randf = std::abs(qr.nextFloat());
+            num_t randf = ((num_t)rand()/(num_t)INT_MAX);
             // The data should end up being perfectly seperable.
             if ((isPositive && index % 2 == 1)
                 || (!isPositive && index % 2 == 0)) {
