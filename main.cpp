@@ -323,7 +323,9 @@ namespace obamadb {
   std::vector<double> trainMC(const UnorderedMatrix* train_matrix,
                               const UnorderedMatrix* probe_matrix) {
     int const rank = FLAGS_rank;
-    std::unique_ptr<MCState> mcstate(new MCState(train_matrix, rank));
+    MCState* mcstate = new MCState(train_matrix, rank); // TODO: this is a memory leak which
+		// fixes a mysterious memory corruption bug on ubuntu systems. It should be a smart pointer
+		// and also, there should be no memory corruption
     if (FLAGS_verbose) {
       printf("Model matrix properties (L,R):\n");
       std::cout << *mcstate->mat_l << std::endl;
@@ -339,7 +341,7 @@ namespace obamadb {
     std::vector<std::unique_ptr<MCTask>> tasks(FLAGS_threads);
     std::vector<void*> tp_states;
     for (int i = 0; i < tasks.size(); i++) {
-      tasks[i].reset(new MCTask(FLAGS_threads, train_matrix, mcstate.get()));
+      tasks[i].reset(new MCTask(FLAGS_threads, train_matrix, mcstate));
       tp_states.push_back(tasks[i].get());
       threadFns.push_back(update_fn);
     }
@@ -348,7 +350,7 @@ namespace obamadb {
     tp.begin();
 
     VPRINT("epoch, train_time, probe_RMS_loss\n");
-    printMCEpochStats(-1, -1, mcstate.get(), probe_matrix);
+    printMCEpochStats(-1, -1, mcstate, probe_matrix);
     double totalTrainTime = 0.0;
     std::vector<double> epoch_times;
     for (int cycle = 0; cycle < FLAGS_num_epochs; cycle++) {
@@ -359,7 +361,7 @@ namespace obamadb {
       double elapsedTimeSec = (time_ms.count())/ 1e3;
       totalTrainTime += elapsedTimeSec;
 
-      printMCEpochStats(cycle, elapsedTimeSec, mcstate.get(), probe_matrix);
+      printMCEpochStats(cycle, elapsedTimeSec, mcstate, probe_matrix);
       epoch_times.push_back(elapsedTimeSec);
     }
     tp.stop();

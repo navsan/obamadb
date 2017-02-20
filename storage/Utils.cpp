@@ -1,6 +1,7 @@
-#include <cmath>
-
 #include "storage/StorageConstants.h"
+
+#include <cmath>
+#include <climits>
 
 #include "storage/Utils.h"
 
@@ -9,8 +10,10 @@ namespace obamadb {
   fvector fvector::GetRandomFVector(int const dim) {
     fvector shared_theta(dim);
     // initialize to values [-1,1]
+    float const half_max = ((float)INT_MAX)/2.0;
     for (unsigned i = 0; i < dim; ++i) {
-      shared_theta[i] = static_cast<num_t>((1.0 - fmod((double) rand() / 100.0, 2)) / 10.0);
+      float const randf = (float)rand();
+      shared_theta[i] = static_cast<num_t>(randf/half_max - 1.0);
     }
     return shared_theta;
   }

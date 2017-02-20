@@ -9,7 +9,9 @@ namespace obamadb {
   {
     char buff[1000]; // TODO: buffer overflow possible.
     snprintf(buff, sizeof(buff),
-             "Matrix: %lu training blocks for a total size of %ldmb with %d examples (%d nnz elements) with %f sparsity\n",
+             "Matrix: (%d, %d) %lu training blocks for a total size of %ldmb with %d examples (%d nnz elements) with %f sparsity\n",
+             matrix.numRows_,
+             matrix.numColumns_,
              matrix.blocks_.size(),
              (long) (matrix.sizeBytes() / 1e6),
              matrix.numRows_,

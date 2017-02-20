@@ -7,6 +7,7 @@
 #include "storage/Utils.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <iomanip>
@@ -109,7 +110,7 @@ namespace obamadb {
       for (int row = 0; row < this->num_rows_; row++) {
         this->getRowVectorFast(row, &row_vector);
         for (int column = 0; column < this->num_columns_; column++) {
-          row_vector.values_[column] = fmod((((T) rand()) / 1e6), 1.0);
+          row_vector.values_[column] = (T) rand() / (T)INT_MAX; // TODO: this will not work with non-float types
         }
       }
     }
