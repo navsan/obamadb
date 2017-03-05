@@ -302,7 +302,7 @@ namespace obamadb {
   void printMCEpochStats(int epoch, double time, MCState const * state, UnorderedMatrix const * probe_mat) {
     if (FLAGS_verbose) {
       double rmse = MCTask::rmse(state, probe_mat);
-      printf("%d,%.6f,%.2f\n",epoch, time, rmse);
+      printf("%d,%.6f,%.4f\n",epoch, time, rmse);
     }
   }
 
