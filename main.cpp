@@ -27,6 +27,8 @@ DEFINE_validator(threads, &ValidateThreads);
 DEFINE_bool(measure_convergence, false, "If true, an observer thread will collect copies of the model"
   " as the algorithm does its first iteration. Useful for the SVM.");
 
+DEFINE_bool(liblinear, false, "If true, the dataset will be loaded as a liblinear-format dataset.");
+
 static bool ValidateAlgorithm(const char* flagname, std::string const & value) {
   std::vector<std::string> valid_algorithms = {"svm", "mc"};
   if (std::find(valid_algorithms.begin(), valid_algorithms.end(), value) != valid_algorithms.end()) {

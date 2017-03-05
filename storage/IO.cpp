@@ -15,6 +15,8 @@
 #include "storage/IO.h"
 #include "DenseDataBlock.h"
 
+DECLARE_bool(liblinear);
+
 namespace obamadb {
 
   namespace IO {
@@ -249,6 +251,130 @@ namespace obamadb {
     }
 
     /**
+     * Loads a libsvm style file into a sparse representation.
+     * class (index:value )*\n
+     */
+    void loadLibsvmSparseBlocks(std::string const & file_name,
+                                std::vector<obamadb::SparseDataBlock<num_t>*> &blocks) {
+      static const std::size_t BUFFER_SIZE = 16 * 1024;
+      int fd = open(file_name.c_str(), O_RDONLY);
+      CHECK_NE(fd, -1) << "Error opening file: " << file_name;
+#ifndef __APPLE__
+      // Advise the kernel of our access pattern.
+      posix_fadvise(fd, 0, 0, 1);  // FDADVICE_SEQUENTIAL
+#endif
+
+      auto scanFloat = [](char* & cptr, char const * LIM, char const DELIM, float* val) -> bool {
+        float i = 0;
+        float neg = 1;
+        int dp = 0;
+        bool decimal = false;
+
+        if (*cptr == '-') {
+          neg = -1;
+          cptr++;
+        } else if (*cptr == '+') {
+          cptr++;
+        }
+
+        while(cptr < LIM && *cptr != DELIM && *cptr != '\n') {
+          decimal |= (*cptr == '.');
+          dp += decimal;
+
+          i *= 10;
+          i += *cptr - 48;
+          cptr++;
+        }
+
+        if (cptr == LIM) {
+          return true;
+        } else {
+          i *= neg;
+          *val = (float) (i / pow(10.0, dp));
+          cptr++;
+          return false;
+        }
+      };
+
+      auto addToBlock = [](
+        std::vector<obamadb::SparseDataBlock<num_t>*> &blocks,
+        obamadb::SparseDataBlock<num_t>* &block,
+        obamadb::svector<num_t> &sparse_row) {
+        if (!block->appendRow(sparse_row)) {
+          blocks.push_back(block);
+          block = new SparseDataBlock<num_t>();
+        }
+      };
+
+      obamadb::SparseDataBlock<num_t>* block = new obamadb::SparseDataBlock<num_t>();
+      obamadb::svector<num_t> sparse_row;
+
+      char buf[BUFFER_SIZE + 1];
+      char * READ_LIM = buf + BUFFER_SIZE; // stopping point for new data was read in by the read call
+      int offset = 0;
+      while (size_t bytes_read = read(fd, buf + offset, BUFFER_SIZE - offset)) {
+        CHECK_NE(bytes_read, (size_t) -1) << "Error reading file " << file_name;
+
+        if (!bytes_read) {
+          break;
+        }
+
+        READ_LIM = buf + bytes_read + offset;
+        char *p = buf; // pointer to current char
+        char *nl = p;  // pointer to start of last line
+        while (true) {
+          num_t cls = 0;
+          nl = p;
+          if(scanFloat(p, READ_LIM, ' ', &cls)) {
+            break;
+          } else {
+            // ignore blank lines
+            if (*p == '\n') {
+              p++;
+              continue;
+            } else {
+              sparse_row.setClassification(&cls);
+            }
+          }
+          DCHECK(cls == -1 || cls == 1);
+
+          bool eof = false;
+          bool eol = false;
+          while(!eol) {
+            float idx = 0;
+            num_t value = 0;
+            eof = scanFloat(p, READ_LIM, ':', &idx);
+            if (eof)
+              break;
+            eof = scanFloat(p, READ_LIM, ' ', &value);
+            if (eof)
+              break;
+            sparse_row.push_back((int)idx, value);
+            if(*p == '\n') {
+              eol = true;
+              p++;
+            }
+          }
+          if (eof)
+            break;
+          else {
+            DCHECK_EQ(true, eol);
+          }
+          addToBlock(blocks, block, sparse_row);
+          sparse_row.clear();
+        }
+        sparse_row.clear();
+
+
+        offset = READ_LIM - nl;
+        memcpy(buf, nl, offset);
+      }
+      if (block->num_rows_ > 0) {
+        blocks.push_back(block);
+      }
+    }
+
+    /**
      * Load examples as an unordered matrix.
      * Scans a TSV file of the format
      * int1\tint2\tint3\n
@@ -321,7 +447,6 @@ namespace obamadb {
       }
 
       return mat;
-
     }
 
     template<>
@@ -337,8 +462,13 @@ namespace obamadb {
       infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
       CHECK(infile.is_open());
 
-      DLOG(INFO) << "Loading file as SVM-like matrix";
-      loadSvmBlocks(infile, blocks);
+      if (FLAGS_liblinear) {
+        DLOG(INFO) << "Loading file as liblinear style dataset";
+        loadLibsvmSparseBlocks(file_name, blocks);
+      } else {
+        DLOG(INFO) << "Loading file as SVM-like matrix";
+        loadSvmBlocks(infile, blocks);
+      }
 
       infile.close();
       return blocks;
