@@ -256,7 +256,7 @@ namespace obamadb {
      */
     void loadLibsvmSparseBlocks(std::string const & file_name,
                                 std::vector<obamadb::SparseDataBlock<num_t>*> &blocks) {
-      static const std::size_t BUFFER_SIZE = 16 * 1024;
+      std::size_t const BUFFER_SIZE = 32 * 1024;
       int fd = open(file_name.c_str(), O_RDONLY);
       CHECK_NE(fd, -1) << "Error opening file: " << file_name;
 #ifndef __APPLE__
@@ -265,8 +265,8 @@ namespace obamadb {
 #endif
 
       auto scanFloat = [](char* & cptr, char const * LIM, char const DELIM, float* val) -> bool {
-        float i = 0;
-        float neg = 1;
+        double i = 0;
+        double neg = 1;
         int dp = 0;
         bool decimal = false;
 
@@ -278,7 +278,12 @@ namespace obamadb {
         }
 
         while(cptr < LIM && *cptr != DELIM && *cptr != '\n') {
-          decimal |= (*cptr == '.');
+          if (*cptr == '.') {
+            DCHECK_NE(true, decimal);
+            decimal = true;
+            cptr++;
+            continue;
+          }
           dp += decimal;
 
           i *= 10;
@@ -291,7 +296,8 @@ namespace obamadb {
         } else {
           i *= neg;
           *val = (float) (i / pow(10.0, dp));
-          cptr++;
+          if (*cptr != '\n')
+            cptr++;
           return false;
         }
       };
@@ -391,7 +397,7 @@ namespace obamadb {
       char const * fname = file_name.c_str();
       UnorderedMatrix* mat = new UnorderedMatrix();
 
-      static const std::size_t BUFFER_SIZE = 16 * 1024;
+      std::size_t const BUFFER_SIZE = 16 * 1024;
       int fd = open(fname, O_RDONLY);
       CHECK_NE(fd, -1) << "Error opening file: " << fname;
 #ifndef __APPLE__
