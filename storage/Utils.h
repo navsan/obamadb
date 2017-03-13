@@ -71,63 +71,13 @@ namespace obamadb {
 
   };
 
-  class QuickRandom {
-  public:
-    QuickRandom() : x(15486719), y(19654991), z(16313527), char_index(0) {
-      LOG_IF(FATAL, sizeof(std::uint64_t) != 8) << "Expect 64_t to be 8 bytes long.";
-      // warm up 5 cycles.
-      for (int i = 0; i < 5; i++) {
-        nextInt64();
-      }
-    }
+  inline int randomInt() {
+    return rand();
+  }
 
-    inline std::uint64_t nextInt64() {
-      // TODO: there are many other ways to generate random numbers,
-      // http://stackoverflow.com/questions/1640258/need-a-fast-random-generator-for-c
-      // has several more techniques to choose from and includes this one.
-      std::uint64_t t;
-      x ^= x << 16;
-      x ^= x >> 5;
-      x ^= x << 1;
-
-      t = x;
-      x = y;
-      y = z;
-      z = t ^ x ^ y;
-
-      return z;
-    }
-
-    inline std::uint32_t nextInt32() {
-      if (char_index == 0) {
-        char_index = 4;
-        return *reinterpret_cast<uint32_t *>(&z);
-      } else if (char_index == 4) {
-        char_index = 8;
-        return reinterpret_cast<uint32_t *>(&z)[1];
-      } else {
-        nextInt64();
-        char_index = 4;
-        return *reinterpret_cast<uint32_t *>(&z);
-      }
-    }
-
-    inline float nextFloat() {
-      // this operation is faster than trying to use a custom random() call.
-      return static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    }
-
-    inline unsigned char nextChar() {
-      if (char_index >= 8) {
-        nextInt64();
-        char_index = 0;
-      }
-      return reinterpret_cast<unsigned char *>(&z)[char_index++];
-    }
-
-    std::uint64_t x, y, z;
-    int char_index;
-  };
+  inline float randomFloat() {
+    return static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  }
 
   namespace stats {
     template<class T>
