@@ -64,6 +64,7 @@ target_link_libraries(obamadb_storage_exvector
         glog)
 target_link_libraries(obamadb_storage_IO
         glog
+        gflags
         obamadb_storage_DataBlock
         obamadb_storage_exvector
         obamadb_storage_Matrix
@@ -132,6 +133,7 @@ add_executable(IO_unittest
 target_link_libraries(IO_unittest
         gtest
         gtest_main
+        gflags
         obamadb_storage_DataBlock
         obamadb_storage_exvector
         obamadb_storage_IO
@@ -145,6 +147,7 @@ add_executable(Matrix_unittest
 target_link_libraries(Matrix_unittest
         gtest
         gtest_main
+        gflags
         obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_Matrix

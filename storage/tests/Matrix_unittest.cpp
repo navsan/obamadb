@@ -12,6 +12,7 @@
 #include <memory>
 
 DEFINE_string(core_affinities, "-1", "");
+DEFINE_bool(liblinear, false, "");
 
 namespace obamadb {
 

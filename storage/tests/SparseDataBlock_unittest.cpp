@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <memory>
 
+DEFINE_bool(liblinear, false, "");
+
 namespace obamadb {
 
   TEST(SparseDataBlockTest, TestLoadSparse) {

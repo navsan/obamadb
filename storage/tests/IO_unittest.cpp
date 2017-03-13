@@ -1,12 +1,16 @@
 #include "gtest/gtest.h"
+
 #include "storage/IO.h"
 #include "storage/exvector.h"
 #include "storage/DataBlock.h"
 #include "storage/SparseDataBlock.h"
+#include "storage/tests/StorageTestHelpers.h"
+
+#include "gflags/gflags.h"
 
 #include <memory>
 
-#include "storage/tests/StorageTestHelpers.h"
+DEFINE_bool(liblinear, false, "");
 
 namespace obamadb {
 
