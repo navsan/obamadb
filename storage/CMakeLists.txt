@@ -185,3 +185,4 @@ add_test(Utils_unittest Utils_unittest)
 
 configure_file(tests/iris.dat iris.dat COPYONLY)
 configure_file(tests/sparse.dat sparse.dat COPYONLY)
+configure_file(tests/heart_scale.dat heart_scale.dat COPYONLY)

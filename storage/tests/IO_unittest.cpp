@@ -26,7 +26,25 @@ namespace obamadb {
     svector<num_t> row;
     block->getRowVector(0, &row);
 
-    EXPECT_EQ(12.111, row.values_[row.numElements() - 1]);
+    EXPECT_NEAR(12.111, row.values_[row.numElements() - 1], 0.001);
     EXPECT_EQ(-1, *row.getClassification());
   }
+
+  TEST(IOTest, TestLoadLibLinearFile) {
+    bool const prev_flag = FLAGS_liblinear;
+    FLAGS_liblinear = true;
+
+    std::vector<SparseDataBlock<num_t>*> blocks = IO::loadBlocks<num_t>("heart_scale.dat");
+    ASSERT_EQ(1, blocks.size());
+    ASSERT_EQ(269, blocks[0]->num_rows_);
+    ASSERT_EQ(14, blocks[0]->num_columns_);
+
+    FLAGS_liblinear = prev_flag;
+  }
+}
+
+int main(int argc, char **argv) {
+  ::google::InitGoogleLogging(argv[0]);
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
