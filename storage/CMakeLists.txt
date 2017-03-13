@@ -71,7 +71,8 @@ target_link_libraries(obamadb_storage_IO
         obamadb_storage_MLTask
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants
-        obamadb_storage_UnorderedMatrix)
+        obamadb_storage_UnorderedMatrix
+        obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_Matrix
         glog
         obamadb_storage_DataBlock

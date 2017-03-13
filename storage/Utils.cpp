@@ -43,4 +43,6 @@ namespace obamadb {
     return vec;
   }
 
+  std::size_t const Scanner::BUFFER_SIZE = 16 * 1024;
+
 }

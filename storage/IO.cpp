@@ -1,8 +1,12 @@
+#include "storage/IO.h"
+
 #include "storage/exvector.h"
 #include "storage/DataBlock.h"
+#include "DenseDataBlock.h"
 #include "storage/Matrix.h"
 #include "storage/MLTask.h"
 #include "storage/SparseDataBlock.h"
+#include "storage/Utils.h"
 
 #include <cmath>
 #include <iostream>
@@ -12,9 +16,6 @@
 
 #include "glog/logging.h"
 #include "gflags/gflags.h"
-
-#include "storage/IO.h"
-#include "DenseDataBlock.h"
 
 DECLARE_bool(liblinear);
 
@@ -257,54 +258,9 @@ namespace obamadb {
      */
     void loadLibsvmSparseBlocks(std::string const & file_name,
                                 std::vector<obamadb::SparseDataBlock<num_t>*> &blocks) {
-      std::size_t const BUFFER_SIZE = 32 * 1024;
-      int fd = open(file_name.c_str(), O_RDONLY);
-      CHECK_NE(fd, -1) << "Error opening file: " << file_name;
-#ifndef __APPLE__
-      // Advise the kernel of our access pattern.
-      posix_fadvise(fd, 0, 0, 1);  // FDADVICE_SEQUENTIAL
-#endif
 
-      auto scanFloat = [](char* & cptr, char const * LIM, char const DELIM, float* val) -> bool {
-        double i = 0;
-        double neg = 1;
-        int dp = 0;
-        bool decimal = false;
-
-        if (*cptr == '-') {
-          neg = -1;
-          cptr++;
-        } else if (*cptr == '+') {
-          cptr++;
-        }
-
-        while(cptr < LIM && *cptr != DELIM && *cptr != '\n') {
-          if (*cptr == '.') {
-            DCHECK_NE(true, decimal);
-            decimal = true;
-            cptr++;
-            continue;
-          }
-          dp += decimal;
-
-          i *= 10;
-          i += *cptr - 48;
-          cptr++;
-        }
-
-        if (cptr == LIM) {
-          return true;
-        } else {
-          i *= neg;
-          *val = (float) (i / pow(10.0, dp));
-          if (*cptr != '\n')
-            cptr++;
-          return false;
-        }
-      };
-
-      auto addToBlock = [](
-        std::vector<obamadb::SparseDataBlock<num_t>*> &blocks,
+      // Helper function to add row to block.
+      auto insertHelper = [&blocks](
         obamadb::SparseDataBlock<num_t>* &block,
         obamadb::svector<num_t> &sparse_row) {
         if (!block->appendRow(sparse_row)) {
@@ -316,66 +272,19 @@ namespace obamadb {
       obamadb::SparseDataBlock<num_t>* block = new obamadb::SparseDataBlock<num_t>();
       obamadb::svector<num_t> sparse_row;
 
-      char buf[BUFFER_SIZE + 1];
-      char * READ_LIM = buf + BUFFER_SIZE; // stopping point for new data was read in by the read call
-      int offset = 0;
-      while (size_t bytes_read = read(fd, buf + offset, BUFFER_SIZE - offset)) {
-        CHECK_NE(bytes_read, (size_t) -1) << "Error reading file " << file_name;
-
-        if (!bytes_read) {
-          break;
+      Scanner scanner(file_name);
+      std::vector<double> line = scanner.scanLine();
+      while(line.size() > 0) {
+        DCHECK_EQ(1, line.size() % 2);
+        sparse_row.setClassification(line[0]);
+        for (int i = 1; i < line.size(); i+=2) {
+          sparse_row.push_back(line[i], line[i+1]);
         }
-
-        READ_LIM = buf + bytes_read + offset;
-        char *p = buf; // pointer to current char
-        char *nl = p;  // pointer to start of last line
-        while (true) {
-          num_t cls = 0;
-          nl = p;
-          if(scanFloat(p, READ_LIM, ' ', &cls)) {
-            break;
-          } else {
-            // ignore blank lines
-            if (*p == '\n') {
-              p++;
-              continue;
-            } else {
-              sparse_row.setClassification(&cls);
-            }
-          }
-          DCHECK(cls == -1 || cls == 1);
-
-          bool eof = false;
-          bool eol = false;
-          while(!eol) {
-            float idx = 0;
-            num_t value = 0;
-            eof = scanFloat(p, READ_LIM, ':', &idx);
-            if (eof)
-              break;
-            eof = scanFloat(p, READ_LIM, ' ', &value);
-            if (eof)
-              break;
-            sparse_row.push_back((int)idx, value);
-            if(*p == '\n') {
-              eol = true;
-              p++;
-            }
-          }
-          if (eof)
-            break;
-          else {
-            DCHECK_EQ(true, eol);
-          }
-          addToBlock(blocks, block, sparse_row);
-          sparse_row.clear();
-        }
+        insertHelper(block, sparse_row);
         sparse_row.clear();
-
-
-        offset = READ_LIM - nl;
-        memcpy(buf, nl, offset);
+        line = scanner.scanLine();
       }
+
       if (block->num_rows_ > 0) {
         blocks.push_back(block);
       }

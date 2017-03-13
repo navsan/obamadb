@@ -34,10 +34,39 @@ namespace obamadb {
     bool const prev_flag = FLAGS_liblinear;
     FLAGS_liblinear = true;
 
+    std::vector<num_t> first_row = {0, 0.708333, 1, 1,-0.320755,-0.105023,-1,1,-0.419847,-1,-0.225806,0,1,-1};
+    std::vector<num_t> last_row = {0,0.583333,1,1,0.245283,-0.269406,-1,1,-0.435115,1,-0.516129,0,1,-1};
+
     std::vector<SparseDataBlock<num_t>*> blocks = IO::loadBlocks<num_t>("heart_scale.dat");
     ASSERT_EQ(1, blocks.size());
-    ASSERT_EQ(269, blocks[0]->num_rows_);
+    ASSERT_EQ(270, blocks[0]->num_rows_);
     ASSERT_EQ(14, blocks[0]->num_columns_);
+
+    svector<num_t> row(0, nullptr);
+    blocks[0]->getRowVector(0, &row);
+    for(int i = 0; i < first_row.size(); i++) {
+      num_t expected = first_row[i];
+      num_t *actual = row.get(i);
+      if (expected == 0.0) {
+        EXPECT_EQ(nullptr, actual);
+      } else {
+        ASSERT_NE(nullptr, actual);
+        EXPECT_NEAR(*actual, expected, 0.001);
+      }
+
+    }
+    blocks[0]->getRowVector(blocks[0]->num_rows_-1, &row);
+    for(int i = 0; i < last_row.size(); i++) {
+      num_t expected = last_row[i];
+      num_t *actual = row.get(i);
+      if (expected == 0.0) {
+        EXPECT_EQ(nullptr, actual);
+      } else {
+        ASSERT_NE(nullptr, actual);
+        EXPECT_NEAR(*actual, expected, 0.001);
+      }
+
+    }
 
     FLAGS_liblinear = prev_flag;
   }
