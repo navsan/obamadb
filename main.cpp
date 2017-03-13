@@ -5,7 +5,6 @@
 #include "storage/MCTask.h"
 #include "storage/MLTask.h"
 #include "storage/SVMTask.h"
-#include "storage/tests/StorageTestHelpers.h"
 
 #include <algorithm>
 #include <gflags/gflags.h>
@@ -26,8 +25,6 @@ DEFINE_validator(threads, &ValidateThreads);
 
 DEFINE_bool(measure_convergence, false, "If true, an observer thread will collect copies of the model"
   " as the algorithm does its first iteration. Useful for the SVM.");
-
-DEFINE_bool(liblinear, false, "If true, the dataset will be loaded as a liblinear-format dataset.");
 
 static bool ValidateAlgorithm(const char* flagname, std::string const & value) {
   std::vector<std::string> valid_algorithms = {"svm", "mc"};

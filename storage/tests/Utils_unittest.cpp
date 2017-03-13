@@ -4,8 +4,6 @@
 #include "storage/IO.h"
 #include "storage/Utils.h"
 
-#include "storage/tests/StorageTestHelpers.h"
-
 #include <cstdlib>
 #include <memory>
 #include <unordered_set>
