@@ -11,6 +11,7 @@
 #include <set>
 
 #include "glog/logging.h"
+#include "gflags/gflags.h"
 
 #include "storage/IO.h"
 #include "DenseDataBlock.h"

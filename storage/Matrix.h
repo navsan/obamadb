@@ -77,6 +77,37 @@ namespace obamadb {
     }
 
     /**
+     * Samples a percentage of the table and returns a new matrix which is some size of the original.
+     * Samples with replacement.
+     * @param percent
+     * @return A user owned matrix of sampled entries
+     */
+    Matrix* sample(float percent) const {
+      std::vector<SparseDataBlock<num_t> *> blocks;
+      int rows_per_block = percent * (static_cast<float>(numRows_)/this->blocks_.size());
+      DCHECK_GT(rows_per_block, 0);
+      auto insertInto = [&](svector<num_t> const & src,
+                            SparseDataBlock<num_t> * &dst) {
+        if (!dst->appendRow(src)) {
+          blocks.push_back(dst);
+          dst = new SparseDataBlock<num_t>();
+          CHECK(dst->appendRow(src));
+        }
+      };
+      svector<num_t> rand_row;
+      SparseDataBlock<num_t> * curr_block = new SparseDataBlock<num_t>();
+      for(auto & block : this->blocks_) {
+        for (int row = 0; row < rows_per_block; row++) {
+          int rrow = rand() % block->num_rows_;
+          block->getRowVector(rrow, &rand_row);
+          insertInto(rand_row, curr_block);
+        }
+      }
+      blocks.push_back(curr_block);
+      return new Matrix(blocks);
+    }
+
+    /**
      * Appends the row to the last block in the matrix's list of datablocks. If it does not fit, a new data
      * block will be created.
      * @param row Row to append

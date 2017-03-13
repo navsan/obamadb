@@ -269,10 +269,15 @@ namespace obamadb {
     PRINT_TIMING({mat_train.reset(IO::load(FLAGS_train_file));});
     VSTREAM(*mat_train);
 
-    VPRINTF("Loading: %s\n", FLAGS_test_file.c_str());
-    PRINT_TIMING({mat_test.reset(IO::load(FLAGS_test_file));});
-    VSTREAM(*mat_test);
-
+    if (FLAGS_test_file.size() == 0) {
+      VPRINT("Test file not specified, using a sample of the train file\n");
+      mat_test.reset(mat_train->sample(0.2));
+      VSTREAM(*mat_test);
+    } else {
+      VPRINTF("Loading: %s\n", FLAGS_test_file.c_str());
+      PRINT_TIMING({mat_test.reset(IO::load(FLAGS_test_file));});
+      VSTREAM(*mat_test);
+    }
     CHECK_EQ(mat_test->numColumns_, mat_train->numColumns_)
       << "Train and Test matrices had differing number of features.";
 
