@@ -5,6 +5,8 @@
 
 #include <chrono>
 #include <cmath>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "glog/logging.h"
 #include "gflags/gflags.h"
@@ -71,62 +73,139 @@ namespace obamadb {
 
   };
 
-  class QuickRandom {
+  inline int randomInt() {
+    return rand();
+  }
+
+  inline float randomFloat() {
+    return static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  }
+
+  class Scanner {
   public:
-    QuickRandom() : x(15486719), y(19654991), z(16313527), char_index(0) {
-      LOG_IF(FATAL, sizeof(std::uint64_t) != 8) << "Expect 64_t to be 8 bytes long.";
-      // warm up 5 cycles.
-      for (int i = 0; i < 5; i++) {
-        nextInt64();
+    Scanner(std::string const & file_name) :
+      fd_(-1),
+      buff_(new char[BUFFER_SIZE + 1]),
+      scan_ptr_(nullptr),
+      last_delimiter_('\0') {
+      fd_ = open(file_name.c_str(), O_RDONLY);
+      CHECK_NE(fd_, -1) << "Error opening file: " << file_name;
+#ifndef __APPLE__
+      // Advise the kernel of our access pattern.
+      posix_fadvise(fd, 0, 0, 1);  // FDADVICE_SEQUENTIAL
+#endif
+      readChunk();
+    }
+
+    ~Scanner() {
+      delete[] buff_;
+      close(fd_);
+    }
+
+    double nextDouble() {
+      if (eof_) {
+        return 0;
+      }
+      return readDouble();
+    }
+
+    bool eof() const {
+      return eof_;
+    }
+
+    char lastDelimiter() const {
+      return last_delimiter_;
+    }
+
+    std::vector<double> scanLine() {
+      std::vector<double> line;
+      scanToFloat();
+      while(*scan_ptr_ != '\n' && !eof_) {
+        line.push_back(nextDouble());
+      }
+      return line;
+    }
+
+  private:
+    double readDouble() {
+      scanToFloat();
+      double value = 0;
+      bool decimal = false;
+      int decimal_places = 0;
+      bool negative = false;
+      char c = *scan_ptr_;
+      DCHECK(isDecimalChar(c));
+      while (isDecimalChar(c)) {
+        if (c == '-') {
+          DCHECK_EQ(negative, false);
+          negative = true;
+        } else if (c == '+') {
+          DCHECK_EQ(negative, false);
+        } else if (c == '.') {
+          DCHECK_EQ(decimal, false);
+          decimal = true;
+        } else {
+          char val = c - 48;
+          DCHECK_LT(val, 10);
+          value *= 10;
+          value += val;
+          decimal_places += decimal;
+        }
+        c = nextChar();
+      }
+      value = value / pow(10,decimal_places);
+      if (negative) {
+        value *= -1;
+      }
+      return value;
+    }
+
+    char nextChar() {
+      scan_ptr_++;
+      if (*scan_ptr_ == '\0') {
+        readChunk();
+        scan_ptr_ = buff_;
+      }
+      DCHECK_NE(buff_ + BUFFER_SIZE, scan_ptr_) << "Scanner over the end of the buffer";
+      return *scan_ptr_;
+    }
+
+    void scanToFloat() {
+      char c = *scan_ptr_;
+      while (!isDecimalChar(c) && !eof_) {
+        last_delimiter_ = c;
+        c = nextChar();
       }
     }
 
-    inline std::uint64_t nextInt64() {
-      // TODO: there are many other ways to generate random numbers,
-      // http://stackoverflow.com/questions/1640258/need-a-fast-random-generator-for-c
-      // has several more techniques to choose from and includes this one.
-      std::uint64_t t;
-      x ^= x << 16;
-      x ^= x >> 5;
-      x ^= x << 1;
-
-      t = x;
-      x = y;
-      y = z;
-      z = t ^ x ^ y;
-
-      return z;
+    inline bool isDecimalChar(char c) {
+      return (c >= 48 && c < 58) ||
+             (c == '.') ||
+             (c == '-') ||
+             (c == '+');
     }
 
-    inline std::uint32_t nextInt32() {
-      if (char_index == 0) {
-        char_index = 4;
-        return *reinterpret_cast<uint32_t *>(&z);
-      } else if (char_index == 4) {
-        char_index = 8;
-        return reinterpret_cast<uint32_t *>(&z)[1];
-      } else {
-        nextInt64();
-        char_index = 4;
-        return *reinterpret_cast<uint32_t *>(&z);
-      }
+    /**
+     *
+     * @param offset Offset into the buffer to read.
+     * @return True if we read in more data. False if EOF.
+     */
+    void readChunk() {
+      int bytes_read = read(fd_, buff_, BUFFER_SIZE);
+      CHECK_NE(bytes_read, -1) << "Error reading file";
+      buff_[bytes_read] = '\0';
+      scan_ptr_ = buff_;
+      eof_ = bytes_read == 0;
     }
 
-    inline float nextFloat() {
-      // this operation is faster than trying to use a custom random() call.
-      return static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    }
+    int fd_;
+    char *buff_;
+    char *scan_ptr_;
+    char last_delimiter_;
 
-    inline unsigned char nextChar() {
-      if (char_index >= 8) {
-        nextInt64();
-        char_index = 0;
-      }
-      return reinterpret_cast<unsigned char *>(&z)[char_index++];
-    }
+    bool eof_;
 
-    std::uint64_t x, y, z;
-    int char_index;
+    static std::size_t const BUFFER_SIZE;
   };
 
   namespace stats {

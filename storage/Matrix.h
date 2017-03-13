@@ -13,25 +13,6 @@
 
 namespace obamadb {
 
-  namespace {
-
-    inline num_t sparseDot(const svector<num_t> & a, const svector<signed char> & b) {
-      int ai = 0, bi = 0;
-      num_t sum_prod = 0;
-      while(ai < a.num_elements_ && bi < b.num_elements_) {
-        if(a.index_[ai] == b.index_[bi]) {
-          sum_prod += a.values_[ai] * b.values_[bi];
-          ai++; bi++;
-        } else if (a.index_[ai] < b.index_[bi]) {
-          ai++;
-        } else {
-          bi++;
-        }
-      }
-      return sum_prod;
-    }
-  }
-
   class Matrix {
   public:
     /**
@@ -77,6 +58,37 @@ namespace obamadb {
     }
 
     /**
+     * Samples a percentage of the table and returns a new matrix which is some size of the original.
+     * Samples with replacement.
+     * @param percent
+     * @return A user owned matrix of sampled entries
+     */
+    Matrix* sample(float percent) const {
+      std::vector<SparseDataBlock<num_t> *> blocks;
+      int rows_per_block = percent * (static_cast<float>(numRows_)/this->blocks_.size());
+      DCHECK_GT(rows_per_block, 0);
+      auto insertInto = [&](svector<num_t> const & src,
+                            SparseDataBlock<num_t> * &dst) {
+        if (!dst->appendRow(src)) {
+          blocks.push_back(dst);
+          dst = new SparseDataBlock<num_t>();
+          CHECK(dst->appendRow(src));
+        }
+      };
+      svector<num_t> rand_row;
+      SparseDataBlock<num_t> * curr_block = new SparseDataBlock<num_t>();
+      for(auto & block : this->blocks_) {
+        for (int row = 0; row < rows_per_block; row++) {
+          int rrow = rand() % block->num_rows_;
+          block->getRowVector(rrow, &rand_row);
+          insertInto(rand_row, curr_block);
+        }
+      }
+      blocks.push_back(curr_block);
+      return new Matrix(blocks);
+    }
+
+    /**
      * Appends the row to the last block in the matrix's list of datablocks. If it does not fit, a new data
      * block will be created.
      * @param row Row to append
@@ -118,104 +130,6 @@ namespace obamadb {
       int total_threads_;
       std::mutex result_lock_;
     };
-
-    static void parallelMultiplyHelper(int thread_id, void* state) {
-      PMultiState *pstate = reinterpret_cast<PMultiState *>(state);
-      const int numBlocks = pstate->matA_->blocks_.size();
-      const int blocks_per_thread = numBlocks / pstate->total_threads_;
-      int block_lower_lim = blocks_per_thread * thread_id;
-      int block_upper_lim = std::min(blocks_per_thread * (thread_id + 1), numBlocks);
-
-      const std::vector<SparseDataBlock<num_t> *> &blocks_ = pstate->matA_->blocks_;
-      svector<num_t> row_a(0, nullptr);
-      svector<signed char> row_b(0, nullptr);
-
-      SparseDataBlock<num_t> *result_block = new SparseDataBlock<num_t>();
-      for (int i = block_lower_lim; i < block_upper_lim; i++) {
-        const SparseDataBlock<num_t> *block = blocks_[i];
-        for (int j = 0; j < block->getNumRows(); j++) {
-          svector<num_t> row_c;
-          block->getRowVectorFast(j, &row_a);
-          for (int k = 0; k < pstate->matB_->getNumRows(); k++) {
-            pstate->matB_->getRowVectorFast(k, &row_b);
-            num_t f = sparseDot(row_a, row_b);
-            if (f != 0) {
-              row_c.push_back(k, f * pstate->kNormalizingConstant_);
-            }
-          }
-          *row_c.class_ = *row_a.class_;
-          if (!result_block->appendRow(row_c)) {
-            pstate->result_lock_.lock();
-            pstate->result_->addBlock(result_block);
-            pstate->result_lock_.unlock();
-            result_block = new SparseDataBlock<num_t>();
-          }
-        }
-      }
-
-      if (result_block->getNumRows() != 0) {
-        pstate->result_lock_.lock();
-        pstate->result_->addBlock(result_block);
-        pstate->result_lock_.unlock();
-      }
-    }
-
-    /**
-     * Do a row-by-row multiplication (normally we do a row-column multiplication, but here we
-     * are much better optimized for row wise multiplications and so we do this method.
-     *
-     * The operation A * B is equivilent to A rowwise* B' where B' is the transpose of B.
-     * @param mat
-     * @param kNormalizingConstant An optional constant to mutliply each memeber by (chose 1 if not desired)
-     * @return Caller-owned matrix result of the multiplication.
-     */
-    Matrix* matrixMultiplyRowWise(const SparseDataBlock<signed char>* mat,
-                                  num_t kNormalizingConstant) const {
-      Matrix *result = new Matrix();
-      // Hack to make this parallel
-      int numThreads = std::min((size_t)threading::numCores(), blocks_.size());
-      DLOG(INFO) << "Parallelizing matrix multiplication with " << numThreads << " threads";
-
-      PMultiState * shared_state = new PMultiState(this, mat, kNormalizingConstant, result, numThreads);
-      ThreadPool tp(Matrix::parallelMultiplyHelper, shared_state, numThreads);
-      tp.begin();
-      tp.cycle();
-      tp.stop();
-
-      return result;
-    }
-
-    /**
-     * Performs a random projection multiplication on the matrix and returns a new compressed
-     * version of the matrix.
-     *
-     * This corresponds to the creating the matrix b in b = (1/sqrt(k))A*R where R is the random
-     * projections matrix with i.i.d entries, zero mean, and constant variance.
-     *
-     * @return the compressed matrix (b), and the projection matrix (r) used to generate it.
-     */
-    std::pair<Matrix*, SparseDataBlock<signed char>*> randomProjectionsCompress(int compressionConstant) const {
-      // TODO: How do we choose compressionConstant? Corresponds to k in the Very Sparse Random Projections
-      std::unique_ptr<SparseDataBlock<signed char>> projection(
-        GetRandomProjectionMatrix(numColumns_, compressionConstant));
-      return
-        {
-          this->matrixMultiplyRowWise(projection.get(), compressionConstant),
-          projection.release()
-        };
-    }
-
-    /**
-     * Uses a given projection matrix to perform compression
-     *
-     * @param projection_mat
-     * @param compressionConstant
-     * @return
-     */
-    Matrix* randomProjectionsCompress(SparseDataBlock<signed char>* projection_mat, int compressionConstant) const {
-      const num_t kNormalizingConstant = 1.0 / sqrt(compressionConstant);
-      return matrixMultiplyRowWise(projection_mat, compressionConstant);
-    }
 
     /**
      * Creates a random matrix which should be linearly seperable.

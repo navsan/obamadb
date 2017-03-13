@@ -1,8 +1,12 @@
+#include "storage/IO.h"
+
 #include "storage/exvector.h"
 #include "storage/DataBlock.h"
+#include "DenseDataBlock.h"
 #include "storage/Matrix.h"
 #include "storage/MLTask.h"
 #include "storage/SparseDataBlock.h"
+#include "storage/Utils.h"
 
 #include <cmath>
 #include <iostream>
@@ -11,9 +15,9 @@
 #include <set>
 
 #include "glog/logging.h"
+#include "gflags/gflags.h"
 
-#include "storage/IO.h"
-#include "DenseDataBlock.h"
+DECLARE_bool(liblinear);
 
 namespace obamadb {
 
@@ -249,6 +253,44 @@ namespace obamadb {
     }
 
     /**
+     * Loads a libsvm style file into a sparse representation.
+     * class (index:value )*\n
+     */
+    void loadLibsvmSparseBlocks(std::string const & file_name,
+                                std::vector<obamadb::SparseDataBlock<num_t>*> &blocks) {
+
+      // Helper function to add row to block.
+      auto insertHelper = [&blocks](
+        obamadb::SparseDataBlock<num_t>* &block,
+        obamadb::svector<num_t> &sparse_row) {
+        if (!block->appendRow(sparse_row)) {
+          blocks.push_back(block);
+          block = new SparseDataBlock<num_t>();
+        }
+      };
+
+      obamadb::SparseDataBlock<num_t>* block = new obamadb::SparseDataBlock<num_t>();
+      obamadb::svector<num_t> sparse_row;
+
+      Scanner scanner(file_name);
+      std::vector<double> line = scanner.scanLine();
+      while(line.size() > 0) {
+        DCHECK_EQ(1, line.size() % 2);
+        sparse_row.setClassification(line[0]);
+        for (int i = 1; i < line.size(); i+=2) {
+          sparse_row.push_back(line[i], line[i+1]);
+        }
+        insertHelper(block, sparse_row);
+        sparse_row.clear();
+        line = scanner.scanLine();
+      }
+
+      if (block->num_rows_ > 0) {
+        blocks.push_back(block);
+      }
+    }
+
+    /**
      * Load examples as an unordered matrix.
      * Scans a TSV file of the format
      * int1\tint2\tint3\n
@@ -265,7 +307,7 @@ namespace obamadb {
       char const * fname = file_name.c_str();
       UnorderedMatrix* mat = new UnorderedMatrix();
 
-      static const std::size_t BUFFER_SIZE = 16 * 1024;
+      std::size_t const BUFFER_SIZE = 16 * 1024;
       int fd = open(fname, O_RDONLY);
       CHECK_NE(fd, -1) << "Error opening file: " << fname;
 #ifndef __APPLE__
@@ -321,7 +363,6 @@ namespace obamadb {
       }
 
       return mat;
-
     }
 
     template<>
@@ -337,8 +378,13 @@ namespace obamadb {
       infile.open(file_name.c_str(), std::ios::binary | std::ios::in);
       CHECK(infile.is_open());
 
-      DLOG(INFO) << "Loading file as SVM-like matrix";
-      loadSvmBlocks(infile, blocks);
+      if (FLAGS_liblinear) {
+        DLOG(INFO) << "Loading file as liblinear style dataset";
+        loadLibsvmSparseBlocks(file_name, blocks);
+      } else {
+        DLOG(INFO) << "Loading file as SVM-like matrix";
+        loadSvmBlocks(infile, blocks);
+      }
 
       infile.close();
       return blocks;

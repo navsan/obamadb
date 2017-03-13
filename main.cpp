@@ -27,6 +27,8 @@ DEFINE_validator(threads, &ValidateThreads);
 DEFINE_bool(measure_convergence, false, "If true, an observer thread will collect copies of the model"
   " as the algorithm does its first iteration. Useful for the SVM.");
 
+DEFINE_bool(liblinear, false, "If true, the dataset will be loaded as a liblinear-format dataset.");
+
 static bool ValidateAlgorithm(const char* flagname, std::string const & value) {
   std::vector<std::string> valid_algorithms = {"svm", "mc"};
   if (std::find(valid_algorithms.begin(), valid_algorithms.end(), value) != valid_algorithms.end()) {
@@ -281,10 +283,15 @@ namespace obamadb {
     PRINT_TIMING({mat_train.reset(IO::load(FLAGS_train_file));});
     VSTREAM(*mat_train);
 
-    VPRINTF("Loading: %s\n", FLAGS_test_file.c_str());
-    PRINT_TIMING({mat_test.reset(IO::load(FLAGS_test_file));});
-    VSTREAM(*mat_test);
-
+    if (FLAGS_test_file.size() == 0) {
+      VPRINT("Test file not specified, using a sample of the train file\n");
+      mat_test.reset(mat_train->sample(0.2));
+      VSTREAM(*mat_test);
+    } else {
+      VPRINTF("Loading: %s\n", FLAGS_test_file.c_str());
+      PRINT_TIMING({mat_test.reset(IO::load(FLAGS_test_file));});
+      VSTREAM(*mat_test);
+    }
     CHECK_EQ(mat_test->numColumns_, mat_train->numColumns_)
       << "Train and Test matrices had differing number of features.";
 
@@ -316,7 +323,7 @@ namespace obamadb {
   void printMCEpochStats(int epoch, double time, MCState const * state, UnorderedMatrix const * probe_mat) {
     if (FLAGS_verbose) {
       double rmse = MCTask::rmse(state, probe_mat);
-      printf("%d,%.6f,%.2f\n",epoch, time, rmse);
+      printf("%d,%.6f,%.4f\n",epoch, time, rmse);
     }
   }
 

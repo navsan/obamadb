@@ -64,13 +64,15 @@ target_link_libraries(obamadb_storage_exvector
         glog)
 target_link_libraries(obamadb_storage_IO
         glog
+        gflags
         obamadb_storage_DataBlock
         obamadb_storage_exvector
         obamadb_storage_Matrix
         obamadb_storage_MLTask
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants
-        obamadb_storage_UnorderedMatrix)
+        obamadb_storage_UnorderedMatrix
+        obamadb_storage_Utils)
 target_link_libraries(obamadb_storage_Matrix
         glog
         obamadb_storage_DataBlock
@@ -132,6 +134,7 @@ add_executable(IO_unittest
 target_link_libraries(IO_unittest
         gtest
         gtest_main
+        gflags
         obamadb_storage_DataBlock
         obamadb_storage_exvector
         obamadb_storage_IO
@@ -145,6 +148,7 @@ add_executable(Matrix_unittest
 target_link_libraries(Matrix_unittest
         gtest
         gtest_main
+        gflags
         obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_Matrix
@@ -182,3 +186,4 @@ add_test(Utils_unittest Utils_unittest)
 
 configure_file(tests/iris.dat iris.dat COPYONLY)
 configure_file(tests/sparse.dat sparse.dat COPYONLY)
+configure_file(tests/heart_scale.dat heart_scale.dat COPYONLY)

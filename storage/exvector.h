@@ -274,6 +274,14 @@ namespace obamadb {
       }
     }
 
+    void setClassification(T classification) {
+      if (owns_memory_) {
+        memcpy(class_, &classification, sizeof(T));
+      } else {
+        *class_ = classification;
+      }
+    }
+
     T *getClassification() {
       return class_;
     }

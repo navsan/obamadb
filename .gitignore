@@ -3,6 +3,11 @@ ObamaDb-osx
 storage/*.dat
 data/RCV1.*.tsv
 third_party/
+.DS_Store
+.idea
+cmake-*
+test_results
+third_party/glog/*
 
 # Prerequisites
 *.d

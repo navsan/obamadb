@@ -51,31 +51,6 @@ namespace obamadb {
     EXPECT_EQ(2, *vec3.get(200));
     EXPECT_EQ(*vec.class_, *vec3.class_);
   }
-
-  TEST(UtilsTest, TestRandomFloat) {
-    QuickRandom qr;
-    int totalFloats = 1000;
-    int negatives = 0;
-    int repeats = 0;
-    std::unordered_set<float> alreadySeen;
-    for(int i = 0; i < totalFloats; i++) {
-      float next = qr.nextFloat();
-      if (alreadySeen.find(next) != alreadySeen.end()) {
-        repeats++;
-      } else {
-        alreadySeen.insert(next);
-      }
-      if(next < 0) {
-        negatives++;
-      }
-      ASSERT_GE(1.0f, std::abs(next));
-    }
-    // Could also check the container size.
-    // This could probably be even smaller:
-    EXPECT_GE(totalFloats * 0.01, repeats);
-    EXPECT_GE(totalFloats * 0.02, std::abs((totalFloats/2) - negatives));
-  }
-
 }
 
 

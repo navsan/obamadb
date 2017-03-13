@@ -12,22 +12,24 @@
 #include <memory>
 
 DEFINE_string(core_affinities, "-1", "");
+DEFINE_bool(liblinear, false, "");
 
 namespace obamadb {
 
-  // 0.7 sparsity says 70% elements are zero
+  /**
+   * Creates a random matrix with a desired sparsity.
+   * 0.7 sparsity says 70% elements are zero
+   */
   Matrix* getRandomSparseMatrix(int m, int n, double sparsity) {
     Matrix *mat = new Matrix();
-    QuickRandom qr;
-    std::uint32_t sparsity_lim = 0;
-    sparsity_lim -= 1;
+    int sparsity_lim = INT_MAX;
     sparsity_lim *= sparsity;
 
     svector<num_t> row;
     for (int i = 0; i < m; i++) {
       for (int j = 0; j < n; j++) {
-        if (qr.nextInt32() > sparsity_lim) {
-          row.push_back(j, qr.nextInt32()/10000.0);
+        if (std::abs(randomInt()) > sparsity_lim) {
+          row.push_back(j, randomFloat());
         }
       }
       mat->addRow(row);
@@ -56,20 +58,10 @@ namespace obamadb {
     EXPECT_EQ(block->getNumRows(), mat2.numRows_);
   }
 
-  TEST(TestMatrix, TestProjection) {
-    std::unique_ptr<Matrix> mat(getRandomSparseMatrix(1000,1000, 0.9));
-    std::pair<Matrix*, SparseDataBlock<signed char>*> res_pair = mat->randomProjectionsCompress(mat->numColumns_ * 0.5);
-    std::unique_ptr<Matrix> compressed_mat(res_pair.first);
-    const int kCompressionConstant = 0.5 * mat->numColumns_;
-    std::vector<SparseDataBlock<signed char>*> proj_vec = { res_pair.second };
-
-    IO::save<signed char>("/tmp/matB.csv", proj_vec, 1);
-    IO::save("/tmp/matA.csv", *mat);
-    IO::save("/tmp/matR.csv", *compressed_mat);
-  }
-
-  // TODO: this method+test should be removed as it's obsolete.
-  TEST(TestMatrix, TestRandomMatrix) {
+  /**
+   * Tests the sparsity method.
+   */
+  TEST(TestMatrix, TestGetSparsity) {
     int m = 1000, n = 100;
     double sparsity = 0.9, tolerance = 0.03;
     std::unique_ptr<Matrix> mat(getRandomSparseMatrix(m,n, sparsity));
@@ -102,6 +94,5 @@ namespace obamadb {
       }
     }
     EXPECT_GE(((int)mat->numRows_/2) * tolerance, (int)(mat->numRows_/2) - numPositive);
-    // TODO test for distributions and seperability
   }
 }
