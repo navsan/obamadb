@@ -42,179 +42,122 @@ DEFINE_int64(rank, 10, "The rank of the LR factoring matrices used in Matrix Com
 
 
 namespace obamadb {
-
-
-  /**
-   * The function which a thread will call once per epoch to record the
-   * model's state change over time.
-   * @param tid Thread id. Not used.
-   * @param observerState Pair<remaining epochs to observe, observer>.
-   */
-  void observerThreadFn(int tid, void* observerState) {
-    (void) tid;
-    ConvergenceObserver* observer =
-      reinterpret_cast<ConvergenceObserver*>(observerState);
-
-    if (observer->cyclesObserved_ > 0) {
-      return;
-    }
-
-    // Loop until the number of waiters is the number of worker threads.
-    int const total_workers = observer->threadPool_->getNumWorkers();
-    while (total_workers > observer->threadPool_->getWaiterCount()) {
-      observer->record();
-      usleep(ConvergenceObserver::kObserverWaitTimeUS);
-    }
-    observer->cyclesObserved_++;
+void printSVMEpochStats(Matrix const* matTrain, Matrix const* matTest,
+                        fvector const& theta, int iteration, float timeTrain) {
+  if (!FLAGS_verbose) {
+    return;
   }
 
-  /**
-   * Allocates Datablocks to DataViews. Dataviews will then be given to threads in the form of tasks.
-   * @param num_threads How many dataviews to allocate and distribute amongst.
-   * @param data_blocks The set of training data.
-   * @return Vector of Dataviews.
-   */
-  template<class T>
-  void allocateBlocks(const int num_threads,
-                      const std::vector<SparseDataBlock<T> *> &data_blocks,
-                      std::vector<std::unique_ptr<DataView>>& views) {
-    CHECK(views.size() == 0) << "Only accepts empty view vectors";
-    CHECK_GE(data_blocks.size(), views.size())
-      << "Partitioned data would not distribute to all threads."
-      << " Use fewer threads.";
+  if (iteration == -1)
+    VPRINT(
+        "epoch, train_time, train_fraction_misclassified, train_RMS_loss, "
+        "test_fraction_misclassified, test_RMS_loss\n");
 
-    for (int i = 0; i < data_blocks.size(); i++) {
-      if (i < num_threads) {
-        views.push_back(std::unique_ptr<DataView>(new DataView()));
-      }
-      SparseDataBlock<T> const *dbptr = data_blocks[i];
-      views[i % num_threads]->appendBlock(dbptr);
+  double const trainRmsLoss = SVMTask::rmsErrorLoss(theta, matTrain->blocks_);
+  double const testRmsLoss = SVMTask::rmsErrorLoss(theta, matTest->blocks_);
+  double const trainFractionMisclassified =
+      SVMTask::fractionMisclassified(theta, matTrain->blocks_);
+  double const testFractionMisclassified =
+      SVMTask::fractionMisclassified(theta, matTest->blocks_);
+
+  printf("%-3d, %.3f, %.4f, %.2f, %.4f, %.2f\n", iteration, timeTrain,
+         trainFractionMisclassified, trainRmsLoss, testFractionMisclassified,
+         testRmsLoss);
+}
+
+/**
+ * @return A vector of the epoch times.
+ */
+std::vector<double> trainSVM(Matrix* mat_train, Matrix* mat_test,
+                             const int trial_num = 0) {
+  SVMHyperParams* svm_params = DefaultSVMHyperParams<num_t>(mat_train->blocks_);
+  DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
+  fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
+
+  // Arguments to the thread pool.
+  std::vector<void*> threadStates;
+  std::vector<std::function<void(int, void*)>> threadFns;
+
+  // Create an observer thread, if specified
+  std::unique_ptr<ConvergenceObserver> observer;
+  if (FLAGS_measure_convergence) {
+    observer.reset(new ConvergenceObserver(&sharedTheta));
+    auto observer_fn = obamadb::observerThreadFn;
+    threadFns.push_back(observer_fn);
+    threadStates.push_back(observer.get());
+  }
+
+  // Create the tasks for the thread pool.
+  // Roughly allocates work.
+  std::vector<std::unique_ptr<DataView>> data_views;
+
+  allocateBlocks(FLAGS_threads, mat_train->blocks_, data_views);
+  // Create tasks
+  auto update_fn = [](int tid, void* state) {
+    SVMTask* task = reinterpret_cast<SVMTask*>(state);
+    task->execute(tid, nullptr);
+  };
+  std::vector<std::unique_ptr<SVMTask>> tasks(FLAGS_threads);
+  for (int i = 0; i < tasks.size(); i++) {
+    tasks[i].reset(
+        new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
+    threadStates.push_back(tasks[i].get());
+    threadFns.push_back(update_fn);
+  }
+
+  ThreadPool tp(threadFns, threadStates);
+
+  // If we are observing convergence, the thread pool must be referenced.
+  if (observer) {
+    observer->threadPool_ = &tp;
+  }
+
+  tp.begin();
+
+  printSVMEpochStats(mat_train, mat_test, sharedTheta, -1, -1);
+  double totalTrainTime = 0.0;
+  std::vector<double> epoch_times;
+  for (int cycle = 0; cycle < FLAGS_num_epochs; cycle++) {
+    auto time_start = std::chrono::steady_clock::now();
+    tp.cycle();
+    auto time_end = std::chrono::steady_clock::now();
+    std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
+    double elapsedTimeSec = (time_ms.count()) / 1e3;
+    totalTrainTime += elapsedTimeSec;
+
+    printSVMEpochStats(mat_train, mat_test, sharedTheta, cycle, elapsedTimeSec);
+    epoch_times.push_back(elapsedTimeSec);
+  }
+  tp.stop();
+
+  if (!FLAGS_verbose) {
+    if (trial_num == 0)
+      std::cout << "train_file, rows, features, sparsity, nnz, num_threads, "
+                   "trial, epoch, train_time\n";
+
+    for (int i = 0; i < epoch_times.size(); ++i) {
+      std::cout << FLAGS_train_file << ", " << mat_train->numRows_ << ", "
+                << mat_train->numColumns_ << ", " << mat_train->getSparsity()
+                << ", " << mat_train->getNNZ() << ", " << (int)FLAGS_threads
+                << ", " << trial_num << ", " << i << ", " << epoch_times[i]
+                << "\n";
     }
   }
 
-  void printSVMEpochStats(Matrix const * matTrain,
-                        Matrix const * matTest,
-                        fvector const & theta,
-                        int iteration,
-                        float timeTrain) {
+  if (FLAGS_measure_convergence) {
+    printf("Convergence Info (%d measures)\n",
+           (int)observer->observedModels_.size());
 
-    if (!FLAGS_verbose) {
-      return;
+    for (int obs_idx = 0; obs_idx < observer->observedModels_.size();
+         obs_idx++) {
+      std::uint64_t timeObs = observer->observedTimes_[obs_idx];
+      fvector const& thetaObs = observer->observedModels_[obs_idx];
+      printf("%d,%llu,%.4f,%.4f\n", (int)FLAGS_threads, timeObs,
+             SVMTask::rmsErrorLoss(thetaObs, mat_test->blocks_),
+             SVMTask::fractionMisclassified(thetaObs, mat_test->blocks_));
     }
-
-    if (iteration == -1)
-      VPRINT("epoch, train_time, train_fraction_misclassified, train_RMS_loss, test_fraction_misclassified, test_RMS_loss\n");
-
-    double const trainRmsLoss = SVMTask::rmsErrorLoss(theta, matTrain->blocks_);
-    double const testRmsLoss = SVMTask::rmsErrorLoss(theta, matTest->blocks_);
-    double const trainFractionMisclassified = SVMTask::fractionMisclassified(theta,matTrain->blocks_);
-    double const testFractionMisclassified = SVMTask::fractionMisclassified(theta,matTest->blocks_);
-
-    printf("%-3d, %.3f, %.4f, %.2f, %.4f, %.2f\n",
-           iteration,
-           timeTrain,
-           trainFractionMisclassified,
-           trainRmsLoss,
-           testFractionMisclassified,
-           testRmsLoss);
   }
-
-  /**
-   * @return A vector of the epoch times.
-   */
-  std::vector<double> trainSVM(Matrix *mat_train,
-                               Matrix *mat_test,
-                               const int trial_num = 0) {
-    SVMParams* svm_params = DefaultSVMParams<num_t>(mat_train->blocks_);
-    DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
-    fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
-
-    // Arguments to the thread pool.
-    std::vector<void*> threadStates;
-    std::vector<std::function<void(int, void*)>> threadFns;
-
-    // Create an observer thread, if specified
-    std::unique_ptr<ConvergenceObserver> observer;
-    if (FLAGS_measure_convergence) {
-      observer.reset(new ConvergenceObserver(&sharedTheta));
-      auto observer_fn = observerThreadFn;
-      threadFns.push_back(observer_fn);
-      threadStates.push_back(observer.get());
-    }
-
-    // Create the tasks for the thread pool.
-    // Roughly allocates work.
-    std::vector<std::unique_ptr<DataView>> data_views;
-
-    allocateBlocks(FLAGS_threads, mat_train->blocks_, data_views);
-    // Create tasks
-    auto update_fn = [](int tid, void* state) {
-      SVMTask* task = reinterpret_cast<SVMTask*>(state);
-      task->execute(tid, nullptr);
-    };
-    std::vector<std::unique_ptr<SVMTask>> tasks(FLAGS_threads);
-    for (int i = 0; i < tasks.size(); i++) {
-      tasks[i].reset(new SVMTask(data_views[i].release(), &sharedTheta, svm_params));
-      threadStates.push_back(tasks[i].get());
-      threadFns.push_back(update_fn);
-    }
-
-    ThreadPool tp(threadFns, threadStates);
-
-    // If we are observing convergence, the thread pool must be referenced.
-    if (observer) {
-      observer->threadPool_ = &tp;
-    }
-
-    tp.begin();
-
-    printSVMEpochStats(mat_train, mat_test, sharedTheta, -1, -1);
-    double totalTrainTime = 0.0;
-    std::vector<double> epoch_times;
-    for (int cycle = 0; cycle < FLAGS_num_epochs; cycle++) {
-      auto time_start = std::chrono::steady_clock::now();
-      tp.cycle();
-      auto time_end = std::chrono::steady_clock::now();
-      std::chrono::duration<double, std::milli> time_ms = time_end - time_start;
-      double elapsedTimeSec = (time_ms.count())/ 1e3;
-      totalTrainTime += elapsedTimeSec;
-
-      printSVMEpochStats(mat_train, mat_test, sharedTheta, cycle, elapsedTimeSec);
-      epoch_times.push_back(elapsedTimeSec);
-    }
-    tp.stop();
-
-    if (!FLAGS_verbose){
-      if (trial_num == 0)
-        std::cout << "train_file, rows, features, sparsity, nnz, num_threads, trial, epoch, train_time\n";
-
-      for (int i = 0; i < epoch_times.size(); ++i) {
-        std::cout << FLAGS_train_file << ", "
-                  << mat_train->numRows_ << ", "
-                  << mat_train->numColumns_ << ", "
-                  << mat_train->getSparsity() << ", "
-                  << mat_train->getNNZ() << ", "
-                  << (int) FLAGS_threads << ", "
-                  << trial_num << ", "
-                  << i << ", "
-                  << epoch_times[i] << "\n";
-      }
-    }
-
-    if (FLAGS_measure_convergence) {
-      printf("Convergence Info (%d measures)\n", (int)observer->observedModels_.size());
-
-      for (int obs_idx = 0; obs_idx < observer->observedModels_.size(); obs_idx++) {
-        std::uint64_t timeObs = observer->observedTimes_[obs_idx];
-        fvector const & thetaObs = observer->observedModels_[obs_idx];
-        printf("%d,%llu,%.4f,%.4f\n",
-               (int)FLAGS_threads,
-               timeObs,
-               SVMTask::rmsErrorLoss(thetaObs, mat_test->blocks_),
-               SVMTask::fractionMisclassified(thetaObs, mat_test->blocks_));
-      }
-    }
-    return epoch_times;
+  return epoch_times;
   }
 
   void runSvmExperiment() {

@@ -13,8 +13,8 @@ namespace obamadb {
   /**
    * Single params shared between many SVM tasks/workers.
    */
-  struct SVMParams {
-    SVMParams(float mu,
+  struct SVMHyperParams {
+    SVMHyperParams(float mu,
               float step_size,
               float step_decay)
       : mu(mu),
@@ -32,7 +32,7 @@ namespace obamadb {
   public:
     SVMTask(DataView *dataView,
             fvector *sharedTheta,
-            SVMParams *sharedParams)
+            SVMHyperParams *sharedParams)
       : MLTask(dataView),
         shared_theta_(sharedTheta),
         shared_params_(sharedParams) {}
@@ -77,7 +77,7 @@ namespace obamadb {
     static double rmsErrorLoss(const fvector &theta, std::vector<SparseDataBlock<num_t> *> const &blocks);
 
     fvector *shared_theta_;
-    SVMParams *shared_params_;
+    SVMHyperParams *shared_params_;
 
     DISABLE_COPY_AND_ASSIGN(SVMTask);
   };
@@ -87,8 +87,8 @@ namespace obamadb {
  * @return Caller-owned SVM params.
  */
   template<class T>
-  SVMParams *DefaultSVMParams(std::vector<SparseDataBlock<T> *> &all_blocks) {
-    SVMParams *params = new SVMParams(1, 0.1, 0.99);
+  SVMHyperParams *DefaultSVMHyperParams(std::vector<SparseDataBlock<T> *> &all_blocks) {
+    SVMHyperParams *params = new SVMHyperParams(1, 0.1, 0.99);
 
     int dim = 0;
     // count the number of members of each column
