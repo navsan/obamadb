@@ -1,10 +1,11 @@
+#include "ml/ConvergenceObserver.h"
+#include "ml/MCTask.h"
+#include "ml/MLTask.h"
+#include "ml/SVMTask.h"
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/IO.h"
 #include "storage/Matrix.h"
-#include "storage/MCTask.h"
-#include "storage/MLTask.h"
-#include "storage/SVMTask.h"
 #include "utils/LogUtils.h"
 #include "utils/ValidationUtils.h"
 
@@ -42,39 +43,6 @@ DEFINE_int64(rank, 10, "The rank of the LR factoring matrices used in Matrix Com
 
 namespace obamadb {
 
-  /**
-   * Used to snoop on the inter-epoch values of the model.
-   */
-  class ConvergenceObserver {
-  public:
-    ConvergenceObserver(fvector const * const sharedTheta) :
-      model_ref_(sharedTheta),
-      observedTimes_(),
-      observedModels_(),
-      cyclesObserved_(0),
-      threadPool_(nullptr) {}
-
-    void record() {
-      auto current_time = std::chrono::steady_clock::now();
-      observedTimes_.push_back(current_time.time_since_epoch().count());
-      observedModels_.push_back(*model_ref_);
-    }
-
-    int size() {
-      CHECK_EQ(observedModels_.size(), observedTimes_.size());
-      return observedModels_.size();
-    }
-
-    static int kObserverWaitTimeUS; // Time between observation captures.
-
-    fvector const * const model_ref_;
-    std::vector<std::uint64_t> observedTimes_;
-    std::vector<fvector> observedModels_;
-    int cyclesObserved_;
-    ThreadPool * threadPool_;
-  };
-
-  int ConvergenceObserver::kObserverWaitTimeUS = 1000;
 
   /**
    * The function which a thread will call once per epoch to record the

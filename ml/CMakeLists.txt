@@ -1,0 +1,29 @@
+add_library(obamadb_ml_MCTask
+        MCTask.cpp
+        MCTask.h)
+add_library(obamadb_ml_MLTask
+        MLTask.cpp
+        MLTask.h)
+add_library(obamadb_ml_SVMTask
+        SVMTask.cpp
+        SVMTask.h)
+target_link_libraries(obamadb_ml_MCTask
+        glog
+        obamadb_storage_DenseDataBlock
+        obamadb_storage_exvector
+        obamadb_ml_MLTask
+        obamadb_storage_UnorderedMatrix
+        obamadb_storage_Utils)
+target_link_libraries(obamadb_ml_MLTask
+        glog
+        obamadb_storage_DataBlock
+        obamadb_storage_exvector
+        obamadb_storage_SparseDataBlock
+        obamadb_storage_Utils)
+target_link_libraries(obamadb_ml_SVMTask
+        glog
+        obamadb_storage_DataBlock
+        obamadb_storage_exvector
+        obamadb_ml_MLTask
+        obamadb_storage_SparseDataBlock
+        obamadb_storage_Utils)

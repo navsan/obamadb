@@ -1,4 +1,4 @@
-#include "storage/MLTask.h"
+#include "ml/MLTask.h"
 
 namespace obamadb {
   namespace ml {

@@ -29,7 +29,4 @@ bool ValidateAlgorithm(const char* flagname, std::string const & value) {
   }
 }
 
-
-
-
 #endif // #ifndef OBAMADB_VALIDATIONUTILS_H_

@@ -1,10 +1,10 @@
 #ifndef OBAMADB_SVMTASK_H
 #define OBAMADB_SVMTASK_H
 
+#include "ml/MLTask.h"
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/exvector.h"
-#include "storage/MLTask.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
 

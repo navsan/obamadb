@@ -34,6 +34,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party)
 
 # Include libraries
 #
+add_subdirectory(ml)
 add_subdirectory(storage)
 
 add_executable(obamadb_main main.cpp)
@@ -46,6 +47,6 @@ target_link_libraries(obamadb_main
         obamadb_storage_SparseDataBlock
         obamadb_storage_StorageConstants
         obamadb_storage_ThreadPool
-        obamadb_storage_MCTask
-        obamadb_storage_MLTask
-        obamadb_storage_SVMTask)
+        obamadb_ml_MCTask
+        obamadb_ml_MLTask
+        obamadb_ml_SVMTask)

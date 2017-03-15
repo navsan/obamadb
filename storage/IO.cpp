@@ -1,17 +1,16 @@
 #include "storage/IO.h"
 
+#include "glog/logging.h"
+#include "ml/MLTask.h"
 #include "storage/exvector.h"
 #include "storage/DataBlock.h"
 #include "storage/DenseDataBlock.h"
 #include "storage/Matrix.h"
-#include "storage/MLTask.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
 
 #include <cmath>
 #include <set>
-
-#include "glog/logging.h"
 
 namespace obamadb {
 

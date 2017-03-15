@@ -1,11 +1,11 @@
+#include "ml/SVMTask.h"
+
+#include "ml/MLTask.h"
 #include "storage/DataBlock.h"
 #include "storage/DataView.h"
 #include "storage/exvector.h"
-#include "storage/MLTask.h"
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
-
-#include "storage/SVMTask.h"
 
 // comment this out depending on the test you are doing:
 #define USE_HINGE 0
