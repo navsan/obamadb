@@ -109,32 +109,32 @@ namespace obamadb {
       return readDouble();
     }
 
-    bool eof() const {
-      return eof_;
-    }
-
-    char lastDelimiter() const {
-      return last_delimiter_;
-    }
-
+    /**
+     * Scans a line of input. All sequences of non-decimal characters ([^0-9.-]) are treated
+     * as delimiters between double values. Reads up through the newline.
+     * @return A vector of doubles.
+     */
     std::vector<double> scanLine() {
       std::vector<double> line;
-      scanToFloat();
-      while(*scan_ptr_ != '\n' && !eof_) {
+      scanToDouble();
+      while(!eof_) {
         line.push_back(nextDouble());
+        scanToDouble();
+        if (last_delimiter_ == '\n')
+          break;
       }
       return line;
     }
 
   private:
     double readDouble() {
-      scanToFloat();
+      scanToDouble();
       double value = 0;
       bool decimal = false;
       int decimal_places = 0;
       bool negative = false;
       char c = *scan_ptr_;
-      DCHECK(isDecimalChar(c));
+      DCHECK(isDecimalChar(c)) << "no double available for scan.";
       while (isDecimalChar(c)) {
         if (c == '-') {
           DCHECK_EQ(negative, false);
@@ -154,9 +154,8 @@ namespace obamadb {
         c = nextChar();
       }
       value = value / pow(10,decimal_places);
-      if (negative) {
+      if (negative)
         value *= -1;
-      }
       return value;
     }
 
@@ -170,7 +169,7 @@ namespace obamadb {
       return *scan_ptr_;
     }
 
-    void scanToFloat() {
+    void scanToDouble() {
       char c = *scan_ptr_;
       while (!isDecimalChar(c) && !eof_) {
         last_delimiter_ = c;

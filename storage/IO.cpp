@@ -118,6 +118,20 @@ namespace obamadb {
     }
 
     /**
+     * Liblinear uses either a (-1,1) or (1,2) encoding. We convert these into
+     * (-1,1) encoding for convenience.
+     * @param liblinear_class
+     * @return (-1,1) encoding scheme.
+     */
+    num_t liblinearClassHelper(double liblinear_class) {
+      DCHECK_EQ(liblinear_class, floor(liblinear_class)) << "Non whole-number class";
+      if (liblinear_class == -1.0 || liblinear_class == 1)
+        return (num_t) liblinear_class;
+      DCHECK_EQ(2.0, liblinear_class) << "unknown class scheme";
+      return (num_t) -1.0;
+    }
+
+    /**
      * Loads blocks which are in the liblinear format
      * class index:value index:value ...
      * @param file_name
@@ -143,10 +157,11 @@ namespace obamadb {
       Scanner scanner(file_name);
       std::vector<double> line = scanner.scanLine();
       while(line.size() > 0) {
-        DCHECK_EQ(1, line.size() % 2);
-        sparse_row.setClassification(line[0]);
+        DCHECK_EQ(1, line.size() % 2) << "encoding error in row";
+        sparse_row.setClassification(liblinearClassHelper(line[0]));
         for (int i = 1; i < line.size(); i+=2) {
-          sparse_row.push_back(line[i], line[i+1]);
+          DCHECK_EQ(line[i], floor(line[i])) << "non-integral index";
+          sparse_row.push_back((int) line[i], (num_t) line[i+1]);
         }
         insertHelper(block, sparse_row);
         sparse_row.clear();
