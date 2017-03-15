@@ -6,6 +6,8 @@
 #include "storage/MLTask.h"
 #include "storage/SVMTask.h"
 #include "storage/tests/StorageTestHelpers.h"
+#include "utils/LogUtils.h"
+#include "utils/ValidationUtils.h"
 
 #include <algorithm>
 #include <gflags/gflags.h>
@@ -13,14 +15,6 @@
 #include <unistd.h>
 #include <vector>
 
-static bool ValidateThreads(const char* flagname, std::int64_t value) {
-  int const max = 256;
-  if (value > 0 && value <= max) {
-    return true;
-  }
-  printf("The number of threads should be between 0 and %d\n", max);
-  return false;
-}
 DEFINE_int64(threads, 1, "The number of threads the system will use to run the machine learning algorithm");
 DEFINE_validator(threads, &ValidateThreads);
 
@@ -29,18 +23,6 @@ DEFINE_bool(measure_convergence, false, "If true, an observer thread will collec
 
 DEFINE_bool(liblinear, false, "If true, the dataset will be loaded as a liblinear-format dataset.");
 
-static bool ValidateAlgorithm(const char* flagname, std::string const & value) {
-  std::vector<std::string> valid_algorithms = {"svm", "mc"};
-  if (std::find(valid_algorithms.begin(), valid_algorithms.end(), value) != valid_algorithms.end()) {
-    return true;
-  } else {
-    printf("Invalid algorithm choice. Choices are:\n");
-    for (std::string& alg : valid_algorithms) {
-      printf("\t%s\n", alg.c_str());
-    }
-    return false;
-  }
-}
 DEFINE_string(algorithm, "svm", "The machine learning algorithm to use. Select one of [svm, mc].");
 DEFINE_validator(algorithm, &ValidateAlgorithm);
 
@@ -60,10 +42,6 @@ DEFINE_string(core_affinities, "-1", "A comma separated list of cores to have th
 
 DEFINE_int64(rank, 10, "The rank of the LR factoring matrices used in Matrix Completion");
 
-
-#define VPRINT(str) { if(FLAGS_verbose) { printf(str); } }
-#define VPRINTF(str, ...) { if(FLAGS_verbose) { printf(str, __VA_ARGS__); } }
-#define VSTREAM(obj) {if(FLAGS_verbose){ std::cout << obj <<std::endl; }}
 
 namespace obamadb {
 
