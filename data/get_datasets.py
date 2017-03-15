@@ -59,20 +59,43 @@ def get():
     else:
       print "Found a file containing the name {}, not attempting to download data set".format(ds_name)
 
-def svmTest(filename):
-  out_name = filename + ".out"
+DEFAULT_ARGS = {
+  "algorithm":"svm",
+  "num_epochs":"50",
+  "num_trials":"10",
+  "threads":"4",
+  "train_file":"",
+  "verbose":"true"
+}
+
+VALID_ARGS = ["algorithm","core_affinities","measure_convergence","num_epochs",
+              "num_trials","rank","test_file","threads","train_file","verbose"]
+
+def arg_str(**kwargs):
+  # Gets an argument string which can be passed to obamadb
+  # kwargs have key of the corresponding argument
+  #
+  args = ""
+  for arg in kwargs.keys():
+    if arg not in VALID_ARGS:
+      print("argument {} not recognized!".format(arg))
+      exit(-1)
+    else:
+      args += " -{}={}".format(arg, kwargs[arg])
+  for arg in DEFAULT_ARGS.keys():
+    if arg not in kwargs:
+      args += " -{}={}".format(arg, DEFAULT_ARGS[arg])
+  return args
+
+
+def svmTest(filename, **kwargs):
+  out_name = filename + "." + "-".join([str(k) + "=" + str(v) for k, v in kwargs.items()]) + ".out"
   out_file = open(out_name, 'w')
-  cmd = ["../build/obamadb_main",
-         " -train_file=", filename,
-         " -algorithm=", "svm",
-         " -num_epochs=", "50",
-         " -num_trials=", "10",
-         " -threads=", "2"
-         " -verbose=", "true"
-         ]
+  kwargs['train_file'] = filename
+  cmd = "../build/obamadb_main " + arg_str(**kwargs)
   rc = -1
   try:
-    rc = sp.call("".join(cmd), stdout=out_file, shell=True)
+    rc = sp.call(cmd, stdout=out_file, shell=True)
   except Exception as e:
     print "{} test excepted: {}".format(filename, e)
   out_file.close()
@@ -84,8 +107,9 @@ def test():
   for dataset in datasets.keys():
     fname = dataset + ".data"
     if os.path.isfile(fname):
-      if svmTest(fname) != 0:
-        print "{} test failed".format(dataset)
+      for thread in [1,2,4,8,10]:
+        if svmTest(fname, threads=str(thread)) != 0:
+          print "{} test failed".format(dataset)
 
 
 def main():
