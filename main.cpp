@@ -5,7 +5,6 @@
 #include "storage/MCTask.h"
 #include "storage/MLTask.h"
 #include "storage/SVMTask.h"
-#include "storage/tests/StorageTestHelpers.h"
 #include "utils/LogUtils.h"
 #include "utils/ValidationUtils.h"
 
@@ -20,8 +19,6 @@ DEFINE_validator(threads, &ValidateThreads);
 
 DEFINE_bool(measure_convergence, false, "If true, an observer thread will collect copies of the model"
   " as the algorithm does its first iteration. Useful for the SVM.");
-
-DEFINE_bool(liblinear, false, "If true, the dataset will be loaded as a liblinear-format dataset.");
 
 DEFINE_string(algorithm, "svm", "The machine learning algorithm to use. Select one of [svm, mc].");
 DEFINE_validator(algorithm, &ValidateAlgorithm);

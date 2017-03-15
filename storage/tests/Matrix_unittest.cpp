@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+
 #include "storage/DataBlock.h"
 #include "storage/exvector.h"
 #include "storage/IO.h"
@@ -6,13 +7,8 @@
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
 
-#include "storage/tests/StorageTestHelpers.h"
-
 #include <cstdlib>
 #include <memory>
-
-DEFINE_string(core_affinities, "-1", "");
-DEFINE_bool(liblinear, false, "");
 
 namespace obamadb {
 

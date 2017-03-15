@@ -5,8 +5,6 @@
 #include "storage/IO.h"
 #include "storage/Utils.h"
 
-#include "storage/tests/StorageTestHelpers.h"
-
 #include <memory>
 
 namespace obamadb {

@@ -40,9 +40,6 @@ add_library(obamadb_storage_UnorderedMatrix
 add_library(obamadb_storage_Utils
         Utils.cpp
         Utils.h)
-add_library(obamadb_storage_tests_StorageTestHelpers
-        "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestHelpers.h")
 
 target_link_libraries(obamadb_storage_DataBlock
         glog
@@ -113,8 +110,6 @@ target_link_libraries(obamadb_storage_UnorderedMatrix
 target_link_libraries(obamadb_storage_Utils
         glog
         gflags)
-target_link_libraries(obamadb_storage_tests_StorageTestHelpers
-        glog)
 
 add_executable(DenseDataBlock_unittest
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/DenseDataBlock_unittest.cpp")
@@ -125,7 +120,6 @@ target_link_libraries(DenseDataBlock_unittest
         obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_Utils
-        obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
 add_test(DenseDataBlock_unittest DenseDataBlock_unittest)
 
@@ -139,7 +133,6 @@ target_link_libraries(IO_unittest
         obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_SparseDataBlock
-        obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
 add_test(IO_unittest IO_unittest)
 
@@ -154,7 +147,6 @@ target_link_libraries(Matrix_unittest
         obamadb_storage_Matrix
         obamadb_storage_SparseDataBlock
         obamadb_storage_Utils
-        obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
 add_test(Matrix_unittest Matrix_unittest)
 
@@ -167,7 +159,6 @@ target_link_libraries(SparseDataBlock_unittest
         obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_Utils
-        obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
 add_test(SparseDataBlock_unittest SparseDataBlock_unittest)
 
@@ -180,7 +171,6 @@ target_link_libraries(Utils_unittest
         obamadb_storage_exvector
         obamadb_storage_IO
         obamadb_storage_Utils
-        obamadb_storage_tests_StorageTestHelpers
         ${LIBS})
 add_test(Utils_unittest Utils_unittest)
 
