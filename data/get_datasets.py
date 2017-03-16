@@ -7,10 +7,10 @@ import sys
 # Assumes datasets are all in bz2 format
 datasets = {
   "news20":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/news20.binary.bz2",
-#  "covtype":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/covtype.libsvm.binary.scale.bz2",
-#  "webspam":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/webspam_wc_normalized_trigram.svm.bz2",
-#  "rcv1":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/rcv1_test.binary.bz2",
-#  "elipson":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/epsilon_normalized.bz2"
+  "covtype":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/covtype.libsvm.binary.scale.bz2",
+  "webspam":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/webspam_wc_normalized_trigram.svm.bz2",
+  "rcv1":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/rcv1_test.binary.bz2",
+  "epsilon":"https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/epsilon_normalized.bz2"
 }
 
 def file_in_list(file, file_list):
@@ -40,7 +40,10 @@ def unzip(f_name):
   return rc
 
 def usage():
-  print("usage: {} [get|test]".format(sys.argv[0]))
+  print("usage: {} [get|test|parse]".format(sys.argv[0]))
+  print("\tget: downloads datasets")
+  print("\ttest: looks for downloaded datasets and runs a speedup test")
+  print("\tparse: parses the output files from the speedup test and summarizes them")
   exit(0)
 
 def get():
@@ -103,14 +106,65 @@ def svmTest(filename, **kwargs):
     print "command was: {}".format("".join(cmd))
   return rc
 
+def find_data_file(data_set):
+  working_files = [f for f in os.listdir('.') if os.path.isfile(f)]
+  for f in working_files:
+    if data_set in f.split('.')[0] and f.endswith('.data'):
+      return f
+  return ""
+
 def test():
+  # Looks through all of the datasets in the datasets map and
+  # tests them with obamadb and the given params
+  #
   for dataset in datasets.keys():
-    fname = dataset + ".data"
-    if os.path.isfile(fname):
+    fname = find_data_file(dataset)
+    if fname != "":
       for thread in [1,2,4,8,10]:
         if svmTest(fname, threads=str(thread)) != 0:
           print "{} test failed".format(dataset)
+    else:
+      print("did not find data file for {}".format(dataset))
 
+def parse_file(f):
+  # we expect the files to look like dataname.data.properties.out
+  #
+  trial_summary = {}
+  fsplit = f.split('.')
+  trial_summary['dataset'] = fsplit[0]
+  props = fsplit[2].split('-')
+  for prop in props:
+    psplit = prop.split('=')
+    trial_summary[psplit[0]] = psplit[1]
+
+  with open(f, 'r') as fh:
+    lines = fh.read().split('\n')
+    keys = lines[-3].split(',')
+    values = lines[-2].split(',')
+    for i in range(len(keys)):
+      trial_summary[keys[i]] = values[i]
+
+  return trial_summary
+
+def parse():
+  # Looks for all the .out files. Grabs their summary line, aggregates these and
+  # prints the results
+  #
+  working_files = [f for f in os.listdir('.') if os.path.isfile(f)]
+  summaries = []
+  for f in working_files:
+    if f.endswith("out"):
+      try:
+        summaries.append(parse_file(f))
+      except Exception as e:
+        print "failed to read file {} : {}".format(f,e)
+  keys = ['dataset', 'threads','mean', 'variance', 'stddev']
+  print ",".join(keys)
+  for s in summaries:
+    sstr = ""
+    for k in keys:
+      sstr += "," if k not in s else s[k] + ","
+    print sstr[:-1]
 
 def main():
   if len(sys.argv) != 2:
@@ -121,6 +175,8 @@ def main():
     get()
   elif "test" == cmd:
     test()
+  elif "parse" == cmd:
+    parse()
   else:
     usage()
 
