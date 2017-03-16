@@ -65,27 +65,67 @@ namespace obamadb {
      */
     Matrix* sample(float percent) const {
       std::vector<SparseDataBlock<num_t> *> blocks;
-      int rows_per_block = percent * (static_cast<float>(numRows_)/this->blocks_.size());
+      int const expected_sample = static_cast<int>(percent * static_cast<float>(numRows_));
+      int total_sampled = 0;
+      int rows_per_block = static_cast<int>((percent * static_cast<float>(numRows_)) / this->blocks_.size());
+      int max_feat_idx = 0;
       DCHECK_GT(rows_per_block, 0);
-      auto insertInto = [&](svector<num_t> const & src,
-                            SparseDataBlock<num_t> * &dst) {
+
+      // Helper function to insert into a storage block.
+      auto insertInto = [&blocks, &max_feat_idx](svector<num_t> const & src,
+                                                 SparseDataBlock<num_t> * &dst) {
+        if (max_feat_idx < src.index_[src.num_elements_ - 1]) {
+          max_feat_idx = src.index_[src.num_elements_ - 1];
+        }
         if (!dst->appendRow(src)) {
           blocks.push_back(dst);
           dst = new SparseDataBlock<num_t>();
           CHECK(dst->appendRow(src));
         }
       };
-      svector<num_t> rand_row;
+
+      // sample evenly across the blocks.
+      svector<num_t> rand_row(0, nullptr);
       SparseDataBlock<num_t> * curr_block = new SparseDataBlock<num_t>();
       for(auto & block : this->blocks_) {
         for (int row = 0; row < rows_per_block; row++) {
           int rrow = rand() % block->num_rows_;
-          block->getRowVector(rrow, &rand_row);
+          block->getRowVectorFast(rrow, &rand_row);
           insertInto(rand_row, curr_block);
+          total_sampled++;
+        }
+      }
+
+      // cap off the sample to remove rounding error
+      while (total_sampled < expected_sample) {
+        int rblock = static_cast<int>(rand() % blocks_.size());
+        auto & block = this->blocks_[rblock];
+        int rrow = rand() % block->num_rows_;
+        block->getRowVectorFast(rrow, &rand_row);
+        insertInto(rand_row, curr_block);
+        total_sampled++;
+      }
+
+      // finally, ensure that the 2 matrices will have the same dimensions
+      bool max_found = max_feat_idx == this->numColumns_;
+      if (!max_found) {
+        for(auto & block : this->blocks_) {
+          for (int row = 0; row < block->num_rows_ && !max_found; row++) {
+            block->getRowVectorFast(row, &rand_row);
+            if (rand_row.index_[rand_row.num_elements_ - 1] == this->numColumns_ - 1) {
+              insertInto(rand_row, curr_block);
+              total_sampled++;
+              max_found = true;
+            }
+          }
+          if (max_found)
+            break;
         }
       }
       blocks.push_back(curr_block);
-      return new Matrix(blocks);
+      Matrix* matrix = new Matrix(blocks);
+      CHECK_EQ(matrix->numColumns_, this->numColumns_);
+      return matrix;
     }
 
     /**
