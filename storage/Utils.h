@@ -130,33 +130,60 @@ namespace obamadb {
     double readDouble() {
       scanToDouble();
       double value = 0;
-      bool decimal = false;
-      int decimal_places = 0;
-      bool negative = false;
       char c = *scan_ptr_;
       DCHECK(isDecimalChar(c)) << "no double available for scan.";
-      while (isDecimalChar(c)) {
-        if (c == '-') {
-          DCHECK_EQ(negative, false);
-          negative = true;
-        } else if (c == '+') {
-          DCHECK_EQ(negative, false);
-        } else if (c == '.') {
-          DCHECK_EQ(decimal, false);
-          decimal = true;
-        } else {
-          char val = c - 48;
-          DCHECK_LT(val, 10);
-          value *= 10;
-          value += val;
-          decimal_places += decimal;
-        }
-        c = nextChar();
+      value = readInt<false>();
+      if (*scan_ptr_ == '.') {
+        nextChar();
+        value += (std::signbit(value) == 0 ? 1 : -1) * readInt<true>();
       }
-      value = value / pow(10,decimal_places);
-      if (negative)
-        value *= -1;
+      if (*scan_ptr_ == 'e' || *scan_ptr_ == 'E') {
+        nextChar();
+        double exp = readInt<false>();
+        value = std::pow(10, exp) * value;
+      }
       return value;
+    }
+
+    /**
+     * Reads an integer. scan_ptr must begin on an integer character [0-9]+|-. Advances
+     * the scan_ptr_ until a non-integer character is reached.
+     * @tparam DECIMAL If the returned value should be as the decimal part of a fractional
+     *                 number.
+     */
+    template<bool DECIMAL = false>
+    double readInt() {
+      double value = 0;
+      int chars_read = 0;
+      bool negative;
+      if (!DECIMAL)
+        negative = isNegative();
+      while (isIntChar(*scan_ptr_)) {
+        value *= 10;
+        value += *scan_ptr_ - 48;
+        chars_read++;
+        nextChar();
+      }
+      if (DECIMAL) {
+        return value / std::pow(10, chars_read);
+      } else {
+        value *= negative ? -1 : 1;
+        return value;
+      }
+    }
+
+    /**
+     * Advances the scan_ptr if the current scan_ptr is -|+.
+     * To be called when starting to scan a decimal.
+     * @return True if the scan_ptr is '-', false otherwise
+     */
+    bool isNegative() {
+      char c = *scan_ptr_;
+      if (c == '-' || c == '+'){
+        nextChar();
+        return c == '-';
+      }
+      return false;
     }
 
     char nextChar() {
@@ -177,11 +204,17 @@ namespace obamadb {
       }
     }
 
+    inline bool isIntChar(char c) {
+      return (c >= 48 && c < 58);
+    }
+
     inline bool isDecimalChar(char c) {
-      return (c >= 48 && c < 58) ||
+      return isIntChar(c) ||
              (c == '.') ||
              (c == '-') ||
-             (c == '+');
+             (c == '+') ||
+             (c == 'e') ||
+             (c == 'E');
     }
 
     /**

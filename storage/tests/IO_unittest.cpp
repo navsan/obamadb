@@ -43,8 +43,21 @@ namespace obamadb {
         ASSERT_NE(nullptr, actual);
         EXPECT_NEAR(*actual, expected, 0.001);
       }
-
     }
+  }
+
+  TEST(IOTest, TestScanDoubles) {
+    Scanner scanner("doubles.dat");
+    int rows = 0;
+    while (true) {
+      std::vector<double> row = scanner.scanLine();
+      if (row.size() == 0)
+        break;
+      rows++;
+      ASSERT_EQ(2, row.size());
+      EXPECT_NEAR(row[0], row[1], 1e-6);
+    }
+    ASSERT_EQ(4, rows);
   }
 }
 
