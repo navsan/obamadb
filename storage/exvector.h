@@ -2,6 +2,7 @@
 #define OBAMADB_EXVECTOR_H
 
 #include <cstring>
+#include <iostream>
 
 #include "glog/logging.h"
 
@@ -359,6 +360,18 @@ namespace obamadb {
 
     exvectorType getType() const {
       return exvectorType::kSparse;
+    }
+
+    void sortIndexes() {
+      std::sort(index_, index_ + num_elements_);
+    }
+
+    void print() {
+      std::cout << "Row: num elements " << num_elements_ << "\n";
+      for (int i = 0; i < num_elements_; ++i) {
+        std::cout << " [" << index_[i] << "] " << values_[i];
+      }
+      std::cout << "\n";
     }
 
     int *index_;

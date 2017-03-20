@@ -11,9 +11,10 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <iomanip>
 #include <iostream>
-#include <functional>
+#include <random>
 
 #include <glog/logging.h>
 
@@ -70,27 +71,38 @@ namespace obamadb {
         entries_(reinterpret_cast<SDBEntry *>(this->store_)),
         heap_offset_(0),
         end_of_block_(reinterpret_cast<char *>(this->store_) + size_bytes) {
-      svector<num_t> row_vector;
-      double avgElementsPerRow = (1.0 - sparsity) * numColumns;
-      int elementWindowSize = std::ceil((double) numColumns / avgElementsPerRow);
-      int elementWindows = std::ceil(avgElementsPerRow);
       num_t positive = 1.0;
       num_t negative = -1.0;
+      unsigned int seed = static_cast<unsigned int>(time(NULL));
+      std::default_random_engine rng(seed);
+      std::binomial_distribution<int> num_elems_in_row_dist(numColumns,1.0 - sparsity);
+      std::bernoulli_distribution class_dist(0.5);
+      std::uniform_int_distribution<int> index_dist(0,numColumns-1);
+      std::uniform_real_distribution<num_t> feature_dist(0.0,1.0);
+      svector<num_t> row_vector;
+      int num_elems;
       do {
         row_vector.clear();
-        bool isPositive = rand() > INT_MAX/2;
+        bool isPositive = class_dist(rng);
         row_vector.setClassification(isPositive ? &positive : &negative);
-        for (int i = 0; i < elementWindows; i++) {
-          int randi = rand() % elementWindowSize;
-          int index = (i * elementWindowSize) + randi;
-          if (index < numColumns) {
-            num_t randf = ((num_t)rand()/(num_t)INT_MAX);
-            // The data should end up being perfectly seperable.
-            if ((isPositive && index % 2 == 1)
-                || (!isPositive && index % 2 == 0)) {
-              randf *= -1;
-            }
-            row_vector.push_back(index, randf);
+
+        // Ensure that we have at least one feature in each row
+        do {
+          num_elems = num_elems_in_row_dist(rng);
+        } while(num_elems == 0);
+
+        for (int i = 0; i < num_elems; ++i) {
+          int index = index_dist(rng);
+          num_t randf = feature_dist(rng);
+          row_vector.push_back(index, randf);
+        }
+        row_vector.sortIndexes();
+        /* row_vector.print(); */
+        for (int i = 0; i < num_elems; ++i) {
+          // The data should end up being perfectly seperable.
+          if ((isPositive && row_vector.index_[i] % 2 == 1)
+              || (!isPositive && row_vector.index_[i] % 2 == 0)) {
+            row_vector.values_[i] *= -1;
           }
         }
       } while (this->appendRow(row_vector));
