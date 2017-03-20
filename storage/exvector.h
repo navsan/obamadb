@@ -1,6 +1,7 @@
 #ifndef OBAMADB_EXVECTOR_H
 #define OBAMADB_EXVECTOR_H
 
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 
