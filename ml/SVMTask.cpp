@@ -7,9 +7,9 @@
 #include "storage/SparseDataBlock.h"
 #include "storage/Utils.h"
 
-// comment this out depending on the test you are doing:
-#define USE_HINGE 0
-#define USE_SCALING 0
+// comment this out depending on the experiment you are running:
+#define APPLY_HINGE_LOSS 0
+#define APPLY_REGULARIZATION 0
 
 namespace obamadb {
 
@@ -28,7 +28,7 @@ namespace obamadb {
       num_t wxy = ml::dot(row, theta);
       wxy = wxy * y; // {-1, 1}
 
-#ifdef USE_HINGE
+#ifdef APPLY_HINGE_LOSS
       // apply the hinge function like in a normal SVM
       if (wxy < 1) {
         num_t const e = step_size * y;
@@ -48,7 +48,7 @@ namespace obamadb {
       }
 #endif
 
-#ifdef USE_SCALING
+#ifdef APPLY_REGULARIZATION
       num_t const scalar = step_size * mu;
       // scale only the values which were updated.
       for (int i = row.numElements(); i-- > 0;) {

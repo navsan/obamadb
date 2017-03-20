@@ -38,6 +38,8 @@ DEFINE_string(core_affinities, "-1", "A comma separated list of cores to have th
   " The program will greedily use core, so over specify if you like. Ex: "
   " -core_affinities 0,1,2,3 -threads 2 is valid");
 
+// DEFINE_bool(apply_hinge_loss, true, "For SVM: whether to selectively apply gradient update only for mispredictions.")
+// DEFINE_bool(apply_regularization, true, "For SVM: whether to use a regularization term in the loss function and gradient.")
 DEFINE_int64(rank, 10, "The rank of the LR factoring matrices used in Matrix Completion");
 
 

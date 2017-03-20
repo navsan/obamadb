@@ -11,7 +11,7 @@
 namespace obamadb {
 
   /**
-   * Single params shared between many SVM tasks/workers.
+   * Hyper-parameters shared between many SVM tasks/workers.
    */
   struct SVMHyperParams {
     SVMHyperParams(float mu,
@@ -82,12 +82,13 @@ namespace obamadb {
     DISABLE_COPY_AND_ASSIGN(SVMTask);
   };
 
-/**
- * Constructs the SVM to the parameters used in the HW! paper.
- * @return Caller-owned SVM params.
- */
-  template<class T>
-  SVMHyperParams *DefaultSVMHyperParams(std::vector<SparseDataBlock<T> *> &all_blocks) {
+  /**
+   * Constructs the SVM to the parameters used in the HW! paper.
+   * @return Caller-owned SVM params.
+   */
+  template <class T>
+  SVMHyperParams *DefaultSVMHyperParams(
+      std::vector<SparseDataBlock<T> *> &all_blocks) {
     SVMHyperParams *params = new SVMHyperParams(1, 0.1, 0.99);
 
     int dim = 0;
@@ -112,6 +113,6 @@ namespace obamadb {
 
     return params;
   };
-} // namespace obamadb
+  }  // namespace obamadb
 
 #endif //OBAMADB_SVMTASK_H
