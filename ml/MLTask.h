@@ -21,7 +21,18 @@ namespace obamadb {
     /**
      * Sparse dot product
      */
-    num_t dot(const svector <num_t> &v1, num_t *d2);
+    // num_t dot(const svector <num_t> &v1, num_t *d2);
+    inline num_t dot(const svector <num_t> &v1, num_t *d2) {
+      num_t sum = 0;
+      num_t const *const __restrict__ pv1 = v1.values_;
+      int const *const __restrict__ pvi1 = v1.index_;
+      num_t const *const __restrict__ pv2 = d2;
+      for (int i = 0; i < v1.numElements(); ++i) {
+        sum += pv1[i] * pv2[pvi1[i]];
+      }
+      return sum;
+    }
+
 
     void scale(dvector <num_t> &v1, num_t e);
 
@@ -32,8 +43,20 @@ namespace obamadb {
 
     /**
      * Sparse scale and add. Only updates indices present in delta.
+     * Applies delta to theta with a constant scaling parameter applied to delta.
+     * @param theta Sparse vector of weights.
+     * @param delta Sparse vector of changes.
+     * @param e Scaling constant
      */
-    void scale_and_add(num_t *theta, const svector <num_t> &delta, const num_t e);
+    inline void scale_and_add(num_t *theta, const svector<num_t> &delta, const num_t e) {
+      num_t *const __restrict__ tptr = theta;
+      num_t const *__restrict__ const vptr = delta.values_;
+      int const *__restrict__ const iptr = delta.index_;
+      for (int i = 0; i < delta.num_elements_; i++) {
+        const int idx = iptr[i];
+        tptr[idx] = tptr[idx] + (vptr[i] * e);
+      }
+    }
 
   }  // namespace ml
 

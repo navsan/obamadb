@@ -7,6 +7,7 @@
 #include "storage/StorageConstants.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 namespace obamadb {

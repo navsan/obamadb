@@ -79,7 +79,7 @@ namespace obamadb {
       CHECK_NE(fd_, -1) << "Error opening file: " << file_name;
 #ifndef __APPLE__
       // Advise the kernel of our access pattern.
-      posix_fadvise(fd, 0, 0, 1);  // FDADVICE_SEQUENTIAL
+      posix_fadvise(fd_, 0, 0, 1);  // FDADVICE_SEQUENTIAL
 #endif
       readChunk();
     }

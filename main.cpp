@@ -180,8 +180,8 @@ std::vector<double> trainSVM(Matrix* mat_train, Matrix* mat_test,
       PRINT_TIMING({mat_test.reset(IO::load(FLAGS_test_file));});
       VSTREAM(*mat_test);
     }
-    CHECK_EQ(mat_test->numColumns_, mat_train->numColumns_)
-      << "Train and Test matrices had differing number of features.";
+    //CHECK_EQ(mat_test->numColumns_, mat_train->numColumns_)
+    //  << "Train and Test matrices had differing number of features.";
 
     std::vector<double> all_epoch_times;
     for (int i = 0; i < FLAGS_num_trials; i++) {

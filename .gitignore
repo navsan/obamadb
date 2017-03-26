@@ -1,3 +1,7 @@
+scripts/r*ge
+scripts/r*runsa
+epoch_results
+
 .vscode
 build/
 compile_commands.json
