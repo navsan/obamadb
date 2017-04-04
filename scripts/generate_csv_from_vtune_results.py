@@ -144,7 +144,7 @@ def write_csv(df, output_dir):
   df.to_csv(grouped_output)
 
 def main():
-  directory = '/Users/nav/Programming/obamadb/ObamaDb-osx/repeat_n_times'
+  directory = '/Users/nav/Programming/obamadb/ObamaDb-osx/'
   #directory = '/Users/nav/Programming/obamadb/ObamaDb-osx/svm_with_scaling'
   reports_dir_name = 'reports'
   reports_dir_path = directory + '/' + reports_dir_name
