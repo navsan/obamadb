@@ -57,7 +57,7 @@ DEFINE_string(core_affinities, "-1", "A comma separated list of cores to have th
   " -core_affinities 0,1,2,3 -threads 2 is valid");
 
 DEFINE_int64(rank, 10, "The rank of the LR factoring matrices used in Matrix Completion");
-
+DEFINE_int64(num_param_values, 7, "Number of grid points in grid search for mu in SVM.");
 
 #define VPRINT(str) { if(FLAGS_verbose) { printf(str); } }
 #define VPRINTF(str, ...) { if(FLAGS_verbose) { printf(str, __VA_ARGS__); } }
@@ -279,7 +279,7 @@ namespace obamadb {
       << "Train and Test matrices had differing number of features.";
 
     // Grid search: Set up num_param_values SVM parameters in logspace(mu_min, mu_max)
-    uint64_t num_param_values = 7;
+    uint64_t num_param_values = FLAGS_num_param_values;
     std::vector<SVMParams*> params_list;
     params_list.reserve(num_param_values);
     const float mu_min = 1e-3;
