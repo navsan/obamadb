@@ -11,6 +11,7 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
+#include <cmath>
 
 static bool ValidateThreads(const char* flagname, std::int64_t value) {
   int const max = 256;
@@ -174,9 +175,8 @@ namespace obamadb {
    * @return A vector of the epoch times.
    */
   std::vector<double> trainSVM(Matrix *mat_train,
-                               Matrix *mat_test) {
-    SVMParams* svm_params = DefaultSVMParams<num_t>(mat_train->blocks_);
-    DCHECK_EQ(svm_params->degrees.size(), maxColumns(mat_train->blocks_));
+                               Matrix *mat_test,
+                               SVMParams* svm_params) {
     fvector sharedTheta = fvector::GetRandomFVector(mat_train->numColumns_);
 
     // Arguments to the thread pool.
@@ -278,29 +278,48 @@ namespace obamadb {
     CHECK_EQ(mat_test->numColumns_, mat_train->numColumns_)
       << "Train and Test matrices had differing number of features.";
 
-    std::vector<double> all_epoch_times;
-    for (int i = 0; i < FLAGS_num_trials; i++) {
-      std::vector<double> times = trainSVM(mat_train.get(), mat_test.get());
-      all_epoch_times.insert(all_epoch_times.end(), times.begin(), times.end());
-
-      if (FLAGS_num_trials != i -1) {
-        usleep(1e7);
-      }
+    // Grid search: Set up num_param_values SVM parameters in logspace(mu_min, mu_max)
+    uint64_t num_param_values = 7;
+    std::vector<SVMParams*> params_list;
+    params_list.reserve(num_param_values);
+    const float mu_min = 1e-3;
+    const float mu_max = 1e3;
+    const float mu_factor = std::pow(mu_max / mu_min, 1.0/(num_param_values-1));
+    for (int p = 0; p < num_param_values; ++p) {
+      SVMParams* params = DefaultSVMParams<num_t>(mat_train->blocks_);
+      DCHECK_EQ(params->degrees.size(), maxColumns(mat_train->blocks_));
+      params->mu = mu_min * std::pow(mu_factor, p);
+      params_list.push_back(params);
     }
+    
+    for (int p = 0; p < num_param_values; ++p) {
+      std::vector<double> all_epoch_times;
+      SVMParams* svm_params = params_list[p]; 
+      std::cout << "Running SVM training with mu = " << svm_params->mu << std::endl;
+      for (int i = 0; i < FLAGS_num_trials; i++) {
+        std::vector<double> times = trainSVM(mat_train.get(), mat_test.get(), svm_params);
+        all_epoch_times.insert(all_epoch_times.end(), times.begin(), times.end());
 
-    // calculate variance, etc.
-    if (FLAGS_verbose) {
-      printf("epoch runtimes:\n");
-      for (double time : all_epoch_times) {
-        printf("%f\n", time);
+        if (FLAGS_num_trials != i -1) {
+          usleep(1e7);
+        }
       }
-    }
 
-    printf("epoch runtime summary:\nmean,variance,stddev,stderr\n%f,%f,%f,%f\n",
-           stats::mean<double>(all_epoch_times),
-           stats::variance<double>(all_epoch_times),
-           stats::stddev<double>(all_epoch_times),
-           stats::stderr<double>(all_epoch_times));
+      // calculate variance, etc.
+      if (FLAGS_verbose) {
+        printf("epoch runtimes:\n");
+        for (double time : all_epoch_times) {
+          printf("%f\n", time);
+        }
+      }
+
+      printf("epoch runtime summary:\nmu, mean,variance,stddev,stderr\n%f,%f,%f,%f,%f\n\n",
+            svm_params->mu,
+            stats::mean<double>(all_epoch_times),
+            stats::variance<double>(all_epoch_times),
+            stats::stddev<double>(all_epoch_times),
+            stats::stderr<double>(all_epoch_times));
+    }
   }
 
   void printMCEpochStats(int epoch, double time, MCState const * state, UnorderedMatrix const * probe_mat) {
