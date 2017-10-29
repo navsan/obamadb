@@ -49,3 +49,17 @@ target_link_libraries(obamadb_main
         obamadb_storage_MCTask
         obamadb_storage_MLTask
         obamadb_storage_SVMTask)
+
+add_executable(grid_search grid_search.cpp)
+target_link_libraries(grid_search
+        glog
+        gflags
+        obamadb_storage_DataBlock
+        obamadb_storage_DataView
+        obamadb_storage_IO
+        obamadb_storage_SparseDataBlock
+        obamadb_storage_StorageConstants
+        obamadb_storage_ThreadPool
+        obamadb_storage_MCTask
+        obamadb_storage_MLTask
+        obamadb_storage_SVMTask)

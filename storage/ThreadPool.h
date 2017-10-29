@@ -22,10 +22,8 @@
 DECLARE_string(core_affinities);
 
 namespace obamadb {
-
   // Keep the threading mac-compadible.
   namespace threading {
-
     class barrier_t {
     public:
       barrier_t(int totalWaiters)
@@ -83,8 +81,13 @@ namespace obamadb {
 #endif
    }
 
-    static int NumThreadsAffinitized;
-    static std::vector<int> CoreAffinities;
+    // static int NumThreadsAffinitized;
+    // Core affinities for Cloudlab box
+    static std::vector<int> CoreAffinities { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,  // Socket 1, Thread 1
+                                            20,21,22,23,24,25,26,27,28,29,  // Socket 1, Thread 2
+                                            10,11,12,13,14,15,16,17,18,19,  // Socket 2, Thread 1
+                                            30,31,32,33,34,35,36,37,38,39}; // Socket 2, Thread 2
+;
 
     /**
      * Choose the optimal core. This is experimental. In the future we should get this automatically from
@@ -102,19 +105,22 @@ namespace obamadb {
  * Information relating to the running state of a thread.
  */
 struct ThreadMeta {
-  ThreadMeta(int thread_id,
+  ThreadMeta(int worker_id,
+             int core_id,
              threading::barrier_t *barrier1,
              threading::barrier_t *barrier2,
              std::function<void(int, void*)> task_fn,
              void* state) :
-    thread_id(thread_id),
+    worker_id(worker_id),
+    core_id(core_id),
     barrier1(barrier1),
     barrier2(barrier2),
     fn_execute_(task_fn),
     state_(state),
     stop(false) {}
 
-  int thread_id;
+  int worker_id;
+  int core_id;
 
   threading::barrier_t *barrier1;
   threading::barrier_t *barrier2;
@@ -134,7 +140,8 @@ void* WorkerLoop(void *worker_params);
 class ThreadPool {
 public:
   ThreadPool(std::vector<std::function<void(int, void*)>> const & thread_fns,
-             const std::vector<void*> &thread_states)
+             const std::vector<void*> &thread_states,
+             int starting_worker_id_for_core_assignment = 0)
     : meta_info_(),
       threads_(),
       num_workers_(thread_states.size()),
@@ -142,7 +149,9 @@ public:
       b2_(new threading::barrier_t(num_workers_ + 1))
   {
     for (int i = 0; i < thread_states.size(); ++i) {
-      meta_info_.push_back(ThreadMeta(i, b1_, b2_, thread_fns[i], thread_states[i]));
+      DCHECK_LT(starting_worker_id_for_core_assignment + i, threading::CoreAffinities.size());
+      int core_id = threading::CoreAffinities[starting_worker_id_for_core_assignment + i];
+      meta_info_.push_back(ThreadMeta(i, core_id, b1_, b2_, thread_fns[i], thread_states[i]));
     }
   }
 
@@ -150,7 +159,7 @@ public:
    * ctor
    *
    * Every thread will be given the same state. Useful in situations
-   * where the thread_id passed to thread_fn determines the allotment of
+   * where the worker_id passed to thread_fn determines the allotment of
    * data amonst the threads.
    *
    * @param thread_fn Function which thread will execute. The int param will the the thread id
@@ -159,7 +168,8 @@ public:
    */
   ThreadPool(std::function<void(int, void*)> thread_fn,
              void* shared_thread_state,
-             int num_threads)
+             int num_threads,
+             int starting_worker_id_for_core_assignment = 0)
     : meta_info_(),
       threads_(),
       num_workers_(num_threads),
@@ -167,7 +177,9 @@ public:
       b2_(new threading::barrier_t(num_workers_ + 1))
   {
     for (int i = 0; i < num_workers_; ++i) {
-      meta_info_.push_back(ThreadMeta(i, b1_, b2_, thread_fn, shared_thread_state));
+      DCHECK_LT(starting_worker_id_for_core_assignment + i, threading::CoreAffinities.size());
+      int core_id = threading::CoreAffinities[starting_worker_id_for_core_assignment + i];
+      meta_info_.push_back(ThreadMeta(i, core_id, b1_, b2_, thread_fn, shared_thread_state));
     }
   }
 
